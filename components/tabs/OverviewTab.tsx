@@ -4,7 +4,7 @@
 
 import { useMemo } from "react";
 import type { Deal, ClosedWonDeal, EmailSignalMap, ClosePlanMap, Assumptions } from "@/types/deals";
-import { STAGE_COLORS, ownerName, fmtDate, fmtCur, daysSince, weightedPipeline, UNRESOLVED_OWNER_IDS } from "@/lib/deals";
+import { stageColor, ownerName, fmtDate, fmtCur, daysSince, weightedPipeline, UNRESOLVED_OWNER_IDS } from "@/lib/deals";
 import { deriveTargets } from "@/lib/assumptions";
 import { getSignsOfLife, getNeedsActionAlerts, opensColor } from "@/lib/flags";
 import { TH, TD, TableCard, TableCardHeader } from "@/components/Table";
@@ -53,10 +53,10 @@ export default function OverviewTab({
   const propAmt  = proposal.reduce((s, d) => s + (d.amount || 0), 0);
 
   const tiles = [
-    { key: "legal" as TabId,     label: "Legal / Procurement",    count: legal.length,    amount: legalAmt, newW: newLegalW, newQ: newLegalQ, target: legalTarget, color: STAGE_COLORS.legal },
-    { key: "proposal" as TabId,  label: "Proposal / Negotiation", count: proposal.length, amount: propAmt,  newW: newPropW,  newQ: newPropQ,  target: propTarget,  color: STAGE_COLORS.proposal },
-    { key: "demo" as TabId,      label: "Meeting / Demo",         count: demo.length,     amount: null,     newW: newDemoW,  newQ: newDemoQ,  target: demoTarget,  color: STAGE_COLORS.demo },
-    { key: "discovery" as TabId, label: "Discovery",              count: discovery.length,amount: null,     newW: newDiscW,  newQ: newDiscQ,  target: discTarget,  color: STAGE_COLORS.disc },
+    { key: "legal" as TabId,     label: "Legal / Procurement",    count: legal.length,    amount: legalAmt, newW: newLegalW, newQ: newLegalQ, target: legalTarget, color: stageColor("1446534336") },
+    { key: "proposal" as TabId,  label: "Proposal / Negotiation", count: proposal.length, amount: propAmt,  newW: newPropW,  newQ: newPropQ,  target: propTarget,  color: stageColor("contractsent") },
+    { key: "demo" as TabId,      label: "Meeting / Demo",         count: demo.length,     amount: null,     newW: newDemoW,  newQ: newDemoQ,  target: demoTarget,  color: stageColor("qualifiedtobuy") },
+    { key: "discovery" as TabId, label: "Discovery",              count: discovery.length,amount: null,     newW: newDiscW,  newQ: newDiscQ,  target: discTarget,  color: stageColor("appointmentscheduled") },
   ];
 
   const solRows  = useMemo(() => getSignsOfLife(allActive, emailSignals, now), [allActive, emailSignals, now]);
