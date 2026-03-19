@@ -34,20 +34,24 @@ export default function OverviewTab({
   const derived = deriveTargets(assumptions);
   const { legalTarget, propTarget, demoTarget, discTarget } = derived;
 
-  const allActive = [...legal, ...proposal, ...demo, ...discovery];
-  const wp = weightedPipeline(allActive);
+  const wp = weightedPipeline(allDeals);
   const closedWonTotal = closedWon.reduce((s, d) => s + d.amount, 0);
   const QUARTERLY_TARGET = 600000;
 
-  // New counts
-  const newLegalW  = legal.filter(d => new Date(d.entered_legal    || d.entered_current || "") >= weekAgo).length;
-  const newLegalQ  = legal.filter(d => new Date(d.entered_legal    || d.entered_current || "") >= qStart).length;
-  const newPropW   = proposal.filter(d => new Date(d.entered_proposal || d.entered_current || "") >= weekAgo).length;
-  const newPropQ   = proposal.filter(d => new Date(d.entered_proposal || d.entered_current || "") >= qStart).length;
-  const newDemoW   = demo.filter(d => { const e = new Date(d.entered_current || ""); return e >= weekAgo && e <= now; }).length;
-  const newDemoQ   = demo.filter(d => { const e = new Date(d.entered_current || ""); return e >= qStart && e <= now; }).length;
-  const newDiscW   = discovery.filter(d => d.new_genuine && new Date(d.entered_current || "") >= weekAgo).length;
-  const newDiscQ   = discovery.filter(d => d.new_genuine && new Date(d.entered_current || "") >= qStart).length;
+  // New counts — use stage entry timestamps across ALL active deals, not just
+  // deals currently sitting in that stage. A deal that passed through Discovery
+  // and is now in Demo still counts toward Discovery's "entered this quarter".
+  const allDeals = [...legal, ...proposal, ...demo, ...discovery];
+
+  const newLegalW = allDeals.filter(d => d.entered_legal    && new Date(d.entered_legal)    >= weekAgo).length;
+  const newLegalQ = allDeals.filter(d => d.entered_legal    && new Date(d.entered_legal)    >= qStart).length;
+  const newPropW  = allDeals.filter(d => d.entered_proposal && new Date(d.entered_proposal) >= weekAgo).length;
+  const newPropQ  = allDeals.filter(d => d.entered_proposal && new Date(d.entered_proposal) >= qStart).length;
+  const newDemoW  = allDeals.filter(d => d.entered_demo     && new Date(d.entered_demo)     >= weekAgo).length;
+  const newDemoQ  = allDeals.filter(d => d.entered_demo     && new Date(d.entered_demo)     >= qStart).length;
+  // Discovery: only count genuinely new deals (no prior demo/proposal/legal history)
+  const newDiscW  = allDeals.filter(d => d.new_genuine && d.entered_discovery && new Date(d.entered_discovery) >= weekAgo).length;
+  const newDiscQ  = allDeals.filter(d => d.new_genuine && d.entered_discovery && new Date(d.entered_discovery) >= qStart).length;
 
   const legalAmt = legal.reduce((s, d) => s + (d.amount || 0), 0);
   const propAmt  = proposal.reduce((s, d) => s + (d.amount || 0), 0);
@@ -59,7 +63,7 @@ export default function OverviewTab({
     { key: "discovery" as TabId, label: "Discovery",              count: discovery.length,amount: null,     newW: newDiscW,  newQ: newDiscQ,  target: discTarget,  color: stageColor("appointmentscheduled") },
   ];
 
-  const solRows  = useMemo(() => getSignsOfLife(allActive, emailSignals, now), [allActive, emailSignals, now]);
+  const solRows  = useMemo(() => getSignsOfLife(allDeals, emailSignals, now), [allDeals, emailSignals, now]);
   const naAlerts = useMemo(() => getNeedsActionAlerts([...legal, ...proposal, ...demo], closePlans, now), [legal, proposal, demo, closePlans, now]);
 
   return (
