@@ -34,14 +34,10 @@ export default function OverviewTab({
   const derived = deriveTargets(assumptions);
   const { legalTarget, propTarget, demoTarget, discTarget } = derived;
 
+  const allDeals = [...legal, ...proposal, ...demo, ...discovery];
   const wp = weightedPipeline(allDeals);
   const closedWonTotal = closedWon.reduce((s, d) => s + d.amount, 0);
   const QUARTERLY_TARGET = 600000;
-
-  // New counts — use stage entry timestamps across ALL active deals, not just
-  // deals currently sitting in that stage. A deal that passed through Discovery
-  // and is now in Demo still counts toward Discovery's "entered this quarter".
-  const allDeals = [...legal, ...proposal, ...demo, ...discovery];
 
   const newLegalW = allDeals.filter(d => d.entered_legal    && new Date(d.entered_legal)    >= weekAgo).length;
   const newLegalQ = allDeals.filter(d => d.entered_legal    && new Date(d.entered_legal)    >= qStart).length;
