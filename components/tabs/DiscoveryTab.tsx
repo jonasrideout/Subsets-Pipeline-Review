@@ -8,7 +8,7 @@ import { ownerName, fmtDate, daysSince, NB_CHANNELS, UNRESOLVED_OWNER_IDS, earli
 import { deriveTargets } from "@/lib/assumptions";
 import { isNewGenuine, isStale } from "@/lib/flags";
 import { TH, TD, TableCard } from "@/components/Table";
-import { FlagBadge, NewQBadge, StaleBadge, UnresolvedOwnerBadge } from "@/components/Badges";
+import { NewQBadge, StaleBadge, UnresolvedOwnerBadge } from "@/components/Badges";
 import DealLink from "@/components/DealLink";
 import PacingTable from "@/components/PacingTable";
 import StatCard from "@/components/StatCard";
@@ -21,6 +21,7 @@ interface DiscoveryTabProps {
   now: Date;
   weekAgo: Date;
   qStart: Date;
+  counts: { discNewW: number; discNewQ: number; };
 }
 
 export default function DiscoveryTab({
@@ -31,27 +32,26 @@ export default function DiscoveryTab({
   const [saving, setSaving]   = useState(false);
 
   const derived     = deriveTargets(assumptions);
-  const { expansionQTarget, nbTargets } = derived;
+  const { expansionQTarget, nbTargets, channelQTargets } = derived;
+  const discQTarget = Object.values(channelQTargets).reduce((s, v) => s + v, 0);
 
-  const sorted      = [...deals].sort((a, b) =>
+  const sorted     = [...deals].sort((a, b) =>
     new Date(b.entered_current || "").getTime() - new Date(a.entered_current || "").getTime()
   );
   const staleCount  = deals.filter(d => isStale(d, now)).length;
   const { discNewW: newThisWeek, discNewQ: newThisQ } = counts;
 
-  // Pacing actuals — new_genuine deals per channel where earliest stage entry is this quarter
+  // Pacing actuals — deals per channel where earliest stage entry is this quarter
   const nbActuals: Record<string, number> = {};
   for (const ch of [...NB_CHANNELS]) {
     nbActuals[ch] = allActive.filter(d => {
       if (d.channel !== ch) return false;
-      if (!d.new_genuine) return false;
       const earliest = earliestStageEntry(d);
       return earliest ? new Date(earliest) >= qStart : false;
     }).length;
   }
   const expansionActual = allActive.filter(d => {
     if (d.channel !== "Expansion") return false;
-    if (!d.new_genuine) return false;
     const earliest = earliestStageEntry(d);
     return earliest ? new Date(earliest) >= qStart : false;
   }).length;
@@ -74,10 +74,10 @@ export default function DiscoveryTab({
         <StatCard
           label="New This Quarter"
           value={newThisQ}
-          sub={`target: ${Object.values(derived.channelQTargets).reduce((s, v) => s + v, 0)}`}
-          subColor={newThisQ >= Object.values(derived.channelQTargets).reduce((s, v) => s + v, 0) ? "#0a7a50" : "#b0b5c3"}
+          sub={`target: ${discQTarget}`}
+          subColor={newThisQ >= discQTarget ? "#0a7a50" : "#b0b5c3"}
         />
-        <StatCard label="Stale >60 days" value={staleCount} subColor="#dc2626" />
+        <StatCard label="Stale >60 days" value={staleCount} />
       </div>
 
       {/* Pacing tables */}
@@ -125,8 +125,8 @@ export default function DiscoveryTab({
               const rowBg      = stale ? "#fff5f5" : "white";
 
               return (
-                <tr key={d.id} style={{ background: rowBg, borderBottom: "1px solid #f1f5f9" }}
-                  onMouseEnter={e => (e.currentTarget.style.background = stale ? "#fff0f0" : "#f8faff")}
+                <tr key={d.id} className="table-row-hover" style={{ background: rowBg, borderBottom: "1px solid #f4f5f8" }}
+                  onMouseEnter={e => (e.currentTarget.style.background = stale ? "#fff0f0" : "rgba(160,250,215,0.07)")}
                   onMouseLeave={e => (e.currentTarget.style.background = rowBg)}>
                   <TD><DealLink id={d.id} name={d.name} /></TD>
                   <TD style={{ color: d.channel ? "#374151" : "#f59e0b" }}>
@@ -136,7 +136,7 @@ export default function DiscoveryTab({
                     {ownerName(d.owner)}
                     {UNRESOLVED_OWNER_IDS.has(d.owner) && <UnresolvedOwnerBadge />}
                   </TD>
-                  <TD style={{ color: "#64748b" }}>{fmtDate(d.entered_current)}</TD>
+                  <TD style={{ color: "#8b90a0" }}>{fmtDate(d.entered_current)}</TD>
                   <TD style={{ color: stale ? "#dc2626" : "#374151", fontWeight: stale ? 700 : 400 }}>
                     {daysIn != null ? `${daysIn}d` : "—"}
                   </TD>
