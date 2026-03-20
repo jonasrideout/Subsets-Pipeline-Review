@@ -8,12 +8,13 @@ import { ownerName, fmtDate, daysSince, NB_CHANNELS, UNRESOLVED_OWNER_IDS, earli
 import { deriveTargets } from "@/lib/assumptions";
 import { isNewGenuine, isStale } from "@/lib/flags";
 import { TH, TD, TableCard } from "@/components/Table";
-import { FlagBadge, NewQBadge, UnresolvedOwnerBadge } from "@/components/Badges";
+import { FlagBadge, NewQBadge, StaleBadge, UnresolvedOwnerBadge } from "@/components/Badges";
+import DealLink from "@/components/DealLink";
 import PacingTable from "@/components/PacingTable";
 
 interface DiscoveryTabProps {
-  deals: Deal[];         // Discovery-stage deals only
-  allActive: Deal[];     // All active deals across all stages (for pacing actuals)
+  deals: Deal[];
+  allActive: Deal[];
   assumptions: Assumptions;
   onAssumptionsSave: (a: Assumptions) => Promise<void>;
   now: Date;
@@ -29,17 +30,16 @@ export default function DiscoveryTab({
   const [saving, setSaving]   = useState(false);
 
   const derived     = deriveTargets(assumptions);
-  const { expansionQTarget, nbTargets, channelQTargets } = derived;
+  const { expansionQTarget, nbTargets } = derived;
 
-  const sorted     = [...deals].sort((a, b) =>
+  const sorted      = [...deals].sort((a, b) =>
     new Date(b.entered_current || "").getTime() - new Date(a.entered_current || "").getTime()
   );
   const staleCount  = deals.filter(d => isStale(d, now)).length;
   const newThisWeek = allActive.filter(d => d.new_genuine && d.createdate && new Date(d.createdate) >= weekAgo).length;
   const newThisQ    = allActive.filter(d => d.new_genuine).length;
 
-  // Pacing actuals — count genuinely new deals per channel where earliest stage
-  // entry across all active stages falls within this quarter
+  // Pacing actuals — new_genuine deals per channel where earliest stage entry is this quarter
   const nbActuals: Record<string, number> = {};
   for (const ch of [...NB_CHANNELS]) {
     nbActuals[ch] = allActive.filter(d => {
@@ -114,7 +114,7 @@ export default function DiscoveryTab({
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr>
-              {["Company", "Channel", "Owner", "Entered Discovery", "Days in Stage", "Flag"].map(h => (
+              {["Company", "Channel", "Owner", "Entered Discovery", "Days in Stage", "Flags"].map(h => (
                 <TH key={h}>{h}</TH>
               ))}
             </tr>
@@ -127,7 +127,9 @@ export default function DiscoveryTab({
               const rowBg      = stale ? "#fff5f5" : "white";
 
               return (
-                <tr key={d.id} style={{ background: rowBg, borderBottom: "1px solid #f1f5f9" }}>
+                <tr key={d.id} style={{ background: rowBg, borderBottom: "1px solid #f1f5f9" }}
+                  onMouseEnter={e => (e.currentTarget.style.background = stale ? "#fff0f0" : "#f8faff")}
+                  onMouseLeave={e => (e.currentTarget.style.background = rowBg)}>
                   <TD><DealLink id={d.id} name={d.name} /></TD>
                   <TD style={{ color: d.channel ? "#374151" : "#f59e0b" }}>
                     {d.channel ?? "⚠ missing"}
@@ -142,7 +144,7 @@ export default function DiscoveryTab({
                   </TD>
                   <TD>
                     {genuineNew && <NewQBadge createdate={d.createdate} />}
-                    {stale      && <FlagBadge type="stale" />}
+                    {stale      && <StaleBadge />}
                   </TD>
                 </tr>
               );
@@ -150,17 +152,6 @@ export default function DiscoveryTab({
           </tbody>
         </table>
       </TableCard>
-      <AssumptionsPanel
-        assumptions={assumptions}
-        derived={derived}
-        editing={editing}
-        tmp={tmp}
-        saving={saving}
-        onEdit={() => { setEditing(true); setTmp(JSON.parse(JSON.stringify(assumptions))); }}
-        onCancel={() => { setEditing(false); setTmp(null); }}
-        onSave={handleSave}
-        onTmpChange={setTmp}
-      />
     </div>
   );
 }
@@ -192,7 +183,6 @@ function AssumptionsPanel({ assumptions, derived, editing, tmp, saving, onEdit, 
         <div style={{ padding: "0 18px 18px" }}>
           {editing && tmp ? (
             <div>
-              {/* Funnel rates */}
               <div style={{ fontWeight: 600, fontSize: 12, color: "#374151", marginBottom: 8 }}>Funnel Conversion Rates</div>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
                 {([
@@ -203,37 +193,24 @@ function AssumptionsPanel({ assumptions, derived, editing, tmp, saving, onEdit, 
                   ["q_closes",       "Q Closes Target",false],
                 ] as [keyof Assumptions, string, boolean][]).map(([k, label, isManual]) => (
                   <label key={k} style={{ display: "flex", flexDirection: "column", fontSize: 12, gap: 3 }}>
-                    <span style={{ color: isManual ? "#d97706" : "#374151" }}>
-                      {label}{isManual ? " *" : ""}
-                    </span>
-                    <input
-                      type="number"
-                      value={tmp[k] as number}
+                    <span style={{ color: isManual ? "#d97706" : "#374151" }}>{label}{isManual ? " *" : ""}</span>
+                    <input type="number" value={tmp[k] as number}
                       onChange={e => onTmpChange({ ...tmp, [k]: +e.target.value })}
-                      style={{ width: 80, padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 6, fontSize: 13 }}
-                    />
+                      style={{ width: 80, padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 6, fontSize: 13 }} />
                   </label>
                 ))}
               </div>
-
-              {/* Annual closes per channel */}
               <div style={{ fontWeight: 600, fontSize: 12, color: "#374151", marginBottom: 8 }}>Annual Closes per Channel</div>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
                 {([...NB, "Expansion"] as (keyof typeof tmp.annual_closes)[]).map(ch => (
                   <label key={ch} style={{ display: "flex", flexDirection: "column", fontSize: 12, color: "#374151", gap: 3 }}>
                     {ch}
-                    <input
-                      type="number"
-                      step="0.1"
-                      value={tmp.annual_closes[ch]}
+                    <input type="number" step="0.1" value={tmp.annual_closes[ch]}
                       onChange={e => onTmpChange({ ...tmp, annual_closes: { ...tmp.annual_closes, [ch]: +e.target.value } })}
-                      style={{ width: 70, padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 6, fontSize: 13 }}
-                    />
+                      style={{ width: 70, padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 6, fontSize: 13 }} />
                   </label>
                 ))}
               </div>
-
-              {/* Expansion inputs */}
               <div style={{ fontWeight: 600, fontSize: 12, color: "#374151", marginBottom: 8 }}>Expansion (Upsell)</div>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
                 {([
@@ -242,37 +219,27 @@ function AssumptionsPanel({ assumptions, derived, editing, tmp, saving, onEdit, 
                 ] as [keyof Assumptions, string][]).map(([k, label]) => (
                   <label key={k} style={{ display: "flex", flexDirection: "column", fontSize: 12, color: "#374151", gap: 3 }}>
                     {label}
-                    <input
-                      type="number"
-                      value={tmp[k] as number}
+                    <input type="number" value={tmp[k] as number}
                       onChange={e => onTmpChange({ ...tmp, [k]: +e.target.value })}
-                      style={{ width: 80, padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 6, fontSize: 13 }}
-                    />
+                      style={{ width: 80, padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 6, fontSize: 13 }} />
                   </label>
                 ))}
               </div>
-
-              {/* Channel revenue share */}
               <div style={{ fontWeight: 600, fontSize: 12, color: "#374151", marginBottom: 8 }}>Channel Revenue Share %</div>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
                 {([...NB, "Expansion"] as (keyof typeof tmp.ch)[]).map(ch => (
                   <label key={ch} style={{ display: "flex", flexDirection: "column", fontSize: 12, color: "#374151", gap: 3 }}>
                     {ch}
-                    <input
-                      type="number"
-                      value={tmp.ch[ch]}
+                    <input type="number" value={tmp.ch[ch]}
                       onChange={e => onTmpChange({ ...tmp, ch: { ...tmp.ch, [ch]: +e.target.value } })}
-                      style={{ width: 60, padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 6, fontSize: 13 }}
-                    />
+                      style={{ width: 60, padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 6, fontSize: 13 }} />
                   </label>
                 ))}
               </div>
-
               <div style={{ fontSize: 11, color: "#d97706", marginBottom: 12 }}>* Manual conservative estimate</div>
-
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={onSave} disabled={saving}
-                  style={{ background: "#00c896", color: "#1a1f36", border: "none", borderRadius: 6, padding: "7px 16px", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>
+                  style={{ background: "linear-gradient(135deg, #a0fad7, #82f6c6)", color: "#0a2e1f", border: "none", borderRadius: 6, padding: "7px 16px", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>
                   {saving ? "Saving…" : "Save & Recalculate"}
                 </button>
                 <button onClick={onCancel}
@@ -284,7 +251,6 @@ function AssumptionsPanel({ assumptions, derived, editing, tmp, saving, onEdit, 
           ) : (
             <div>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                {/* Funnel rates */}
                 <div style={{ flex: 1, background: "#faf5ff", border: "1px solid #e9d5ff", borderRadius: 10, padding: "12px 14px", minWidth: 180 }}>
                   <div style={{ fontWeight: 700, fontSize: 12, color: "#7c3aed", marginBottom: 6 }}>Funnel Conversion Rates</div>
                   {([
@@ -300,8 +266,6 @@ function AssumptionsPanel({ assumptions, derived, editing, tmp, saving, onEdit, 
                   ))}
                   <div style={{ fontSize: 10, color: "#a78bfa", marginTop: 6 }}>* Manual estimate · † HubSpot historical</div>
                 </div>
-
-                {/* Annual closes per channel */}
                 <div style={{ flex: 1, background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 10, padding: "12px 14px", minWidth: 160 }}>
                   <div style={{ fontWeight: 700, fontSize: 12, color: "#15803d", marginBottom: 6 }}>Annual Closes per Channel</div>
                   {([...NB, "Expansion"] as (keyof typeof assumptions.annual_closes)[]).map(ch => (
@@ -311,8 +275,6 @@ function AssumptionsPanel({ assumptions, derived, editing, tmp, saving, onEdit, 
                     </div>
                   ))}
                 </div>
-
-                {/* Channel revenue share */}
                 <div style={{ flex: 1, background: "#f0fdfa", border: "1px solid #99f6e4", borderRadius: 10, padding: "12px 14px", minWidth: 160 }}>
                   <div style={{ fontWeight: 700, fontSize: 12, color: "#0f766e", marginBottom: 6 }}>Channel Revenue Share</div>
                   {([...NB, "Expansion"] as (keyof typeof assumptions.ch)[]).map(ch => (
@@ -322,8 +284,6 @@ function AssumptionsPanel({ assumptions, derived, editing, tmp, saving, onEdit, 
                     </div>
                   ))}
                 </div>
-
-                {/* Expansion inputs */}
                 <div style={{ flex: 1, background: "#fefce8", border: "1px solid #fde68a", borderRadius: 10, padding: "12px 14px", minWidth: 160 }}>
                   <div style={{ fontWeight: 700, fontSize: 12, color: "#92400e", marginBottom: 6 }}>Expansion (Upsell)</div>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
@@ -340,11 +300,8 @@ function AssumptionsPanel({ assumptions, derived, editing, tmp, saving, onEdit, 
                   </div>
                 </div>
               </div>
-
-              <button
-                onClick={onEdit}
-                style={{ marginTop: 12, background: "#f1f5f9", color: "#374151", border: "none", borderRadius: 6, padding: "6px 14px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}
-              >
+              <button onClick={onEdit}
+                style={{ marginTop: 12, background: "#f1f5f9", color: "#374151", border: "none", borderRadius: 6, padding: "6px 14px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
                 Edit
               </button>
             </div>
