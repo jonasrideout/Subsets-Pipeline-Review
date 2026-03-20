@@ -171,9 +171,9 @@ export default function Page() {
                 onTabChange={setTab}
               />
             )}
-            {tab === "legal"    && <LegalTab deals={legal} closePlans={closePlans} now={now} qStart={qStart} />}
+            {tab === "legal"    && <LegalTab deals={legal} closePlans={closePlans} now={now} weekAgo={weekAgo} qStart={qStart} counts={counts} legalQTarget={derived.legalTarget} />}
             {tab === "proposal" && (
-              <ProposalTab deals={proposal} closePlans={closePlans} onClosePlanSave={handleClosePlanSave} now={now} qStart={qStart} />
+              <ProposalTab deals={proposal} closePlans={closePlans} onClosePlanSave={handleClosePlanSave} now={now} weekAgo={weekAgo} qStart={qStart} counts={counts} propQTarget={derived.propTarget} />
             )}
             {tab === "demo"     && (
               <DemoTab
