@@ -13,6 +13,7 @@ import DealLink from "@/components/DealLink";
 import type { TabId } from "@/components/TabNav";
 
 interface OverviewTabProps {
+  allActive: Deal[];     // all active deals — used for all counting
   legal: Deal[];
   proposal: Deal[];
   demo: Deal[];
@@ -28,7 +29,7 @@ interface OverviewTabProps {
 }
 
 export default function OverviewTab({
-  legal, proposal, demo, discovery, closedWon,
+  allActive, legal, proposal, demo, discovery, closedWon,
   emailSignals, closePlans, assumptions, now, weekAgo, qStart, onTabChange,
 }: OverviewTabProps) {
   const derived = deriveTargets(assumptions);
@@ -36,7 +37,7 @@ export default function OverviewTab({
   // Discovery tile target = sum of all channel Q targets (guarantees match with Discovery tab)
   const discTarget = Object.values(channelQTargets).reduce((s, v) => s + v, 0);
 
-  const allDeals = [...legal, ...proposal, ...demo, ...discovery];
+  const allDeals = allActive; // use the full active array passed directly from page.tsx
   const wp = weightedPipeline(allDeals);
   const closedWonTotal = closedWon.reduce((s, d) => s + d.amount, 0);
   const QUARTERLY_TARGET = 600000;
