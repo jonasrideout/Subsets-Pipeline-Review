@@ -155,10 +155,11 @@ export function UnresolvedOwnerBadge() {
 
 interface FlagBadgeProps {
   type: "new" | "stale" | "nocontact";
+  createdate?: string | null;
 }
 
-export function FlagBadge({ type }: FlagBadgeProps) {
-  if (type === "new")       return <NewQBadge />;
+export function FlagBadge({ type, createdate }: FlagBadgeProps) {
+  if (type === "new")       return <NewQBadge createdate={createdate ?? null} />;
   if (type === "stale")     return <StaleBadge />;
   if (type === "nocontact") return <NoContactBadge />;
   return null;
