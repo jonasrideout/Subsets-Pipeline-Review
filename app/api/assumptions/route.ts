@@ -12,11 +12,21 @@ export async function GET() {
   try {
     await redis.connect();
     const raw = await redis.get(REDIS_ASSUMPTIONS_KEY);
-    const data: Assumptions = raw ? JSON.parse(raw) : DEFAULT_ASSUMPTIONS;
-    return NextResponse.json(data);
+    if (raw) {
+      // Merge with defaults so any new fields (e.g. prop_to_legal) fall back
+      // to their default values if not present in the saved data
+      const saved = JSON.parse(raw);
+      const merged: Assumptions = {
+        ...DEFAULT_ASSUMPTIONS,
+        ...saved,
+        ch: { ...DEFAULT_ASSUMPTIONS.ch, ...(saved.ch ?? {}) },
+        annual_closes: { ...DEFAULT_ASSUMPTIONS.annual_closes, ...(saved.annual_closes ?? {}) },
+      };
+      return NextResponse.json(merged);
+    }
+    return NextResponse.json(DEFAULT_ASSUMPTIONS);
   } catch (err) {
     console.error("Error fetching assumptions:", err);
-    // Fall back to defaults if Redis is unavailable
     return NextResponse.json(DEFAULT_ASSUMPTIONS);
   } finally {
     await redis.disconnect();
@@ -27,10 +37,13 @@ export async function POST(req: NextRequest) {
   const redis = getRedis();
   try {
     const body = await req.json();
-
     // Merge with defaults to ensure all keys are present
-    const assumptions: Assumptions = { ...DEFAULT_ASSUMPTIONS, ...body };
-
+    const assumptions: Assumptions = {
+      ...DEFAULT_ASSUMPTIONS,
+      ...body,
+      ch: { ...DEFAULT_ASSUMPTIONS.ch, ...(body.ch ?? {}) },
+      annual_closes: { ...DEFAULT_ASSUMPTIONS.annual_closes, ...(body.annual_closes ?? {}) },
+    };
     await redis.connect();
     await redis.set(REDIS_ASSUMPTIONS_KEY, JSON.stringify(assumptions));
     return NextResponse.json({ ok: true });
