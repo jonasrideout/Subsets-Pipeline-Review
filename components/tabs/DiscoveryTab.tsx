@@ -24,7 +24,7 @@ interface DiscoveryTabProps {
 }
 
 export default function DiscoveryTab({
-  deals, allActive, assumptions, onAssumptionsSave, now, weekAgo, qStart,
+  deals, allActive, assumptions, onAssumptionsSave, now, weekAgo, qStart, counts,
 }: DiscoveryTabProps) {
   const [editing, setEditing] = useState(false);
   const [tmp, setTmp]         = useState<Assumptions | null>(null);
@@ -37,8 +37,7 @@ export default function DiscoveryTab({
     new Date(b.entered_current || "").getTime() - new Date(a.entered_current || "").getTime()
   );
   const staleCount  = deals.filter(d => isStale(d, now)).length;
-  const newThisWeek = allActive.filter(d => d.createdate && new Date(d.createdate) >= weekAgo).length;
-  const newThisQ    = allActive.filter(d => d.createdate && new Date(d.createdate) >= qStart).length;
+  const { discNewW: newThisWeek, discNewQ: newThisQ } = counts;
 
   // Pacing actuals — new_genuine deals per channel where earliest stage entry is this quarter
   const nbActuals: Record<string, number> = {};
