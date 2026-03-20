@@ -59,10 +59,10 @@ export default function OverviewTab({
   };
 
   const tileColor = (ratio: number) => {
-    if (ratio >= 0.90) return { bg: "#f0fdf4", border: "#86efac", text: "#15803d", accent: "#16a34a" };
-    if (ratio >= 0.75) return { bg: "#fefce8", border: "#fde68a", text: "#854d0e", accent: "#ca8a04" };
-    if (ratio >= 0.50) return { bg: "#fff7ed", border: "#fed7aa", text: "#9a3412", accent: "#ea580c" };
-    return               { bg: "#fef2f2", border: "#fecaca", text: "#991b1b", accent: "#dc2626" };
+    if (ratio >= 0.90) return { bg: "#f0fdf4", border: "#86efac", text: "#15803d" };
+    if (ratio >= 0.75) return { bg: "#fefce8", border: "#fde68a", text: "#854d0e" };
+    if (ratio >= 0.50) return { bg: "#fff7ed", border: "#fed7aa", text: "#9a3412" };
+    return               { bg: "#fef2f2", border: "#fecaca", text: "#991b1b" };
   };
 
   const tileTooltip = (actual: number, target: number, ratio: number, label: string) => {
@@ -102,31 +102,32 @@ export default function OverviewTab({
             onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.10)"}
             onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}
           >
+            {/* Info icon — top right */}
+            <div
+              title={t.tooltip}
+              onClick={e => e.stopPropagation()}
+              style={{ position: "absolute", top: 10, right: 12, cursor: "help", fontSize: 13, opacity: 0.4 }}
+            >
+              ℹ️
+            </div>
             <div style={{ fontSize: 12, fontWeight: 600, color: t.color.text, textTransform: "uppercase", letterSpacing: 0.5 }}>{t.label}</div>
-            <div style={{ fontSize: 36, fontWeight: 800, color: t.color.accent, lineHeight: 1.1, margin: "4px 0 2px" }}>{t.count}</div>
+            <div style={{ fontSize: 36, fontWeight: 800, color: t.color.text, lineHeight: 1.1, margin: "4px 0 2px" }}>{t.count}</div>
             {t.amount != null && <div style={{ fontSize: 13, color: t.color.text, fontWeight: 500, marginBottom: 6 }}>{fmtCur(t.amount)}</div>}
             <div style={{ borderTop: `1px solid ${t.color.border}`, marginTop: 8, paddingTop: 8 }}>
               {[["New this week", t.newW], ["New this quarter", t.newQ]].map(([l, v]) => (
                 <div key={String(l)} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
-                  <span style={{ color: "#64748b" }}>{l}</span>
-                  <span style={{ fontWeight: 700, color: t.color.accent }}>{v}</span>
+                  <span style={{ color: t.color.text }}>{l}</span>
+                  <span style={{ fontWeight: 700, color: t.color.text }}>{v}</span>
                 </div>
               ))}
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
-                <span style={{ color: "#64748b" }}>Q target</span>
-                <span style={{ fontWeight: 700, color: t.color.accent }}>{t.target}</span>
+                <span style={{ color: t.color.text }}>Q target</span>
+                <span style={{ fontWeight: 700, color: t.color.text }}>{t.target}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
-                <span style={{ color: "#64748b" }}>Percent of goal</span>
-                <span style={{ fontWeight: 700, color: t.color.accent }}>{t.goalPct}%</span>
+                <span style={{ color: t.color.text }}>Percent of goal</span>
+                <span style={{ fontWeight: 700, color: t.color.text }}>{t.goalPct}%</span>
               </div>
-            </div>
-            <div
-              title={t.tooltip}
-              onClick={e => e.stopPropagation()}
-              style={{ position: "absolute", bottom: 10, right: 12, cursor: "help", fontSize: 13, opacity: 0.5 }}
-            >
-              ℹ️
             </div>
           </div>
         ))}
