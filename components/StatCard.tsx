@@ -5,7 +5,6 @@
 interface StatCardProps {
   label: string;
   value: number;
-  accent?: boolean;
   // For "New This Quarter" tiles — shows target, % of goal, and pace
   target?: number;
   goalPct?: number;   // actual ÷ target × 100
