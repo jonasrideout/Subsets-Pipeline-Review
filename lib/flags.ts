@@ -17,9 +17,29 @@ export const isStale = (deal: Deal, now: Date): boolean => {
   return new Date(deal.entered_current) <= sixtyDaysAgo;
 };
 
-// Discovery: genuine new = entered in window AND no prior demo/proposal/legal history
-export const isNewGenuine = (deal: Deal, windowStart: Date, now: Date): boolean =>
-  !!deal.new_genuine && isEnteredInWindow(deal, windowStart, now);
+// new_genuine = created this quarter (set in hubspot.ts based on createdate)
+export const isNewGenuine = (deal: Deal): boolean => !!deal.new_genuine;
+
+// Created within the last 7 days
+export const isNewThisWeek = (deal: Deal, weekAgo: Date): boolean => {
+  if (!deal.createdate) return false;
+  return new Date(deal.createdate) >= weekAgo;
+};
+
+// Created this quarter
+export const isNewThisQuarter = (deal: Deal, qStart: Date): boolean => {
+  if (!deal.createdate) return false;
+  return new Date(deal.createdate) >= qStart;
+};
+
+// Derive quarter label from createdate e.g. "Q1 · 25"
+export const quarterLabel = (createdate: string | null): string => {
+  if (!createdate) return "";
+  const d   = new Date(createdate);
+  const q   = Math.floor(d.getMonth() / 3) + 1;
+  const yr  = String(d.getFullYear()).slice(2);
+  return `Q${q} · ${yr}`;
+};
 
 // ── NEEDS ACTION FLAGS ────────────────────────────────────────────────────────
 
@@ -54,7 +74,6 @@ export const getNeedsActionAlerts = (
 
       const lc = daysSince(d.last_contacted, now);
       if (lc === null || lc >= 60) alerts.push("🔴 No activity 60+ days");
-
       if (isProp && !closePlans[d.id]) alerts.push("🔴 No close plan");
     }
 
@@ -95,7 +114,6 @@ export const getSignsOfLife = (
 ): SignsOfLifeRow[] => {
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-  // Pool: Legal + Proposal + Demo only
   const pool = deals.filter(
     d => d.stage === "1446534336" || d.stage === "contractsent" || d.stage === "qualifiedtobuy"
   );
@@ -103,20 +121,18 @@ export const getSignsOfLife = (
   const rows: SignsOfLifeRow[] = [];
 
   for (const d of pool) {
-    const sig = emailSignals[String(d.id)] ?? {};
+    const sig         = emailSignals[String(d.id)] ?? {};
     const opens7d     = sig.opens7d    ?? 0;
     const clicks7d    = sig.clicks7d   ?? 0;
     const lastInbound = sig.lastInbound ?? null;
     const lastSubject = sig.lastSubject ?? null;
     const enteredNew  = isEnteredInWindow(d, weekAgo, now);
 
-    const qualifies = lastInbound || opens7d > 0 || clicks7d > 0 || enteredNew;
-    if (!qualifies) continue;
+    if (!lastInbound && opens7d === 0 && clicks7d === 0 && !enteredNew) continue;
 
     rows.push({ deal: d, opens7d, clicks7d, lastInbound, lastSubject, enteredNew });
   }
 
-  // Sort: inbound replies first, then opens descending, then stage entry date descending
   return rows.sort((a, b) => {
     if (a.lastInbound && !b.lastInbound) return -1;
     if (!a.lastInbound && b.lastInbound) return 1;
@@ -129,7 +145,6 @@ export const getSignsOfLife = (
 
 // ── OPEN COUNT COLOR ──────────────────────────────────────────────────────────
 
-// Amber at 2+, red at 3+
 export const opensColor = (opens: number): string => {
   if (opens >= 3) return "#dc2626";
   if (opens >= 2) return "#d97706";
