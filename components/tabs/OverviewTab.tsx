@@ -112,7 +112,10 @@ export default function OverviewTab({
             </div>
             <div style={{ fontSize: 12, fontWeight: 600, color: t.color.text, textTransform: "uppercase", letterSpacing: 0.5 }}>{t.label}</div>
             <div style={{ fontSize: 36, fontWeight: 800, color: t.color.text, lineHeight: 1.1, margin: "4px 0 2px" }}>{t.count}</div>
-            {t.amount != null && <div style={{ fontSize: 13, color: t.color.text, fontWeight: 500, marginBottom: 6 }}>{fmtCur(t.amount)}</div>}
+            {/* Amount row — always rendered to keep tile heights consistent */}
+            <div style={{ fontSize: 13, color: t.color.text, fontWeight: 500, marginBottom: 6, visibility: t.amount != null ? "visible" : "hidden" }}>
+              {t.amount != null ? fmtCur(t.amount) : "placeholder"}
+            </div>
             <div style={{ borderTop: `1px solid ${t.color.border}`, marginTop: 8, paddingTop: 8 }}>
               {[["New this week", t.newW], ["New this quarter", t.newQ]].map(([l, v]) => (
                 <div key={String(l)} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
