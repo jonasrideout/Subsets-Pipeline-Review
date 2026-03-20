@@ -39,7 +39,7 @@ export default function DemoTab({ deals, allActive, closePlans, now, weekAgo, qS
     <div>
       {/* Summary cards */}
       <div className="flex gap-3 mb-5 flex-wrap">
-        <StatCard label="Currently in Meeting / Demo" value={deals.length} accent />
+        <StatCard label="Currently in Meeting / Demo" value={deals.length} />
         <StatCard label="New This Week"                value={newThisWeek} />
         <StatCard
           label="New This Quarter"
