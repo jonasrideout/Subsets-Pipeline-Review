@@ -57,13 +57,16 @@ export function StageBadge({ stage }: { stage: string }) {
 
 // ── FLAG BADGES ───────────────────────────────────────────────────────────────
 
-export function NewQBadge({ quarter = "Q1" }: { quarter?: string }) {
+export function NewQBadge({ createdate }: { createdate: string | null }) {
+  const label = createdate
+    ? `Q${Math.floor(new Date(createdate).getMonth() / 3) + 1} · ${String(new Date(createdate).getFullYear()).slice(2)}`
+    : "New";
   return (
     <span style={pill("rgba(130,246,198,0.15)", "#059669", "rgba(130,246,198,0.4)")}>
       <svg width="9" height="9" viewBox="0 0 10 10" fill="currentColor">
         <polygon points="5,1 6.5,4 10,4.5 7.5,7 8.2,10.5 5,8.8 1.8,10.5 2.5,7 0,4.5 3.5,4"/>
       </svg>
-      New {quarter}
+      {label}
     </span>
   );
 }
