@@ -22,8 +22,10 @@ interface DemoTabProps {
 }
 
 export default function DemoTab({ deals, allActive, closePlans, now, weekAgo, qStart, demoQTarget, counts }: DemoTabProps) {
-  const { demoNewW: newThisWeek, demoNewQ: newThisQ } = counts;
+  const { demoNewW: newThisWeek, demoNewQ: newThisQ, qElapsedPct } = counts;
   const staleCount = deals.filter(d => isStale(d, now)).length;
+  const goalPct = demoQTarget > 0 ? Math.round((newThisQ / demoQTarget) * 100) : 0;
+  const pacePct = demoQTarget > 0 && qElapsedPct > 0 ? Math.round((newThisQ / demoQTarget) / qElapsedPct * 100) : 0;
 
   const sorted = [...deals].sort((a, b) => {
     const la = a.last_contacted ? new Date(a.last_contacted).getTime() : 0;
@@ -40,8 +42,9 @@ export default function DemoTab({ deals, allActive, closePlans, now, weekAgo, qS
         <StatCard
           label="New This Quarter"
           value={newThisQ}
-          sub={`target: ${demoQTarget}`}
-          subColor={newThisQ >= demoQTarget ? "#0a7a50" : "#b0b5c3"}
+          target={demoQTarget}
+          goalPct={goalPct}
+          pacePct={pacePct}
         />
         <StatCard label="Stale >60 days" value={staleCount} />
       </div>
