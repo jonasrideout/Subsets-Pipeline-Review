@@ -8,9 +8,7 @@ import { ownerName, fmtDate, daysSince, NB_CHANNELS, UNRESOLVED_OWNER_IDS, earli
 import { deriveTargets } from "@/lib/assumptions";
 import { isNewGenuine, isStale } from "@/lib/flags";
 import { TH, TD, TableCard } from "@/components/Table";
-import { FlagBadge, UnresolvedOwnerBadge } from "@/components/Badges";
-import DealLink from "@/components/DealLink";
-import WindowToggle, { type WindowValue } from "@/components/WindowToggle";
+import { FlagBadge, NewQBadge, UnresolvedOwnerBadge } from "@/components/Badges";
 import PacingTable from "@/components/PacingTable";
 
 interface DiscoveryTabProps {
@@ -26,20 +24,19 @@ interface DiscoveryTabProps {
 export default function DiscoveryTab({
   deals, allActive, assumptions, onAssumptionsSave, now, weekAgo, qStart,
 }: DiscoveryTabProps) {
-  const [window, setWindow]   = useState<WindowValue>("week");
   const [editing, setEditing] = useState(false);
   const [tmp, setTmp]         = useState<Assumptions | null>(null);
   const [saving, setSaving]   = useState(false);
 
-  const windowStart = window === "week" ? weekAgo : qStart;
   const derived     = deriveTargets(assumptions);
   const { expansionQTarget, nbTargets, channelQTargets } = derived;
 
   const sorted     = [...deals].sort((a, b) =>
     new Date(b.entered_current || "").getTime() - new Date(a.entered_current || "").getTime()
   );
-  const staleCount = deals.filter(d => isStale(d, now)).length;
-  const newWeek    = deals.filter(d => isNewGenuine(d, weekAgo, now)).length;
+  const staleCount  = deals.filter(d => isStale(d, now)).length;
+  const newThisWeek = allActive.filter(d => d.new_genuine && d.createdate && new Date(d.createdate) >= weekAgo).length;
+  const newThisQ    = allActive.filter(d => d.new_genuine).length;
 
   // Pacing actuals — count genuinely new deals per channel where earliest stage
   // entry across all active stages falls within this quarter
@@ -70,19 +67,15 @@ export default function DiscoveryTab({
 
   return (
     <div>
-      {/* Window toggle */}
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
-        <WindowToggle value={window} onChange={setWindow} color="#7c3aed" />
-      </div>
-
       {/* Summary cards */}
       <div style={{ display: "flex", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
         {([
           ["Total in Discovery", deals.length,  "#7c3aed"],
-          ["New This Week (genuine)", newWeek,   "#2563eb"],
-          ["Stale >60 days", staleCount,         "#dc2626"],
+          ["New This Week",      newThisWeek,   "#2563eb"],
+          ["New This Quarter",   newThisQ,      "#059669"],
+          ["Stale >60 days",     staleCount,    "#dc2626"],
         ] as [string, number, string][]).map(([label, val, color]) => (
-          <div key={label} style={{ flex: 1, minWidth: 120, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 10, padding: "10px 16px" }}>
+          <div key={label} style={{ flex: 1, minWidth: 120, background: "#fff", border: "1px solid rgba(99,102,241,0.1)", borderRadius: 10, padding: "10px 16px", boxShadow: "0 1px 3px rgba(15,10,46,0.06)" }}>
             <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>{label}</div>
             <div style={{ fontSize: 26, fontWeight: 800, color }}>{val}</div>
           </div>
@@ -128,7 +121,7 @@ export default function DiscoveryTab({
           </thead>
           <tbody>
             {sorted.map(d => {
-              const genuineNew = isNewGenuine(d, windowStart, now);
+              const genuineNew = isNewGenuine(d);
               const stale      = isStale(d, now);
               const daysIn     = daysSince(d.entered_current, now);
               const rowBg      = stale ? "#fff5f5" : "white";
@@ -148,7 +141,7 @@ export default function DiscoveryTab({
                     {daysIn != null ? `${daysIn}d` : "—"}
                   </TD>
                   <TD>
-                    {genuineNew && <FlagBadge type="new" />}
+                    {genuineNew && <NewQBadge createdate={d.createdate} />}
                     {stale      && <FlagBadge type="stale" />}
                   </TD>
                 </tr>
