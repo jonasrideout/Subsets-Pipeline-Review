@@ -294,13 +294,13 @@ function AssumptionDrawer({ tileKey, assumptions, borderColor, onSave }: Assumpt
     }
   })();
 
-  const fieldLabel = (f: keyof Assumptions) => ({
+  const fieldLabel = (f: keyof Assumptions): string => ({
     q_closes:        "Deals to close this quarter",
     legal_to_close:  "% Legal → Close",
     prop_to_legal:   "% Proposal → Legal",
     demo_to_prop:    "% Demo → Proposal",
     disc_to_demo:    "% Discovery → Demo",
-  }[f] ?? String(f));
+  } as Record<string, string>)[f as string] ?? String(f);
 
   return (
     <div style={{
