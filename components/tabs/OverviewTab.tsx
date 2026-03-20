@@ -32,7 +32,9 @@ export default function OverviewTab({
   emailSignals, closePlans, assumptions, now, weekAgo, qStart, onTabChange,
 }: OverviewTabProps) {
   const derived = deriveTargets(assumptions);
-  const { legalTarget, propTarget, demoTarget, discTarget } = derived;
+  const { legalTarget, propTarget, demoTarget, channelQTargets } = derived;
+  // Discovery tile target = sum of all channel Q targets (guarantees match with Discovery tab)
+  const discTarget = Object.values(channelQTargets).reduce((s, v) => s + v, 0);
 
   const allDeals = [...legal, ...proposal, ...demo, ...discovery];
   const wp = weightedPipeline(allDeals);
