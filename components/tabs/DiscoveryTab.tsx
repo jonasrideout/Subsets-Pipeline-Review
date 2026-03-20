@@ -73,7 +73,7 @@ export default function DiscoveryTab({
     <div>
       {/* Summary cards */}
       <div className="flex gap-3 mb-5 flex-wrap">
-        <StatCard label="Currently in Discovery" value={deals.length} accent />
+        <StatCard label="Currently in Discovery" value={deals.length} />
         <StatCard label="New This Week"           value={newThisWeek} />
         <StatCard
           label="New This Quarter"
