@@ -10,6 +10,8 @@ import { CloseDateBadge, UnresolvedOwnerBadge, NewQBadge, StaleBadge, NoContactB
 import DealLink from "@/components/DealLink";
 import StatCard from "@/components/StatCard";
 
+import type { PipelineCounts } from "@/app/page";
+
 interface DemoTabProps {
   deals: Deal[];
   allActive: Deal[];
@@ -18,7 +20,7 @@ interface DemoTabProps {
   weekAgo: Date;
   qStart: Date;
   demoQTarget: number;
-  counts: { demoNewW: number; demoNewQ: number; };
+  counts: PipelineCounts;
 }
 
 export default function DemoTab({ deals, allActive, closePlans, now, weekAgo, qStart, demoQTarget, counts }: DemoTabProps) {
