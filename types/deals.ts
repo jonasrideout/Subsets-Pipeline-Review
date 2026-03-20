@@ -1,14 +1,14 @@
 // types/deals.ts
 
 export type DealStage =
-  | "1446534336"       // Legal/Procurement
-  | "contractsent"     // Proposal/Negotiation
-  | "qualifiedtobuy"   // Meeting/Demo
+  | "1446534336"           // Legal/Procurement
+  | "contractsent"         // Proposal/Negotiation
+  | "qualifiedtobuy"       // Meeting/Demo
   | "appointmentscheduled" // Discovery
   | "closedwon"
   | "closedlost"
-  | "563428070"        // Closed Lost Churn
-  | "582003949";       // Bad Fit
+  | "563428070"            // Closed Lost Churn
+  | "582003949";           // Bad Fit
 
 export interface Deal {
   id: string;
@@ -19,12 +19,13 @@ export interface Deal {
   owner: string;
   channel: string | null;
   last_contacted: string | null;
+  createdate: string | null;           // when the deal was first created
   entered_current: string | null;
   entered_legal: string | null;
   entered_proposal: string | null;
   entered_demo: string | null;
   entered_discovery: string | null;
-  new_genuine?: boolean; // Discovery only — no prior demo/proposal/legal history
+  new_genuine?: boolean; // created this quarter (any stage), not recycled
 }
 
 export interface ClosedWonDeal {
@@ -60,14 +61,11 @@ export interface ChannelAnnualCloses {
 }
 
 export interface Assumptions {
-  // Funnel conversion rates
   disc_to_demo:   number;
   demo_to_prop:   number;
   prop_to_close:  number;
   legal_to_close: number;
-  // Quarterly close target
   q_closes: number;
-  // Channel revenue share % (used in Methodology panel only)
   ch: {
     Outbound:    number;
     Events:      number;
@@ -75,9 +73,7 @@ export interface Assumptions {
     Inbound:     number;
     Expansion:   number;
   };
-  // Annual closes needed per channel (from GTM spreadsheet, editable)
   annual_closes: ChannelAnnualCloses;
-  // Expansion-specific inputs
   expansion_annual_deals: number;
   expansion_close_rate:   number;
 }
