@@ -29,7 +29,9 @@ export default function ProposalTab({ deals, closePlans, onClosePlanSave, now, w
   const [saving, setSaving]       = useState(false);
 
   const staleCount = deals.filter(d => isStale(d, now)).length;
-  const { propNewW, propNewQ } = counts;
+  const { propNewW, propNewQ, qElapsedPct } = counts;
+  const goalPct = propQTarget > 0 ? Math.round((propNewQ / propQTarget) * 100) : 0;
+  const pacePct = propQTarget > 0 && qElapsedPct > 0 ? Math.round((propNewQ / propQTarget) / qElapsedPct * 100) : 0;
 
   const handleSave = async (dealId: string) => {
     setSaving(true);
@@ -48,8 +50,9 @@ export default function ProposalTab({ deals, closePlans, onClosePlanSave, now, w
         <StatCard
           label="New This Quarter"
           value={propNewQ}
-          sub={`target: ${propQTarget}`}
-          subColor={propNewQ >= propQTarget ? "#0a7a50" : "#b0b5c3"}
+          target={propQTarget}
+          goalPct={goalPct}
+          pacePct={pacePct}
         />
         <StatCard label="Stale >60 days" value={staleCount} />
       </div>
