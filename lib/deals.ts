@@ -18,14 +18,14 @@ export const OWNERS: Record<string, string> = {
 export const UNRESOLVED_OWNER_IDS = new Set(["419064278"]);
 
 export const STAGE_LABELS: Record<string, string> = {
-  "1446534336":          "Legal",
-  contractsent:          "Proposal",
-  qualifiedtobuy:        "Demo",
-  appointmentscheduled:  "Discovery",
-  closedwon:             "Closed Won",
-  closedlost:            "Closed Lost",
-  "563428070":           "Closed Lost (Churn)",
-  "582003949":           "Bad Fit",
+  "1446534336":         "Legal",
+  contractsent:         "Proposal",
+  qualifiedtobuy:       "Demo",
+  appointmentscheduled: "Discovery",
+  closedwon:            "Closed Won",
+  closedlost:           "Closed Lost",
+  "563428070":          "Closed Lost (Churn)",
+  "582003949":          "Bad Fit",
 };
 
 export const STAGE_PROB: Record<string, number> = {
@@ -77,16 +77,6 @@ export const ACTIVE_STAGE_IDS: DealStage[] = [
 export const NB_CHANNELS = ["Outbound", "Events", "Partnership", "Inbound"] as const;
 export type NBChannel = typeof NB_CHANNELS[number];
 
-// Channel pacing Q targets — sourced from GTM spreadsheet "Leads Required" ÷ 4
-// These are independent of funnel math and do not change with Assumptions edits
-export const CHANNEL_Q_TARGETS: Record<string, number> = {
-  Outbound:    278,
-  Events:      122,
-  Partnership:  29,
-  Inbound:      22,
-  // Expansion is derived dynamically from assumptions — not hardcoded here
-};
-
 // Helpers
 export const fmtDate = (s: string | null | undefined): string => {
   if (!s) return "—";
@@ -111,3 +101,18 @@ export const weightedPipeline = (deals: Deal[]): number =>
   deals
     .filter(d => d.amount != null)
     .reduce((sum, d) => sum + (d.amount! * (STAGE_PROB[d.stage] ?? 0)), 0);
+
+// Earliest stage entry across all active stages for a deal —
+// used to determine if a deal entered the pipeline this quarter
+export const earliestStageEntry = (d: Deal): string | null => {
+  const entries = [
+    d.entered_discovery,
+    d.entered_demo,
+    d.entered_proposal,
+    d.entered_legal,
+  ].filter(Boolean) as string[];
+  if (!entries.length) return null;
+  return entries.reduce((earliest, e) =>
+    new Date(e) < new Date(earliest) ? e : earliest
+  );
+};
