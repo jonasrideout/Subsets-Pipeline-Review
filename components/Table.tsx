@@ -34,6 +34,8 @@ export function TD({
     <td style={{
       padding: "12px 16px",
       fontSize: 13,
+      fontFamily: "'DM Sans', system-ui, sans-serif",
+      fontWeight: 300,
       color: "#0f1117",
       verticalAlign: "middle",
       ...style,
