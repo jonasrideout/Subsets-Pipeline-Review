@@ -105,7 +105,7 @@ export default function ProposalTab({ deals, closePlans, onClosePlanSave, now, q
                     {daysIn != null ? `${daysIn}d` : "—"}
                   </TD>
                   <TD>
-                    {isNew && <NewQBadge />}
+                    {isNew && <NewQBadge createdate={d.createdate} />}
                     {stale && <StaleBadge />}
                     {lc !== null && lc >= 14 && <NoContactBadge />}
                     {daysUntil !== null && daysUntil < 0 && <OverdueBadge days={Math.abs(daysUntil)} />}
