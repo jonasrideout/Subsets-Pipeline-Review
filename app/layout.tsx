@@ -4,8 +4,11 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Pipeline Review — Subsets",
+  title: "Subsets · Pipeline Review",
   description: "Subsets GTM pipeline review dashboard",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({
