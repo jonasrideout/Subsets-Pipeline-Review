@@ -39,7 +39,9 @@ export default function DiscoveryTab({
     new Date(b.entered_current || "").getTime() - new Date(a.entered_current || "").getTime()
   );
   const staleCount  = deals.filter(d => isStale(d, now)).length;
-  const { discNewW: newThisWeek, discNewQ: newThisQ } = counts;
+  const { discNewW: newThisWeek, discNewQ: newThisQ, qElapsedPct } = counts;
+  const goalPct = discQTarget > 0 ? Math.round((newThisQ / discQTarget) * 100) : 0;
+  const pacePct = discQTarget > 0 && qElapsedPct > 0 ? Math.round((newThisQ / discQTarget) / qElapsedPct * 100) : 0;
 
   // Pacing actuals — deals per channel where earliest stage entry is this quarter
   const nbActuals: Record<string, number> = {};
@@ -74,8 +76,9 @@ export default function DiscoveryTab({
         <StatCard
           label="New This Quarter"
           value={newThisQ}
-          sub={`target: ${discQTarget}`}
-          subColor={newThisQ >= discQTarget ? "#0a7a50" : "#b0b5c3"}
+          target={discQTarget}
+          goalPct={goalPct}
+          pacePct={pacePct}
         />
         <StatCard label="Stale >60 days" value={staleCount} />
       </div>
