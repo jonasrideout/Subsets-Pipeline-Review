@@ -156,14 +156,14 @@ export default function Page() {
                 onTabChange={setTab}
               />
             )}
-            {tab === "legal"     && <LegalTab deals={legal} now={now} />}
+            {tab === "legal"     && <LegalTab deals={legal} closePlans={closePlans} now={now} qStart={qStart} />}
             {tab === "proposal"  && (
               <ProposalTab
                 deals={proposal} closePlans={closePlans}
                 onClosePlanSave={handleClosePlanSave} now={now}
               />
             )}
-            {tab === "demo"      && <DemoTab deals={demo} now={now} weekAgo={weekAgo} qStart={qStart} />}
+            {tab === "demo"      && <DemoTab deals={demo} closePlans={closePlans} now={now} weekAgo={weekAgo} qStart={qStart} />}
             {tab === "discovery" && (
               <DiscoveryTab
                 deals={discovery} allActive={active} assumptions={assumptions}
