@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import type { Deal, ClosedWonDeal, EmailSignalMap, ClosePlanMap, Assumptions } from "@/types/deals";
-import { DEFAULT_ASSUMPTIONS } from "@/lib/assumptions";
+import { DEFAULT_ASSUMPTIONS, deriveTargets } from "@/lib/assumptions";
 import { filterByStage } from "@/lib/deals";
 import Header from "@/components/Header";
 import TabNav, { type TabId } from "@/components/TabNav";
