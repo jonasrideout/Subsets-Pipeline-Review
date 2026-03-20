@@ -6,19 +6,40 @@ import type { Deal, ClosePlanMap } from "@/types/deals";
 import { ownerName, fmtDate, fmtCur, daysSince, UNRESOLVED_OWNER_IDS } from "@/lib/deals";
 import { isStale } from "@/lib/flags";
 import { TH, TD, TableCard } from "@/components/Table";
-import { CloseDateBadge, UnresolvedOwnerBadge, StaleBadge, NoContactBadge, OverdueBadge, DueSoonBadge, NoClosePlanBadge, NoActivityBadge, NewQBadge } from "@/components/Badges";
+import { CloseDateBadge, UnresolvedOwnerBadge, NewQBadge, StaleBadge, NoContactBadge, OverdueBadge, DueSoonBadge, NoClosePlanBadge, NoActivityBadge } from "@/components/Badges";
 import DealLink from "@/components/DealLink";
+import StatCard from "@/components/StatCard";
+import type { PipelineCounts } from "@/app/page";
 
 interface LegalTabProps {
   deals: Deal[];
   closePlans: ClosePlanMap;
   now: Date;
+  weekAgo: Date;
   qStart: Date;
+  counts: PipelineCounts;
+  legalQTarget: number;
 }
 
-export default function LegalTab({ deals, closePlans, now, qStart }: LegalTabProps) {
+export default function LegalTab({ deals, closePlans, now, weekAgo, qStart, counts, legalQTarget }: LegalTabProps) {
+  const staleCount = deals.filter(d => isStale(d, now)).length;
+  const { legalNewW, legalNewQ } = counts;
+
   return (
     <div>
+      {/* Summary cards */}
+      <div className="flex gap-3 mb-5 flex-wrap">
+        <StatCard label="Currently in Legal" value={deals.length} accent />
+        <StatCard label="New This Week"       value={legalNewW} />
+        <StatCard
+          label="New This Quarter"
+          value={legalNewQ}
+          sub={`target: ${legalQTarget}`}
+          subColor={legalNewQ >= legalQTarget ? "#0a7a50" : "#b0b5c3"}
+        />
+        <StatCard label="Stale >60 days" value={staleCount} />
+      </div>
+
       <TableCard>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
@@ -34,13 +55,11 @@ export default function LegalTab({ deals, closePlans, now, qStart }: LegalTabPro
               const daysIn      = daysSince(enteredDate, now);
               const lc          = daysSince(d.last_contacted, now);
               const stale       = isStale(d, now);
-              const isNew       = enteredDate ? new Date(enteredDate) >= qStart : false;
+              const isNew       = !!d.createdate && new Date(d.createdate) >= qStart;
               const daysUntil   = d.closedate ? Math.ceil((new Date(d.closedate).getTime() - now.getTime()) / 86400000) : null;
 
               return (
-                <tr key={d.id} style={{ borderBottom: "1px solid #f1f5f9" }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "#f8faff")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "white")}>
+                <tr key={d.id} className="table-row-hover" style={{ borderBottom: "1px solid #f4f5f8" }}>
                   <TD><DealLink id={d.id} name={d.name} /></TD>
                   <TD style={{ color: d.channel ? "#374151" : "#f59e0b" }}>{d.channel ?? "⚠ missing"}</TD>
                   <TD style={{ fontWeight: 600, color: "#15803d" }}>{fmtCur(d.amount)}</TD>
@@ -48,14 +67,14 @@ export default function LegalTab({ deals, closePlans, now, qStart }: LegalTabPro
                   <TD>
                     {closePlans[d.id]
                       ? <a href={closePlans[d.id]} target="_blank" rel="noopener noreferrer" style={{ color: "#6366f1", fontSize: 12 }}>📄 View</a>
-                      : <span style={{ color: "#94a3b8", fontSize: 12 }}>—</span>}
+                      : <span style={{ color: "#b0b5c3", fontSize: 12 }}>—</span>}
                   </TD>
                   <TD style={{ color: "#374151" }}>
                     {ownerName(d.owner)}
                     {UNRESOLVED_OWNER_IDS.has(d.owner) && <UnresolvedOwnerBadge />}
                   </TD>
-                  <TD style={{ color: "#64748b" }}>{fmtDate(enteredDate)}</TD>
-                  <TD style={{ color: lc !== null && lc >= 14 ? "#c2410c" : "#64748b" }}>
+                  <TD style={{ color: "#8b90a0" }}>{fmtDate(enteredDate)}</TD>
+                  <TD style={{ color: lc !== null && lc >= 14 ? "#c2410c" : "#8b90a0" }}>
                     {d.last_contacted ? `${fmtDate(d.last_contacted)} (${lc}d)` : "—"}
                   </TD>
                   <TD style={{ color: stale ? "#dc2626" : "#374151", fontWeight: stale ? 700 : 400 }}>
@@ -67,7 +86,6 @@ export default function LegalTab({ deals, closePlans, now, qStart }: LegalTabPro
                     {lc !== null && lc >= 14 && <NoContactBadge />}
                     {daysUntil !== null && daysUntil < 0 && <OverdueBadge days={Math.abs(daysUntil)} />}
                     {daysUntil !== null && daysUntil >= 0 && daysUntil <= 21 && <DueSoonBadge days={daysUntil} />}
-                    {!closePlans[d.id] && <NoClosePlanBadge />}
                     {(lc === null || lc >= 60) && <NoActivityBadge />}
                   </TD>
                 </tr>
@@ -76,6 +94,7 @@ export default function LegalTab({ deals, closePlans, now, qStart }: LegalTabPro
           </tbody>
         </table>
       </TableCard>
+
       <div style={{ background: "rgba(234,179,8,0.08)", border: "1px solid rgba(234,179,8,0.25)", borderRadius: 10, padding: "12px 16px", fontSize: 13, color: "#92400e" }}>
         <strong>Discussion:</strong> Current status and blockers — what needs to happen this week to move to signed?
       </div>
