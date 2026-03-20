@@ -27,9 +27,14 @@ export interface PipelineCounts {
   propNewQ:  number;
   legalNewW: number;
   legalNewQ: number;
+  qElapsedPct: number; // fraction of quarter elapsed (0–1)
 }
 
-function computeCounts(active: Deal[], weekAgo: Date, qStart: Date): PipelineCounts {
+function computeCounts(active: Deal[], weekAgo: Date, qStart: Date, now: Date): PipelineCounts {
+  const qEnd        = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3 + 3, 1);
+  const qTotalDays  = (qEnd.getTime() - qStart.getTime()) / 86400000;
+  const qElapsedPct = Math.min(1, (now.getTime() - qStart.getTime()) / 86400000 / qTotalDays);
+
   return {
     discNewW:  active.filter(d => d.createdate && new Date(d.createdate) >= weekAgo).length,
     discNewQ:  active.filter(d => d.createdate && new Date(d.createdate) >= qStart).length,
@@ -39,6 +44,7 @@ function computeCounts(active: Deal[], weekAgo: Date, qStart: Date): PipelineCou
     propNewQ:  active.filter(d => d.entered_proposal && d.createdate && new Date(d.createdate) >= qStart).length,
     legalNewW: active.filter(d => d.entered_legal    && d.createdate && new Date(d.createdate) >= weekAgo).length,
     legalNewQ: active.filter(d => d.entered_legal    && d.createdate && new Date(d.createdate) >= qStart).length,
+    qElapsedPct,
   };
 }
 
@@ -63,7 +69,7 @@ export default function Page() {
   const qStart  = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
 
   // ── Single source of truth for all counts ────────────────────────────────
-  const counts = computeCounts(active, weekAgo, qStart);
+  const counts = computeCounts(active, weekAgo, qStart, now);
 
   // ── FETCH PIPELINE DATA ───────────────────────────────────────────────────
   const fetchPipeline = useCallback(async () => {
