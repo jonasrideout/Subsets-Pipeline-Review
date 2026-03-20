@@ -19,13 +19,13 @@ export interface Deal {
   owner: string;
   channel: string | null;
   last_contacted: string | null;
-  createdate: string | null;           // when the deal was first created
+  createdate: string | null;
   entered_current: string | null;
   entered_legal: string | null;
   entered_proposal: string | null;
   entered_demo: string | null;
   entered_discovery: string | null;
-  new_genuine?: boolean; // created this quarter (any stage), not recycled
+  new_genuine?: boolean;
 }
 
 export interface ClosedWonDeal {
@@ -61,11 +61,14 @@ export interface ChannelAnnualCloses {
 }
 
 export interface Assumptions {
-  disc_to_demo:   number;
-  demo_to_prop:   number;
-  prop_to_close:  number;
-  legal_to_close: number;
+  // Four-step funnel conversion rates
+  disc_to_demo:   number;  // % Discovery → Demo    (manual estimate)
+  demo_to_prop:   number;  // % Demo → Proposal      (HubSpot historical)
+  prop_to_legal:  number;  // % Proposal → Legal     (HubSpot historical)
+  legal_to_close: number;  // % Legal → Close        (HubSpot historical)
+  // Quarterly close target
   q_closes: number;
+  // Channel revenue share % (Methodology panel only)
   ch: {
     Outbound:    number;
     Events:      number;
@@ -73,7 +76,9 @@ export interface Assumptions {
     Inbound:     number;
     Expansion:   number;
   };
+  // Annual closes needed per channel
   annual_closes: ChannelAnnualCloses;
+  // Expansion-specific inputs
   expansion_annual_deals: number;
   expansion_close_rate:   number;
 }
