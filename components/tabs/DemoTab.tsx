@@ -11,23 +11,18 @@ import DealLink from "@/components/DealLink";
 import StatCard from "@/components/StatCard";
 
 interface DemoTabProps {
-  deals: Deal[];        // deals currently in Demo stage
-  allActive: Deal[];    // all active deals across all stages
+  deals: Deal[];
+  allActive: Deal[];
   closePlans: ClosePlanMap;
   now: Date;
   weekAgo: Date;
   qStart: Date;
   demoQTarget: number;
+  counts: { demoNewW: number; demoNewQ: number; };
 }
 
-export default function DemoTab({ deals, allActive, closePlans, now, weekAgo, qStart, demoQTarget }: DemoTabProps) {
-  // Count across allActive so deals that passed through Demo and moved on are included
-  const newThisWeek = allActive.filter(d =>
-    d.entered_demo && d.createdate && new Date(d.createdate) >= weekAgo
-  ).length;
-  const newThisQ = allActive.filter(d =>
-    d.entered_demo && d.createdate && new Date(d.createdate) >= qStart
-  ).length;
+export default function DemoTab({ deals, allActive, closePlans, now, weekAgo, qStart, demoQTarget, counts }: DemoTabProps) {
+  const { demoNewW: newThisWeek, demoNewQ: newThisQ } = counts;
   const staleCount = deals.filter(d => isStale(d, now)).length;
 
   const sorted = [...deals].sort((a, b) => {
