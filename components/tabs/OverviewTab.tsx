@@ -250,7 +250,7 @@ function MethodologyPanel({ assumptions, derived }: { assumptions: Assumptions; 
               <div style={{ fontWeight: 700, fontSize: 12, color: "#374151", marginBottom: 6 }}>Q Stage Targets (Derived)</div>
               {[
                 ["Legal needed",     legalTarget, `${assumptions.q_closes} closes ÷ ${assumptions.legal_to_close}%`],
-                ["Proposal needed",  propTarget,  `${assumptions.q_closes} closes ÷ ${assumptions.prop_to_close}%`],
+                ["Proposal needed",  propTarget,  `${legalTarget} legal ÷ ${assumptions.prop_to_legal}%`],
                 ["Demo needed",      demoTarget,  `${propTarget} prop ÷ ${assumptions.demo_to_prop}%`],
                 ["Discovery needed", discTarget,  `${demoTarget} demo ÷ ${assumptions.disc_to_demo}%`],
               ].map(([k, v, d]) => (
