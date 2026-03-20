@@ -13,6 +13,8 @@ import DealLink from "@/components/DealLink";
 import PacingTable from "@/components/PacingTable";
 import StatCard from "@/components/StatCard";
 
+import type { PipelineCounts } from "@/app/page";
+
 interface DiscoveryTabProps {
   deals: Deal[];
   allActive: Deal[];
@@ -21,7 +23,7 @@ interface DiscoveryTabProps {
   now: Date;
   weekAgo: Date;
   qStart: Date;
-  counts: { discNewW: number; discNewQ: number; };
+  counts: PipelineCounts;
 }
 
 export default function DiscoveryTab({
