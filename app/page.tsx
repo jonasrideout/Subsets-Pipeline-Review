@@ -160,7 +160,7 @@ export default function Page() {
             {tab === "proposal"  && (
               <ProposalTab
                 deals={proposal} closePlans={closePlans}
-                onClosePlanSave={handleClosePlanSave} now={now}
+                onClosePlanSave={handleClosePlanSave} now={now} qStart={qStart}
               />
             )}
             {tab === "demo"      && <DemoTab deals={demo} closePlans={closePlans} now={now} weekAgo={weekAgo} qStart={qStart} />}
