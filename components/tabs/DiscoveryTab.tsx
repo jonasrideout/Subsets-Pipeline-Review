@@ -103,6 +103,19 @@ export default function DiscoveryTab({
         actuals={{ Expansion: expansionActual }}
       />
 
+      {/* Assumptions panel */}
+      <AssumptionsPanel
+        assumptions={assumptions}
+        derived={derived}
+        editing={editing}
+        tmp={tmp}
+        saving={saving}
+        onEdit={() => { setEditing(true); setTmp(JSON.parse(JSON.stringify(assumptions))); }}
+        onCancel={() => { setEditing(false); setTmp(null); }}
+        onSave={handleSave}
+        onTmpChange={setTmp}
+      />
+
       {/* Main table */}
       <TableCard>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -144,8 +157,6 @@ export default function DiscoveryTab({
           </tbody>
         </table>
       </TableCard>
-
-      {/* Assumptions panel */}
       <AssumptionsPanel
         assumptions={assumptions}
         derived={derived}
