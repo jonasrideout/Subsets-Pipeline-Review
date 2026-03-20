@@ -141,7 +141,7 @@ export default function Page() {
 
       <TabNav active={tab} onChange={setTab} />
 
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px 40px" }}>
+              <div className="px-6 py-6 max-w-[1600px] mx-auto">
         {loading && !active.length ? (
           <div style={{ textAlign: "center", padding: "80px 0", color: "#94a3b8", fontSize: 14 }}>
             Loading pipeline data…
