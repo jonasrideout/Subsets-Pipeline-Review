@@ -5,13 +5,12 @@
 interface StatCardProps {
   label: string;
   value: number;
-  // For "New This Quarter" tiles — shows target, % of goal, and pace
   target?: number;
-  goalPct?: number;   // actual ÷ target × 100
-  pacePct?: number;   // (actual ÷ target) ÷ quarter elapsed × 100
+  goalPct?: number;
+  pacePct?: number;
 }
 
-export default function StatCard({ label, value, accent, target, goalPct, pacePct }: StatCardProps) {
+export default function StatCard({ label, value, target, goalPct, pacePct }: StatCardProps) {
   const hasMetrics = target !== undefined && goalPct !== undefined && pacePct !== undefined;
 
   return (
