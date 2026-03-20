@@ -189,11 +189,11 @@ function AssumptionsPanel({ assumptions, derived, editing, tmp, saving, onEdit, 
               <div style={{ fontWeight: 600, fontSize: 12, color: "#374151", marginBottom: 8 }}>Funnel Conversion Rates</div>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
                 {([
-                  ["disc_to_demo",   "Disc→Demo %",    true],
-                  ["demo_to_prop",   "Demo→Prop %",    false],
-                  ["prop_to_close",  "Prop→Close %",   false],
-                  ["legal_to_close", "Legal→Close %",  false],
-                  ["q_closes",       "Q Closes Target",false],
+                  ["disc_to_demo",   "Disc→Demo %",       true],
+                  ["demo_to_prop",   "Demo→Prop %",       false],
+                  ["prop_to_legal",  "Prop→Legal %",      false],
+                  ["legal_to_close", "Legal→Close %",     false],
+                  ["q_closes",       "Q Closes Target",   false],
                 ] as [keyof Assumptions, string, boolean][]).map(([k, label, isManual]) => (
                   <label key={k} style={{ display: "flex", flexDirection: "column", fontSize: 12, gap: 3 }}>
                     <span style={{ color: isManual ? "#d97706" : "#374151" }}>{label}{isManual ? " *" : ""}</span>
@@ -259,7 +259,7 @@ function AssumptionsPanel({ assumptions, derived, editing, tmp, saving, onEdit, 
                   {([
                     ["Discovery→Demo",  assumptions.disc_to_demo   + "%", "*",  true],
                     ["Demo→Proposal",   assumptions.demo_to_prop   + "%", "†",  false],
-                    ["Proposal→Close",  assumptions.prop_to_close  + "%", "†",  false],
+                    ["Proposal→Legal",  assumptions.prop_to_legal  + "%", "†",  false],
                     ["Legal→Close",     assumptions.legal_to_close + "%", "†",  false],
                   ] as [string, string, string, boolean][]).map(([k, v, m, isManual]) => (
                     <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
