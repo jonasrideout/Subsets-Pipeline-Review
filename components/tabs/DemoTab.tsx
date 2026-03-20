@@ -2,27 +2,20 @@
 
 "use client";
 
-import { useState } from "react";
 import type { Deal, ClosePlanMap } from "@/types/deals";
 import { ownerName, fmtDate, fmtCur, daysSince, UNRESOLVED_OWNER_IDS } from "@/lib/deals";
-import { isEnteredInWindow, isStale } from "@/lib/flags";
+import { isNewGenuine, isStale } from "@/lib/flags";
 import { TH, TD, TableCard } from "@/components/Table";
 import { CloseDateBadge, UnresolvedOwnerBadge, NewQBadge, StaleBadge, NoContactBadge } from "@/components/Badges";
 import DealLink from "@/components/DealLink";
-import WindowToggle, { type WindowValue } from "@/components/WindowToggle";
 
 interface DemoTabProps {
   deals: Deal[];
   closePlans: ClosePlanMap;
   now: Date;
-  weekAgo: Date;
-  qStart: Date;
 }
 
-export default function DemoTab({ deals, closePlans, now, weekAgo, qStart }: DemoTabProps) {
-  const [window, setWindow] = useState<WindowValue>("week");
-  const windowStart = window === "week" ? weekAgo : qStart;
-
+export default function DemoTab({ deals, closePlans, now }: DemoTabProps) {
   const sorted = [...deals].sort((a, b) => {
     const la = a.last_contacted ? new Date(a.last_contacted).getTime() : 0;
     const lb = b.last_contacted ? new Date(b.last_contacted).getTime() : 0;
@@ -31,9 +24,6 @@ export default function DemoTab({ deals, closePlans, now, weekAgo, qStart }: Dem
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
-        <WindowToggle value={window} onChange={setWindow} color="#6366f1" />
-      </div>
       <TableCard>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
@@ -48,7 +38,7 @@ export default function DemoTab({ deals, closePlans, now, weekAgo, qStart }: Dem
               const enteredDate = d.entered_demo || d.entered_current;
               const daysIn      = daysSince(enteredDate, now);
               const lc          = daysSince(d.last_contacted, now);
-              const isNew       = isEnteredInWindow(d, windowStart, now);
+              const isNew       = isNewGenuine(d);
               const stale       = isStale(d, now);
               const noContact   = lc === null || lc >= 14;
 
@@ -77,9 +67,9 @@ export default function DemoTab({ deals, closePlans, now, weekAgo, qStart }: Dem
                     {daysIn != null ? `${daysIn}d` : "—"}
                   </TD>
                   <TD>
-                    {isNew      && <NewQBadge />}
-                    {stale      && <StaleBadge />}
-                    {noContact  && <NoContactBadge />}
+                    {isNew     && <NewQBadge createdate={d.createdate} />}
+                    {stale     && <StaleBadge />}
+                    {noContact && <NoContactBadge />}
                   </TD>
                 </tr>
               );
