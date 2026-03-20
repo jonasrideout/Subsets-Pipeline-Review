@@ -33,7 +33,7 @@ export default function LegalTab({ deals, closePlans, now, weekAgo, qStart, coun
     <div>
       {/* Summary cards */}
       <div className="flex gap-3 mb-5 flex-wrap">
-        <StatCard label="Currently in Legal" value={deals.length} accent />
+        <StatCard label="Currently in Legal" value={deals.length} />
         <StatCard label="New This Week"       value={legalNewW} />
         <StatCard
           label="New This Quarter"
