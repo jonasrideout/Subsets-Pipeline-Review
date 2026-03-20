@@ -12,8 +12,6 @@ import DealLink from "@/components/DealLink";
 import StatCard from "@/components/StatCard";
 import type { PipelineCounts } from "@/app/page";
 
-import type { PipelineCounts } from "@/app/page";
-
 interface ProposalTabProps {
   deals: Deal[];
   closePlans: ClosePlanMap;
