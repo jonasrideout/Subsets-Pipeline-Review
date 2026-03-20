@@ -166,7 +166,7 @@ export default function Page() {
             {tab === "demo"      && <DemoTab deals={demo} now={now} weekAgo={weekAgo} qStart={qStart} />}
             {tab === "discovery" && (
               <DiscoveryTab
-                deals={discovery} assumptions={assumptions}
+                deals={discovery} allActive={active} assumptions={assumptions}
                 onAssumptionsSave={handleAssumptionsSave}
                 now={now} weekAgo={weekAgo} qStart={qStart}
               />
