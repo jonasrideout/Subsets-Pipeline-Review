@@ -8,14 +8,21 @@ import { isNewGenuine, isStale } from "@/lib/flags";
 import { TH, TD, TableCard } from "@/components/Table";
 import { CloseDateBadge, UnresolvedOwnerBadge, NewQBadge, StaleBadge, NoContactBadge } from "@/components/Badges";
 import DealLink from "@/components/DealLink";
+import StatCard from "@/components/StatCard";
 
 interface DemoTabProps {
   deals: Deal[];
   closePlans: ClosePlanMap;
   now: Date;
+  weekAgo: Date;
+  qStart: Date;
+  demoQTarget: number;
 }
 
-export default function DemoTab({ deals, closePlans, now }: DemoTabProps) {
+export default function DemoTab({ deals, closePlans, now, weekAgo, qStart, demoQTarget }: DemoTabProps) {
+  const newThisWeek = deals.filter(d => d.createdate && new Date(d.createdate) >= weekAgo).length;
+  const newThisQ    = deals.filter(d => d.new_genuine).length;
+  const staleCount  = deals.filter(d => isStale(d, now)).length;
   const sorted = [...deals].sort((a, b) => {
     const la = a.last_contacted ? new Date(a.last_contacted).getTime() : 0;
     const lb = b.last_contacted ? new Date(b.last_contacted).getTime() : 0;
@@ -24,6 +31,18 @@ export default function DemoTab({ deals, closePlans, now }: DemoTabProps) {
 
   return (
     <div>
+      {/* Summary cards */}
+      <div className="flex gap-3 mb-5 flex-wrap">
+        <StatCard label="Currently in Meeting / Demo" value={deals.length} accent />
+        <StatCard label="New This Week"                value={newThisWeek} />
+        <StatCard
+          label="New This Quarter"
+          value={newThisQ}
+          sub={`target: ${demoQTarget}`}
+          subColor={newThisQ >= demoQTarget ? "#0a7a50" : "#b0b5c3"}
+        />
+        <StatCard label="Stale >60 days" value={staleCount} />
+      </div>
       <TableCard>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
