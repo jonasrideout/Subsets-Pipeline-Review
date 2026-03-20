@@ -175,6 +175,7 @@ export default function Page() {
                 assumptions={assumptions} counts={counts}
                 now={now} weekAgo={weekAgo} qStart={qStart}
                 onTabChange={setTab}
+                onAssumptionsSave={handleAssumptionsSave}
               />
             )}
             {tab === "legal"    && <LegalTab deals={legal} closePlans={closePlans} now={now} weekAgo={weekAgo} qStart={qStart} counts={counts} legalQTarget={derived.legalTarget} />}
