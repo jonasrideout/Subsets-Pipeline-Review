@@ -4,18 +4,16 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;900&family=DM+Mono:wght@400;500&display=swap');
 
-*, *::before, *::after {
-  box-sizing: border-box;
-}
+*, *::before, *::after { box-sizing: border-box; }
 
 html, body {
   margin: 0;
   padding: 0;
-  font-family: 'Inter', system-ui, sans-serif;
-  background: #f0f2f8;
-  color: #0f172a;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  background: #f5f6fa;
+  color: #0f1117;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -23,37 +21,29 @@ html, body {
 details > summary { list-style: none; }
 details > summary::-webkit-details-marker { display: none; }
 
+/* Table row hover — teal tint matching Engagement Alerts */
+.table-row-hover:hover { background: rgba(160,250,215,0.07) !important; }
+
+/* Pill button lift */
+.pill-btn { transition: all 0.15s ease; }
+.pill-btn:hover { transform: translateY(-1px); }
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #f0f2f8; }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+::-webkit-scrollbar-track { background: #f5f6fa; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
 
 /* ── DESIGN TOKENS ── */
 :root {
-  /* Header gradient — exact match from Engagement Alerts */
-  --header-bg-start:  #0f0a2e;
-  --header-bg-mid:    #1a0f4e;
-  --header-bg-end:    #0d1a3a;
-
-  /* Teal accent */
-  --teal-light:       #a0fad7;
-  --teal-mid:         #82f6c6;
-  --teal-dark:        #0a2e1f;
-
-  /* Page */
-  --page-bg:          #f0f2f8;
-  --card-bg:          #ffffff;
-  --card-border:      rgba(99, 102, 241, 0.1);
-
-  /* Table */
-  --table-header-bg:  #f8fafc;
-  --table-row-hover:  #f8faff;
-  --table-divider:    #f1f5f9;
-  --col-header-color: #94a3b8;
-
-  /* Text */
-  --text-primary:     #0f172a;
-  --text-secondary:   #64748b;
-  --text-muted:       #94a3b8;
+  --teal-light:   #a0fad7;
+  --teal-mid:     #82f6c6;
+  --teal-dark:    #0a2e1f;
+  --page-bg:      #f5f6fa;
+  --card-bg:      #ffffff;
+  --card-border:  #e2e4ed;
+  --col-header:   #9ca3af;
+  --text-primary: #0f1117;
+  --text-muted:   #8b90a0;
+  --text-subtle:  #b0b5c3;
 }
