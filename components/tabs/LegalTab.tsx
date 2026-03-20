@@ -23,7 +23,9 @@ interface LegalTabProps {
 
 export default function LegalTab({ deals, closePlans, now, weekAgo, qStart, counts, legalQTarget }: LegalTabProps) {
   const staleCount = deals.filter(d => isStale(d, now)).length;
-  const { legalNewW, legalNewQ } = counts;
+  const { legalNewW, legalNewQ, qElapsedPct } = counts;
+  const goalPct = legalQTarget > 0 ? Math.round((legalNewQ / legalQTarget) * 100) : 0;
+  const pacePct = legalQTarget > 0 && qElapsedPct > 0 ? Math.round((legalNewQ / legalQTarget) / qElapsedPct * 100) : 0;
 
   return (
     <div>
@@ -34,8 +36,9 @@ export default function LegalTab({ deals, closePlans, now, weekAgo, qStart, coun
         <StatCard
           label="New This Quarter"
           value={legalNewQ}
-          sub={`target: ${legalQTarget}`}
-          subColor={legalNewQ >= legalQTarget ? "#0a7a50" : "#b0b5c3"}
+          target={legalQTarget}
+          goalPct={goalPct}
+          pacePct={pacePct}
         />
         <StatCard label="Stale >60 days" value={staleCount} />
       </div>
