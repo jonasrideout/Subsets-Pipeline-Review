@@ -23,10 +23,10 @@ interface DemoTabProps {
 export default function DemoTab({ deals, allActive, closePlans, now, weekAgo, qStart, demoQTarget }: DemoTabProps) {
   // Count across allActive so deals that passed through Demo and moved on are included
   const newThisWeek = allActive.filter(d =>
-    d.new_genuine && d.entered_demo && d.createdate && new Date(d.createdate) >= weekAgo
+    d.entered_demo && d.createdate && new Date(d.createdate) >= weekAgo
   ).length;
   const newThisQ = allActive.filter(d =>
-    d.new_genuine && d.entered_demo
+    d.entered_demo && d.createdate && new Date(d.createdate) >= qStart
   ).length;
   const staleCount = deals.filter(d => isStale(d, now)).length;
 
