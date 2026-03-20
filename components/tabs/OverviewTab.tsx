@@ -39,22 +39,25 @@ export default function OverviewTab({
   const { legalTarget, propTarget, demoTarget, channelQTargets } = derived;
   const discTarget = Object.values(channelQTargets).reduce((s, v) => s + v, 0);
 
-  // Counts come pre-computed from page.tsx — single source of truth
   const { discNewW, discNewQ, demoNewW, demoNewQ, propNewW, propNewQ, legalNewW, legalNewQ } = counts;
+
+  const legalAmt = legal.reduce((s, d) => s + (d.amount || 0), 0);
+  const propAmt  = proposal.reduce((s, d) => s + (d.amount || 0), 0);
+  const wp       = weightedPipeline(active);
+  const closedWonTotal = closedWon.reduce((s, d) => s + d.amount, 0);
+  const QUARTERLY_TARGET = 600000;
 
   // Quarter elapsed %
   const qTotalDays   = (new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3 + 3, 1).getTime() - qStart.getTime()) / 86400000;
   const qElapsedDays = (now.getTime() - qStart.getTime()) / 86400000;
   const qElapsedPct  = qElapsedDays / qTotalDays;
 
-  // Pace ratio helper: (actual / target) / qElapsedPct
   const paceRatio = (actual: number, target: number) => {
     if (target === 0) return 1;
     if (qElapsedPct === 0) return 1;
     return (actual / target) / qElapsedPct;
   };
 
-  // Color based on pace ratio
   const tileColor = (ratio: number) => {
     if (ratio >= 0.90) return { bg: "#f0fdf4", border: "#86efac", text: "#15803d", accent: "#16a34a" };
     if (ratio >= 0.75) return { bg: "#fefce8", border: "#fde68a", text: "#854d0e", accent: "#ca8a04" };
@@ -62,7 +65,6 @@ export default function OverviewTab({
     return               { bg: "#fef2f2", border: "#fecaca", text: "#991b1b", accent: "#dc2626" };
   };
 
-  // Tooltip text
   const tileTooltip = (actual: number, target: number, ratio: number, label: string) => {
     const elapsedPct = Math.round(qElapsedPct * 100);
     const goalPct    = target > 0 ? Math.round((actual / target) * 100) : 0;
@@ -71,17 +73,19 @@ export default function OverviewTab({
     if (ratio >= 0.50) return `You're ${elapsedPct}% through Q1 and have reached ${goalPct}% of your ${label} target — behind pace.`;
     return `You're ${elapsedPct}% through Q1 and have reached ${goalPct}% of your ${label} target — significantly behind, needs attention.`;
   };
-  const propAmt  = proposal.reduce((s, d) => s + (d.amount || 0), 0);
-  const wp       = weightedPipeline(active);
-  const closedWonTotal = closedWon.reduce((s, d) => s + d.amount, 0);
-  const QUARTERLY_TARGET = 600000;
 
   const tiles = [
-    { key: "legal" as TabId,     label: "Legal / Procurement",    count: legal.length,    amount: legalAmt, newW: legalNewW, newQ: legalNewQ, target: legalTarget, color: stageColor("1446534336") },
-    { key: "proposal" as TabId,  label: "Proposal / Negotiation", count: proposal.length, amount: propAmt,  newW: propNewW,  newQ: propNewQ,  target: propTarget,  color: stageColor("contractsent") },
-    { key: "demo" as TabId,      label: "Meeting / Demo",         count: demo.length,     amount: null,     newW: demoNewW,  newQ: demoNewQ,  target: demoTarget,  color: stageColor("qualifiedtobuy") },
-    { key: "discovery" as TabId, label: "Discovery",              count: discovery.length,amount: null,     newW: discNewW,  newQ: discNewQ,  target: discTarget,  color: stageColor("appointmentscheduled") },
-  ];
+    { key: "legal" as TabId,     label: "Legal / Procurement",    count: legal.length,    amount: legalAmt, newW: legalNewW, newQ: legalNewQ, target: legalTarget, actual: legalNewQ },
+    { key: "proposal" as TabId,  label: "Proposal / Negotiation", count: proposal.length, amount: propAmt,  newW: propNewW,  newQ: propNewQ,  target: propTarget,  actual: propNewQ  },
+    { key: "demo" as TabId,      label: "Meeting / Demo",         count: demo.length,     amount: null,     newW: demoNewW,  newQ: demoNewQ,  target: demoTarget,  actual: demoNewQ  },
+    { key: "discovery" as TabId, label: "Discovery",              count: discovery.length,amount: null,     newW: discNewW,  newQ: discNewQ,  target: discTarget,  actual: discNewQ  },
+  ].map(t => ({
+    ...t,
+    ratio:   paceRatio(t.actual, t.target),
+    color:   tileColor(paceRatio(t.actual, t.target)),
+    goalPct: t.target > 0 ? Math.round((t.actual / t.target) * 100) : 0,
+    tooltip: tileTooltip(t.actual, t.target, paceRatio(t.actual, t.target), t.label),
+  }));
 
   const solRows  = useMemo(() => getSignsOfLife(active, emailSignals, now), [active, emailSignals, now]);
   const naAlerts = useMemo(() => getNeedsActionAlerts([...legal, ...proposal, ...demo], closePlans, now), [legal, proposal, demo, closePlans, now]);
@@ -108,16 +112,15 @@ export default function OverviewTab({
                   <span style={{ fontWeight: 700, color: t.color.accent }}>{v}</span>
                 </div>
               ))}
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, alignItems: "center", marginBottom: 2 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
                 <span style={{ color: "#64748b" }}>Q target</span>
                 <span style={{ fontWeight: 700, color: t.color.accent }}>{t.target}</span>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, alignItems: "center" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
                 <span style={{ color: "#64748b" }}>Percent of goal</span>
                 <span style={{ fontWeight: 700, color: t.color.accent }}>{t.goalPct}%</span>
               </div>
             </div>
-            {/* Info icon — bottom right */}
             <div
               title={t.tooltip}
               onClick={e => e.stopPropagation()}
