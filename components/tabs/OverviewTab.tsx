@@ -4,7 +4,7 @@
 
 import { useMemo } from "react";
 import type { Deal, ClosedWonDeal, EmailSignalMap, ClosePlanMap, Assumptions } from "@/types/deals";
-import { stageColor, ownerName, fmtDate, fmtCur, daysSince, weightedPipeline, UNRESOLVED_OWNER_IDS } from "@/lib/deals";
+import { ownerName, fmtDate, fmtCur, daysSince, weightedPipeline, UNRESOLVED_OWNER_IDS } from "@/lib/deals";
 import { deriveTargets } from "@/lib/assumptions";
 import { getSignsOfLife, getNeedsActionAlerts, opensColor } from "@/lib/flags";
 import { TH, TD, TableCard, TableCardHeader } from "@/components/Table";
@@ -42,7 +42,35 @@ export default function OverviewTab({
   // Counts come pre-computed from page.tsx — single source of truth
   const { discNewW, discNewQ, demoNewW, demoNewQ, propNewW, propNewQ, legalNewW, legalNewQ } = counts;
 
-  const legalAmt = legal.reduce((s, d) => s + (d.amount || 0), 0);
+  // Quarter elapsed %
+  const qTotalDays   = (new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3 + 3, 1).getTime() - qStart.getTime()) / 86400000;
+  const qElapsedDays = (now.getTime() - qStart.getTime()) / 86400000;
+  const qElapsedPct  = qElapsedDays / qTotalDays;
+
+  // Pace ratio helper: (actual / target) / qElapsedPct
+  const paceRatio = (actual: number, target: number) => {
+    if (target === 0) return 1;
+    if (qElapsedPct === 0) return 1;
+    return (actual / target) / qElapsedPct;
+  };
+
+  // Color based on pace ratio
+  const tileColor = (ratio: number) => {
+    if (ratio >= 0.90) return { bg: "#f0fdf4", border: "#86efac", text: "#15803d", accent: "#16a34a" };
+    if (ratio >= 0.75) return { bg: "#fefce8", border: "#fde68a", text: "#854d0e", accent: "#ca8a04" };
+    if (ratio >= 0.50) return { bg: "#fff7ed", border: "#fed7aa", text: "#9a3412", accent: "#ea580c" };
+    return               { bg: "#fef2f2", border: "#fecaca", text: "#991b1b", accent: "#dc2626" };
+  };
+
+  // Tooltip text
+  const tileTooltip = (actual: number, target: number, ratio: number, label: string) => {
+    const elapsedPct = Math.round(qElapsedPct * 100);
+    const goalPct    = target > 0 ? Math.round((actual / target) * 100) : 0;
+    if (ratio >= 0.90) return `You're ${elapsedPct}% through Q1 and have reached ${goalPct}% of your ${label} target — on track.`;
+    if (ratio >= 0.75) return `You're ${elapsedPct}% through Q1 and have reached ${goalPct}% of your ${label} target — slightly behind pace.`;
+    if (ratio >= 0.50) return `You're ${elapsedPct}% through Q1 and have reached ${goalPct}% of your ${label} target — behind pace.`;
+    return `You're ${elapsedPct}% through Q1 and have reached ${goalPct}% of your ${label} target — significantly behind, needs attention.`;
+  };
   const propAmt  = proposal.reduce((s, d) => s + (d.amount || 0), 0);
   const wp       = weightedPipeline(active);
   const closedWonTotal = closedWon.reduce((s, d) => s + d.amount, 0);
@@ -66,7 +94,7 @@ export default function OverviewTab({
           <div
             key={t.key}
             onClick={() => onTabChange(t.key)}
-            style={{ flex: 1, minWidth: 140, background: t.color.bg, border: `1.5px solid ${t.color.border}`, borderRadius: 12, padding: "16px 18px", cursor: "pointer" }}
+            style={{ flex: 1, minWidth: 140, background: t.color.bg, border: `1.5px solid ${t.color.border}`, borderRadius: 12, padding: "16px 18px", cursor: "pointer", position: "relative" }}
             onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.10)"}
             onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}
           >
@@ -80,12 +108,22 @@ export default function OverviewTab({
                   <span style={{ fontWeight: 700, color: t.color.accent }}>{v}</span>
                 </div>
               ))}
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, alignItems: "center" }}>
-                <span style={{ color: "#64748b", display: "flex", alignItems: "center", gap: 3 }}>
-                  Q target <span title="Derived from funnel math — see Methodology" style={{ cursor: "help", fontSize: 11, opacity: 0.6 }}>ℹ️</span>
-                </span>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, alignItems: "center", marginBottom: 2 }}>
+                <span style={{ color: "#64748b" }}>Q target</span>
                 <span style={{ fontWeight: 700, color: t.color.accent }}>{t.target}</span>
               </div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, alignItems: "center" }}>
+                <span style={{ color: "#64748b" }}>Percent of goal</span>
+                <span style={{ fontWeight: 700, color: t.color.accent }}>{t.goalPct}%</span>
+              </div>
+            </div>
+            {/* Info icon — bottom right */}
+            <div
+              title={t.tooltip}
+              onClick={e => e.stopPropagation()}
+              style={{ position: "absolute", bottom: 10, right: 12, cursor: "help", fontSize: 13, opacity: 0.5 }}
+            >
+              ℹ️
             </div>
           </div>
         ))}
