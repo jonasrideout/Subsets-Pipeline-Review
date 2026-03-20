@@ -62,7 +62,7 @@ export default function LegalTab({ deals, closePlans, now, qStart }: LegalTabPro
                     {daysIn != null ? `${daysIn}d` : "—"}
                   </TD>
                   <TD>
-                    {isNew && <NewQBadge />}
+                    {isNew && <NewQBadge createdate={d.createdate} />}
                     {stale && <StaleBadge />}
                     {lc !== null && lc >= 14 && <NoContactBadge />}
                     {daysUntil !== null && daysUntil < 0 && <OverdueBadge days={Math.abs(daysUntil)} />}
