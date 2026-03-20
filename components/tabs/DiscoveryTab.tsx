@@ -11,6 +11,7 @@ import { TH, TD, TableCard } from "@/components/Table";
 import { FlagBadge, NewQBadge, StaleBadge, UnresolvedOwnerBadge } from "@/components/Badges";
 import DealLink from "@/components/DealLink";
 import PacingTable from "@/components/PacingTable";
+import StatCard from "@/components/StatCard";
 
 interface DiscoveryTabProps {
   deals: Deal[];
@@ -68,18 +69,16 @@ export default function DiscoveryTab({
   return (
     <div>
       {/* Summary cards */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
-        {([
-          ["Total in Discovery", deals.length,  "#7c3aed"],
-          ["New This Week",      newThisWeek,   "#2563eb"],
-          ["New This Quarter",   newThisQ,      "#059669"],
-          ["Stale >60 days",     staleCount,    "#dc2626"],
-        ] as [string, number, string][]).map(([label, val, color]) => (
-          <div key={label} style={{ flex: 1, minWidth: 120, background: "#fff", border: "1px solid rgba(99,102,241,0.1)", borderRadius: 10, padding: "10px 16px", boxShadow: "0 1px 3px rgba(15,10,46,0.06)" }}>
-            <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>{label}</div>
-            <div style={{ fontSize: 26, fontWeight: 800, color }}>{val}</div>
-          </div>
-        ))}
+      <div className="flex gap-3 mb-5 flex-wrap">
+        <StatCard label="Currently in Discovery" value={deals.length} accent />
+        <StatCard label="New This Week"           value={newThisWeek} />
+        <StatCard
+          label="New This Quarter"
+          value={newThisQ}
+          sub={`target: ${Object.values(derived.channelQTargets).reduce((s, v) => s + v, 0)}`}
+          subColor={newThisQ >= Object.values(derived.channelQTargets).reduce((s, v) => s + v, 0) ? "#0a7a50" : "#b0b5c3"}
+        />
+        <StatCard label="Stale >60 days" value={staleCount} subColor="#dc2626" />
       </div>
 
       {/* Pacing tables */}
