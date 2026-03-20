@@ -11,6 +11,7 @@ import { TH, TD, TableCard, TableCardHeader } from "@/components/Table";
 import { CloseDateBadge, StageBadge, UnresolvedOwnerBadge } from "@/components/Badges";
 import DealLink from "@/components/DealLink";
 import type { TabId } from "@/components/TabNav";
+import type { PipelineCounts } from "@/app/page";
 
 interface OverviewTabProps {
   active: Deal[];
@@ -22,12 +23,7 @@ interface OverviewTabProps {
   emailSignals: EmailSignalMap;
   closePlans: ClosePlanMap;
   assumptions: Assumptions;
-  counts: {
-    discNewW: number; discNewQ: number;
-    demoNewW: number; demoNewQ: number;
-    propNewW: number; propNewQ: number;
-    legalNewW: number; legalNewQ: number;
-  };
+  counts: PipelineCounts;
   now: Date;
   weekAgo: Date;
   qStart: Date;
@@ -35,46 +31,37 @@ interface OverviewTabProps {
 }
 
 export default function OverviewTab({
-  allActive, legal, proposal, demo, discovery, closedWon,
-  emailSignals, closePlans, assumptions, now, weekAgo, qStart, onTabChange,
+  active, legal, proposal, demo, discovery, closedWon,
+  emailSignals, closePlans, assumptions, counts,
+  now, weekAgo, qStart, onTabChange,
 }: OverviewTabProps) {
   const derived = deriveTargets(assumptions);
   const { legalTarget, propTarget, demoTarget, channelQTargets } = derived;
-  // Discovery tile target = sum of all channel Q targets (guarantees match with Discovery tab)
   const discTarget = Object.values(channelQTargets).reduce((s, v) => s + v, 0);
 
-  const allDeals = allActive; // use the full active array passed directly from page.tsx
-  const wp = weightedPipeline(allDeals);
-  const closedWonTotal = closedWon.reduce((s, d) => s + d.amount, 0);
-  const QUARTERLY_TARGET = 600000;
-
-  const newLegalW = allDeals.filter(d => d.entered_legal    && new Date(d.entered_legal)    >= weekAgo).length;
-  const newLegalQ = allDeals.filter(d => d.entered_legal    && new Date(d.entered_legal)    >= qStart).length;
-  const newPropW  = allDeals.filter(d => d.entered_proposal && new Date(d.entered_proposal) >= weekAgo).length;
-  const newPropQ  = allDeals.filter(d => d.entered_proposal && new Date(d.entered_proposal) >= qStart).length;
-  const newDemoW  = allDeals.filter(d => d.entered_demo     && new Date(d.entered_demo)     >= weekAgo).length;
-  const newDemoQ  = allDeals.filter(d => d.entered_demo     && new Date(d.entered_demo)     >= qStart).length;
-  // Discovery: only count genuinely new deals (no prior demo/proposal/legal history)
-  const newDiscW  = allDeals.filter(d => d.new_genuine && d.entered_discovery && new Date(d.entered_discovery) >= weekAgo).length;
-  const newDiscQ  = allDeals.filter(d => d.new_genuine && d.entered_discovery && new Date(d.entered_discovery) >= qStart).length;
+  // Counts come pre-computed from page.tsx — single source of truth
+  const { discNewW, discNewQ, demoNewW, demoNewQ, propNewW, propNewQ, legalNewW, legalNewQ } = counts;
 
   const legalAmt = legal.reduce((s, d) => s + (d.amount || 0), 0);
   const propAmt  = proposal.reduce((s, d) => s + (d.amount || 0), 0);
+  const wp       = weightedPipeline(active);
+  const closedWonTotal = closedWon.reduce((s, d) => s + d.amount, 0);
+  const QUARTERLY_TARGET = 600000;
 
   const tiles = [
-    { key: "legal" as TabId,     label: "Legal / Procurement",    count: legal.length,    amount: legalAmt, newW: newLegalW, newQ: newLegalQ, target: legalTarget, color: stageColor("1446534336") },
-    { key: "proposal" as TabId,  label: "Proposal / Negotiation", count: proposal.length, amount: propAmt,  newW: newPropW,  newQ: newPropQ,  target: propTarget,  color: stageColor("contractsent") },
-    { key: "demo" as TabId,      label: "Meeting / Demo",         count: demo.length,     amount: null,     newW: newDemoW,  newQ: newDemoQ,  target: demoTarget,  color: stageColor("qualifiedtobuy") },
-    { key: "discovery" as TabId, label: "Discovery",              count: discovery.length,amount: null,     newW: newDiscW,  newQ: newDiscQ,  target: discTarget,  color: stageColor("appointmentscheduled") },
+    { key: "legal" as TabId,     label: "Legal / Procurement",    count: legal.length,    amount: legalAmt, newW: legalNewW, newQ: legalNewQ, target: legalTarget, color: stageColor("1446534336") },
+    { key: "proposal" as TabId,  label: "Proposal / Negotiation", count: proposal.length, amount: propAmt,  newW: propNewW,  newQ: propNewQ,  target: propTarget,  color: stageColor("contractsent") },
+    { key: "demo" as TabId,      label: "Meeting / Demo",         count: demo.length,     amount: null,     newW: demoNewW,  newQ: demoNewQ,  target: demoTarget,  color: stageColor("qualifiedtobuy") },
+    { key: "discovery" as TabId, label: "Discovery",              count: discovery.length,amount: null,     newW: discNewW,  newQ: discNewQ,  target: discTarget,  color: stageColor("appointmentscheduled") },
   ];
 
-  const solRows  = useMemo(() => getSignsOfLife(allDeals, emailSignals, now), [allDeals, emailSignals, now]);
+  const solRows  = useMemo(() => getSignsOfLife(active, emailSignals, now), [active, emailSignals, now]);
   const naAlerts = useMemo(() => getNeedsActionAlerts([...legal, ...proposal, ...demo], closePlans, now), [legal, proposal, demo, closePlans, now]);
 
   return (
     <div>
       {/* Stage tiles */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
+      <div className="flex gap-3 mb-5 flex-wrap">
         {tiles.map(t => (
           <div
             key={t.key}
@@ -87,7 +74,7 @@ export default function OverviewTab({
             <div style={{ fontSize: 36, fontWeight: 800, color: t.color.accent, lineHeight: 1.1, margin: "4px 0 2px" }}>{t.count}</div>
             {t.amount != null && <div style={{ fontSize: 13, color: t.color.text, fontWeight: 500, marginBottom: 6 }}>{fmtCur(t.amount)}</div>}
             <div style={{ borderTop: `1px solid ${t.color.border}`, marginTop: 8, paddingTop: 8 }}>
-              {[["New this week", t.newW], ["New this quarter", t.newQ]] .map(([l, v]) => (
+              {[["New this week", t.newW], ["New this quarter", t.newQ]].map(([l, v]) => (
                 <div key={String(l)} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
                   <span style={{ color: "#64748b" }}>{l}</span>
                   <span style={{ fontWeight: 700, color: t.color.accent }}>{v}</span>
@@ -95,8 +82,7 @@ export default function OverviewTab({
               ))}
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, alignItems: "center" }}>
                 <span style={{ color: "#64748b", display: "flex", alignItems: "center", gap: 3 }}>
-                  Q target
-                  <span title="Derived from funnel math — see Methodology" style={{ cursor: "help", fontSize: 11, opacity: 0.6 }}>ℹ️</span>
+                  Q target <span title="Derived from funnel math — see Methodology" style={{ cursor: "help", fontSize: 11, opacity: 0.6 }}>ℹ️</span>
                 </span>
                 <span style={{ fontWeight: 700, color: t.color.accent }}>{t.target}</span>
               </div>
@@ -106,15 +92,15 @@ export default function OverviewTab({
       </div>
 
       {/* Weighted pipeline + Closed Won */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
+      <div className="flex gap-3 mb-5 flex-wrap">
         {[
           { label: "Weighted Pipeline", value: wp,             color: "#2563eb", sub: "vs $600K Q target" },
           { label: "Closed Won YTD",    value: closedWonTotal, color: "#16a34a", sub: `${closedWon.length} deals · vs $600K Q target` },
         ].map(({ label, value, color, sub }) => (
-          <div key={label} style={{ flex: 1, minWidth: 200, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 12, padding: "14px 18px" }}>
-            <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>{label}</div>
+          <div key={label} style={{ flex: 1, minWidth: 200, background: "#fff", border: "1px solid #e2e4ed", borderRadius: 12, padding: "14px 18px", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+            <div style={{ fontSize: 12, color: "#8b90a0", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>{label}</div>
             <div style={{ fontSize: 28, fontWeight: 800, color }}>${Math.round(value / 1000)}K</div>
-            <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>{sub}</div>
+            <div style={{ fontSize: 12, color: "#b0b5c3", marginTop: 2 }}>{sub}</div>
             <div style={{ marginTop: 8, background: "#f1f5f9", borderRadius: 6, height: 6, overflow: "hidden" }}>
               <div style={{ height: "100%", width: `${Math.min(100, value / QUARTERLY_TARGET * 100)}%`, background: color, borderRadius: 6 }} />
             </div>
@@ -125,36 +111,27 @@ export default function OverviewTab({
       {/* Signs of Life */}
       <TableCard>
         <TableCardHeader>
-          <span>⚡ Signs of Life <span style={{ color: "#94a3b8", fontWeight: 400, fontSize: 12 }}>— prospect-side activity in last 7 days</span></span>
+          <span>⚡ Signs of Life <span style={{ color: "#b0b5c3", fontWeight: 400, fontSize: 12 }}>— prospect-side activity in last 7 days</span></span>
         </TableCardHeader>
         {solRows.length === 0 ? (
-          <div style={{ padding: "16px 18px", color: "#94a3b8", fontSize: 13 }}>No signals this week.</div>
+          <div style={{ padding: "16px 18px", color: "#b0b5c3", fontSize: 13 }}>No signals this week.</div>
         ) : (
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead><tr>{["Company", "Stage", "Owner", "Last Inbound", "Opens 7d", "Clicks 7d", "Last Subject"].map(h => <TH key={h}>{h}</TH>)}</tr></thead>
             <tbody>
-              {solRows.map(({ deal: d, opens7d, clicks7d, lastInbound, lastSubject, enteredNew }) => {
-                const rowBg = lastInbound ? "#f0fdf4" : "white";
-                return (
-                  <tr key={d.id} style={{ background: rowBg, borderBottom: "1px solid #f1f5f9" }}>
-                    <TD><DealLink id={d.id} name={d.name} /></TD>
-                    <TD><StageBadge stage={d.stage} /></TD>
-                    <TD style={{ color: "#374151" }}>{ownerName(d.owner)}</TD>
-                    <TD style={{ color: "#15803d", fontWeight: lastInbound ? 600 : 400 }}>
-                      {lastInbound ? fmtDate(lastInbound) : "—"}
-                    </TD>
-                    <TD style={{ color: opensColor(opens7d), fontWeight: opens7d >= 2 ? 700 : 400 }}>
-                      {opens7d > 0 ? opens7d : "—"}
-                    </TD>
-                    <TD style={{ color: clicks7d > 0 ? "#7c3aed" : "#94a3b8" }}>
-                      {clicks7d > 0 ? clicks7d : "—"}
-                    </TD>
-                    <TD style={{ color: "#64748b", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {lastSubject ?? (enteredNew ? "🆕 Entered stage" : "—")}
-                    </TD>
-                  </tr>
-                );
-              })}
+              {solRows.map(({ deal: d, opens7d, clicks7d, lastInbound, lastSubject, enteredNew }) => (
+                <tr key={d.id} className="table-row-hover" style={{ background: lastInbound ? "#f0fdf4" : "white", borderBottom: "1px solid #f4f5f8" }}>
+                  <TD><DealLink id={d.id} name={d.name} /></TD>
+                  <TD><StageBadge stage={d.stage} /></TD>
+                  <TD style={{ color: "#374151" }}>{ownerName(d.owner)}</TD>
+                  <TD style={{ color: "#15803d", fontWeight: lastInbound ? 600 : 400 }}>{lastInbound ? fmtDate(lastInbound) : "—"}</TD>
+                  <TD style={{ color: opensColor(opens7d), fontWeight: opens7d >= 2 ? 700 : 400 }}>{opens7d > 0 ? opens7d : "—"}</TD>
+                  <TD style={{ color: clicks7d > 0 ? "#7c3aed" : "#b0b5c3" }}>{clicks7d > 0 ? clicks7d : "—"}</TD>
+                  <TD style={{ color: "#8b90a0", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {lastSubject ?? (enteredNew ? "🆕 Entered stage" : "—")}
+                  </TD>
+                </tr>
+              ))}
             </tbody>
           </table>
         )}
@@ -164,15 +141,15 @@ export default function OverviewTab({
       <TableCard>
         <TableCardHeader><span>⚠️ Needs Action</span></TableCardHeader>
         {naAlerts.length === 0 ? (
-          <div style={{ padding: "16px 18px", color: "#94a3b8", fontSize: 13 }}>All clear.</div>
+          <div style={{ padding: "16px 18px", color: "#b0b5c3", fontSize: 13 }}>All clear.</div>
         ) : (
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead><tr>{["Company", "Stage", "Alerts"].map(h => <TH key={h}>{h}</TH>)}</tr></thead>
             <tbody>
               {naAlerts.map(({ deal: d, alerts, stageLabel: sl }) => (
-                <tr key={d.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                <tr key={d.id} className="table-row-hover" style={{ borderBottom: "1px solid #f4f5f8" }}>
                   <TD><DealLink id={d.id} name={d.name} /></TD>
-                  <TD><span style={{ fontSize: 12, fontWeight: 600, color: "#64748b" }}>{sl}</span></TD>
+                  <TD><span style={{ fontSize: 12, fontWeight: 600, color: "#8b90a0" }}>{sl}</span></TD>
                   <TD style={{ lineHeight: 1.8 }}>{alerts.join("  ·  ")}</TD>
                 </tr>
               ))}
@@ -188,7 +165,7 @@ export default function OverviewTab({
           <thead><tr>{["Company", "Channel", "Amount", "Close Date", "Owner"].map(h => <TH key={h}>{h}</TH>)}</tr></thead>
           <tbody>
             {closedWon.map(d => (
-              <tr key={d.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+              <tr key={d.id} className="table-row-hover" style={{ borderBottom: "1px solid #f4f5f8" }}>
                 <TD><DealLink id={d.id} name={d.name} /></TD>
                 <TD style={{ color: "#374151" }}>{d.channel ?? "—"}</TD>
                 <TD style={{ fontWeight: 600, color: "#15803d" }}>{fmtCur(d.amount)}</TD>
@@ -223,9 +200,8 @@ function MethodologyPanel({ assumptions, derived }: { assumptions: Assumptions; 
           <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 400 }}>expand ▼</span>
         </summary>
         <div style={{ padding: "0 18px 18px" }}>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            {/* Stage targets */}
-            <div style={{ flex: 1, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "12px 14px", minWidth: 200 }}>
+          <div className="flex gap-3 flex-wrap">
+            <div style={{ flex: 1, background: "#f8fafc", border: "1px solid #e2e4ed", borderRadius: 10, padding: "12px 14px", minWidth: 200 }}>
               <div style={{ fontWeight: 700, fontSize: 12, color: "#374151", marginBottom: 6 }}>Q Stage Targets (Derived)</div>
               {[
                 ["Legal needed",     legalTarget, `${assumptions.q_closes} closes ÷ ${assumptions.legal_to_close}%`],
@@ -242,21 +218,19 @@ function MethodologyPanel({ assumptions, derived }: { assumptions: Assumptions; 
                 </div>
               ))}
             </div>
-            {/* Channel targets */}
-            <div style={{ flex: 1, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "12px 14px", minWidth: 200 }}>
+            <div style={{ flex: 1, background: "#f8fafc", border: "1px solid #e2e4ed", borderRadius: 10, padding: "12px 14px", minWidth: 200 }}>
               <div style={{ fontWeight: 700, fontSize: 12, color: "#374151", marginBottom: 6 }}>Q Channel Targets (New Business Discovery)</div>
               {NB_CHANNELS.map(ch => (
                 <div key={ch} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3 }}>
                   <span style={{ color: "#374151" }}>{ch}</span>
-                  <span style={{ color: "#64748b" }}>{discTarget} × {assumptions.ch[ch as keyof typeof assumptions.ch]}% = <strong style={{ color: "#0f172a" }}>{nbTargets[ch]}</strong></span>
+                  <span style={{ color: "#64748b" }}>{assumptions.annual_closes[ch as keyof typeof assumptions.annual_closes]} annual closes → <strong style={{ color: "#0f172a" }}>{nbTargets[ch]}</strong></span>
                 </div>
               ))}
-              <div style={{ marginTop: 8, borderTop: "1px solid #e2e8f0", paddingTop: 8, fontSize: 12 }}>
+              <div style={{ marginTop: 8, borderTop: "1px solid #e2e4ed", paddingTop: 8, fontSize: 12 }}>
                 <div style={{ fontWeight: 600, color: "#374151", marginBottom: 4 }}>Expansion (Upsell)</div>
                 <div style={{ color: "#64748b" }}>{assumptions.expansion_annual_deals} annual ÷ 4 ÷ {assumptions.expansion_close_rate}% = <strong style={{ color: "#0f172a" }}>{expansionQTarget}</strong></div>
               </div>
             </div>
-            {/* Quarterly close targets */}
             <div style={{ flex: 1, background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 10, padding: "12px 14px", minWidth: 160 }}>
               <div style={{ fontWeight: 700, fontSize: 12, color: "#2563eb", marginBottom: 6 }}>Quarterly Close Targets</div>
               {[["Q1", 6], ["Q2", 6], ["Q3", 5], ["Q4", 6]].map(([q, n]) => (
