@@ -150,6 +150,7 @@ export default function Page() {
           <>
             {tab === "overview"  && (
               <OverviewTab
+                allActive={active}
                 legal={legal} proposal={proposal} demo={demo} discovery={discovery}
                 closedWon={closedWon} emailSignals={emailSignals} closePlans={closePlans}
                 assumptions={assumptions} now={now} weekAgo={weekAgo} qStart={qStart}
