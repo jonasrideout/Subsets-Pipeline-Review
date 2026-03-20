@@ -13,7 +13,7 @@ import DealLink from "@/components/DealLink";
 import type { TabId } from "@/components/TabNav";
 
 interface OverviewTabProps {
-  allActive: Deal[];     // all active deals — used for all counting
+  active: Deal[];
   legal: Deal[];
   proposal: Deal[];
   demo: Deal[];
@@ -22,6 +22,12 @@ interface OverviewTabProps {
   emailSignals: EmailSignalMap;
   closePlans: ClosePlanMap;
   assumptions: Assumptions;
+  counts: {
+    discNewW: number; discNewQ: number;
+    demoNewW: number; demoNewQ: number;
+    propNewW: number; propNewQ: number;
+    legalNewW: number; legalNewQ: number;
+  };
   now: Date;
   weekAgo: Date;
   qStart: Date;
