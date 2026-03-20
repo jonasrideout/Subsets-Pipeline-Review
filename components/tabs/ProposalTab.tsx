@@ -47,7 +47,7 @@ export default function ProposalTab({ deals, closePlans, onClosePlanSave, now, w
     <div>
       {/* Summary cards */}
       <div className="flex gap-3 mb-5 flex-wrap">
-        <StatCard label="Currently in Proposal" value={deals.length} accent />
+        <StatCard label="Currently in Proposal" value={deals.length} />
         <StatCard label="New This Week"          value={propNewW} />
         <StatCard
           label="New This Quarter"
