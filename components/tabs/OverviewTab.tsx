@@ -59,10 +59,10 @@ export default function OverviewTab({
   };
 
   const tileColor = (ratio: number) => {
-    if (ratio >= 0.90) return { bg: "#f0fdf4", border: "#86efac", text: "#15803d" };
-    if (ratio >= 0.75) return { bg: "#fefce8", border: "#fde68a", text: "#854d0e" };
-    if (ratio >= 0.50) return { bg: "#fff7ed", border: "#fed7aa", text: "#9a3412" };
-    return               { bg: "#fef2f2", border: "#fecaca", text: "#991b1b" };
+    if (ratio >= 0.90) return { bg: "#f0fdf4", border: "#86efac", text: "#1e293b" };
+    if (ratio >= 0.75) return { bg: "#fefce8", border: "#fde68a", text: "#1e293b" };
+    if (ratio >= 0.50) return { bg: "#fff7ed", border: "#fed7aa", text: "#1e293b" };
+    return               { bg: "#fef2f2", border: "#fecaca", text: "#1e293b" };
   };
 
   const tileTooltip = (actual: number, target: number, ratio: number, label: string) => {
