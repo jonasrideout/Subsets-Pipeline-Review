@@ -1,5 +1,4 @@
 // components/tabs/OverviewTab.tsx
-// force deploy twice
 
 "use client";
 
@@ -97,7 +96,6 @@ export default function OverviewTab({
       <div className="flex gap-3 mb-5 flex-wrap">
         {tiles.map(t => (
           <div key={t.key} style={{ flex: 1, minWidth: 140, display: "flex", flexDirection: "column" }}>
-            {/* Tile */}
             <div
               onClick={() => onTabChange(t.key)}
               style={{ background: t.color.bg, border: `1.5px solid ${t.color.border}`, borderRadius: "12px 12px 0 0", padding: "16px 18px", cursor: "pointer", position: "relative" }}
@@ -128,8 +126,6 @@ export default function OverviewTab({
                 </div>
               </div>
             </div>
-
-            {/* Assumption drawer */}
             <AssumptionDrawer
               tileKey={t.key}
               assumptions={assumptions}
@@ -263,23 +259,23 @@ function AssumptionDrawer({ tileKey, assumptions, borderColor, onSave }: Assumpt
   const propNeeded  = Math.ceil(legalNeeded / (assumptions.prop_to_legal / 100));
   const demoNeeded  = Math.ceil(propNeeded  / (assumptions.demo_to_prop  / 100));
 
-  const rows: { label: string; value: string | number }[] = (() => {
+  const rows: { label: string; value: string | number; source: "historical" | "anecdotal" | "derived" }[] = (() => {
     switch (tileKey) {
       case "legal": return [
-        { label: "Deals to close this quarter",               value: assumptions.q_closes },
-        { label: "% of Legal deals that close",               value: `${assumptions.legal_to_close}%` },
+        { label: "Deals to close this quarter",               value: assumptions.q_closes,              source: "anecdotal"  },
+        { label: "% of Legal deals that close",               value: `${assumptions.legal_to_close}%`,  source: "historical" },
       ];
       case "proposal": return [
-        { label: "Legal deals needed this quarter",            value: legalNeeded },
-        { label: "% of Proposal deals that progress to Legal", value: `${assumptions.prop_to_legal}%` },
+        { label: "Legal deals needed this quarter",            value: legalNeeded,                       source: "derived"    },
+        { label: "% of Proposal deals that progress to Legal", value: `${assumptions.prop_to_legal}%`,  source: "historical" },
       ];
       case "demo": return [
-        { label: "Proposal deals needed this quarter",         value: propNeeded },
-        { label: "% of Demo deals that convert to Proposal",   value: `${assumptions.demo_to_prop}%` },
+        { label: "Proposal deals needed this quarter",         value: propNeeded,                        source: "derived"    },
+        { label: "% of Demo deals that convert to Proposal",   value: `${assumptions.demo_to_prop}%`,   source: "historical" },
       ];
       case "discovery": return [
-        { label: "Demo deals needed this quarter",             value: demoNeeded },
-        { label: "% of Discovery deals that convert to Demo",  value: `${assumptions.disc_to_demo}%` },
+        { label: "Demo deals needed this quarter",             value: demoNeeded,                        source: "derived"    },
+        { label: "% of Discovery deals that convert to Demo",  value: `${assumptions.disc_to_demo}%`,   source: "anecdotal"  },
       ];
       default: return [];
     }
@@ -296,12 +292,18 @@ function AssumptionDrawer({ tileKey, assumptions, borderColor, onSave }: Assumpt
   })();
 
   const fieldLabel = (f: keyof Assumptions): string => ({
-    q_closes:        "Deals to close this quarter",
-    legal_to_close:  "% Legal → Close",
-    prop_to_legal:   "% Proposal → Legal",
-    demo_to_prop:    "% Demo → Proposal",
-    disc_to_demo:    "% Discovery → Demo",
+    q_closes:       "Deals to close this quarter",
+    legal_to_close: "% Legal → Close",
+    prop_to_legal:  "% Proposal → Legal",
+    demo_to_prop:   "% Demo → Proposal",
+    disc_to_demo:   "% Discovery → Demo",
   } as Record<string, string>)[f as string] ?? String(f);
+
+  const sourceLabel = (s: "historical" | "anecdotal" | "derived") => {
+    if (s === "historical") return "Source: HubSpot historical data";
+    if (s === "anecdotal")  return "Source: Anecdotal data";
+    return null; // derived rows show no source
+  };
 
   return (
     <div style={{
@@ -361,15 +363,22 @@ function AssumptionDrawer({ tileKey, assumptions, borderColor, onSave }: Assumpt
             </div>
           ) : (
             <div>
-              {rows.map(({ label, value }) => (
-                <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", fontSize: 12, marginBottom: 6, fontFamily: "'DM Sans', system-ui, sans-serif", fontWeight: 300, color: "#374151" }}>
-                  <span style={{ flex: 1, paddingRight: 8 }}>{label}</span>
-                  <span style={{ fontWeight: 500, color: "#0f1117", whiteSpace: "nowrap" }}>{value}</span>
+              {rows.map(({ label, value, source }) => (
+                <div key={label} style={{ marginBottom: 8 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", fontSize: 12, fontFamily: "'DM Sans', system-ui, sans-serif", fontWeight: 300, color: "#374151" }}>
+                    <span style={{ flex: 1, paddingRight: 8 }}>{label}</span>
+                    <span style={{ fontWeight: 500, color: "#0f1117", whiteSpace: "nowrap" }}>{value}</span>
+                  </div>
+                  {sourceLabel(source) && (
+                    <div style={{ fontSize: 10, color: "#b0b5c3", marginTop: 2, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                      {sourceLabel(source)}
+                    </div>
+                  )}
                 </div>
               ))}
               <button
                 onClick={() => { setEditing(true); setTmp(JSON.parse(JSON.stringify(assumptions))); }}
-                style={{ marginTop: 8, background: "#f8fafc", color: "#64748b", border: "1px solid #e2e4ed", borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', system-ui, sans-serif" }}
+                style={{ marginTop: 4, background: "#f8fafc", color: "#64748b", border: "1px solid #e2e4ed", borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', system-ui, sans-serif" }}
               >
                 Edit
               </button>
