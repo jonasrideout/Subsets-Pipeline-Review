@@ -262,7 +262,7 @@ function AssumptionDrawer({ tileKey, assumptions, borderColor, onSave }: Assumpt
   const rows: { label: string; value: string | number; source: "historical" | "anecdotal" | "derived" }[] = (() => {
     switch (tileKey) {
       case "legal": return [
-        { label: "Deals to close this quarter",               value: assumptions.q_closes,              source: "anecdotal"  },
+        { label: "Deals to close this quarter",               value: assumptions.q_closes,              source: "derived"  },
         { label: "% of Legal deals that close",               value: `${assumptions.legal_to_close}%`,  source: "historical" },
       ];
       case "proposal": return [
