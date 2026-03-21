@@ -266,15 +266,15 @@ function AssumptionDrawer({ tileKey, assumptions, borderColor, onSave }: Assumpt
         { label: "% of Legal deals that close",               value: `${assumptions.legal_to_close}%`,  source: "historical" },
       ];
       case "proposal": return [
-        { label: "Legal deals needed this quarter",            value: legalNeeded,                       source: "derived"    },
+        { label: "Deals needed to enter Legal",            value: legalNeeded,                       source: "derived"    },
         { label: "% of Proposal deals that progress to Legal", value: `${assumptions.prop_to_legal}%`,  source: "historical" },
       ];
       case "demo": return [
-        { label: "Proposal deals needed this quarter",         value: propNeeded,                        source: "derived"    },
+        { label: "Deals needed to enter Proposal this quarter",         value: propNeeded,                        source: "derived"    },
         { label: "% of Demo deals that convert to Proposal",   value: `${assumptions.demo_to_prop}%`,   source: "historical" },
       ];
       case "discovery": return [
-        { label: "Demo deals needed this quarter",             value: demoNeeded,                        source: "derived"    },
+        { label: "Deals needed to enter Demo this quarter",             value: demoNeeded,                        source: "derived"    },
         { label: "% of Discovery deals that convert to Demo",  value: `${assumptions.disc_to_demo}%`,   source: "anecdotal"  },
       ];
       default: return [];
