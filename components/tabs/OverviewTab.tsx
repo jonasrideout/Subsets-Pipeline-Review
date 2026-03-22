@@ -4,7 +4,7 @@
 
 import { useMemo, useState } from "react";
 import type { Deal, ClosedWonDeal, EmailSignalMap, ClosePlanMap, Assumptions } from "@/types/deals";
-import { ownerName, fmtDate, fmtCur, daysSince, weightedPipeline, UNRESOLVED_OWNER_IDS } from "@/lib/deals";
+import { ownerName, fmtCur, weightedPipeline, UNRESOLVED_OWNER_IDS } from "@/lib/deals";
 import { deriveTargets, QUARTERLY_TARGETS, NB_REVENUE_SHARE } from "@/lib/assumptions";
 import { getSignsOfLife, getNeedsActionAlerts } from "@/lib/flags";
 import { TH, TD, TableCard, TableCardHeader } from "@/components/Table";
@@ -39,7 +39,7 @@ export default function OverviewTab({
   now, weekAgo, qStart, qIndex, onTabChange, onAssumptionsSave,
 }: OverviewTabProps) {
   const derived = deriveTargets(assumptions, qIndex);
-  const { qCloses, legalTarget, propTarget, demoTarget, channelQTargets } = derived;
+  const { legalTarget, propTarget, demoTarget, channelQTargets } = derived;
   const discTarget = Object.values(channelQTargets).reduce((s, v) => s + v, 0);
 
   const { discNewW, discNewQ, demoNewW, demoNewQ, propNewW, propNewQ, legalNewW, legalNewQ } = counts;
@@ -187,15 +187,7 @@ export default function OverviewTab({
         {solRows.length === 0 ? (
           <div style={{ padding: "16px 18px", color: "#b0b5c3", fontSize: 13 }}>No signals this week.</div>
         ) : (
-          <DealTable
-            deals={solRows.map(r => r.deal)}
-            mode="sol"
-            closePlans={closePlans}
-            emailSignals={emailSignals}
-            now={now}
-            qStart={qStart}
-            weekAgo={weekAgo}
-          />
+          <DealTable deals={solRows.map(r => r.deal)} mode="sol" closePlans={closePlans} emailSignals={emailSignals} now={now} qStart={qStart} weekAgo={weekAgo} />
         )}
       </TableCard>
 
@@ -205,14 +197,7 @@ export default function OverviewTab({
         {naAlerts.length === 0 ? (
           <div style={{ padding: "16px 18px", color: "#b0b5c3", fontSize: 13 }}>All clear.</div>
         ) : (
-          <DealTable
-            deals={naAlerts.map(a => a.deal)}
-            mode="needs-action"
-            closePlans={closePlans}
-            now={now}
-            qStart={qStart}
-            weekAgo={weekAgo}
-          />
+          <DealTable deals={naAlerts.map(a => a.deal)} mode="needs-action" closePlans={closePlans} now={now} qStart={qStart} weekAgo={weekAgo} />
         )}
       </TableCard>
 
@@ -383,9 +368,7 @@ function MethodologyPanel({ assumptions, derived, qIndex, onSave }: {
   qIndex: number;
   onSave: (a: Assumptions) => Promise<void>;
 }) {
-  const { qCloses, legalTarget, propTarget, demoTarget, discTarget, expansionQTarget, expansionQCloses, nbTargets, nbQRevenueTarget, expansionQRevenueTarget } = derived;
-  const NB_CHANNELS = ["Outbound", "Events", "Partnership", "Inbound"];
-  const fmtK = (n: number) => "$" + Math.round(n / 1000) + "K";
+  const fmtK    = (n: number) => "$" + Math.round(n / 1000) + "K";
   const fmtFull = (n: number) => "$" + n.toLocaleString();
 
   const [editingAvg, setEditingAvg] = useState(false);
@@ -413,17 +396,11 @@ function MethodologyPanel({ assumptions, derived, qIndex, onSave }: {
             {editingAvg ? (
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 6 }}>
-                  <label style={{ fontSize: 12, color: "#374151", fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                    Avg Deal Value
-                  </label>
+                  <label style={{ fontSize: 12, color: "#374151", fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif" }}>Avg Deal Value</label>
                   <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                     <span style={{ fontSize: 12, color: "#64748b" }}>$</span>
-                    <input
-                      type="number"
-                      value={tmpAvg}
-                      onChange={e => setTmpAvg(+e.target.value)}
-                      style={{ width: 110, padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 6, fontSize: 13, fontFamily: "'DM Sans', system-ui, sans-serif" }}
-                    />
+                    <input type="number" value={tmpAvg} onChange={e => setTmpAvg(+e.target.value)}
+                      style={{ width: 110, padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 6, fontSize: 13, fontFamily: "'DM Sans', system-ui, sans-serif" }} />
                   </div>
                   <button onClick={handleSaveAvg} disabled={saving}
                     style={{ background: "linear-gradient(135deg, #a0fad7, #82f6c6)", color: "#0a2e1f", border: "none", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontSize: 11, fontWeight: 700, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
@@ -442,7 +419,7 @@ function MethodologyPanel({ assumptions, derived, qIndex, onSave }: {
             ) : (
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 4 }}>
-                  <span style={{ fontSize: 12, color: "#374151", fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif" }}>Avg Deal Value </span>
+                  <span style={{ fontSize: 12, color: "#374151", fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif" }}>Avg Deal Value</span>
                   <span style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", fontFamily: "'DM Sans', system-ui, sans-serif" }}>{fmtFull(assumptions.avg_deal_value)}</span>
                   <button onClick={() => { setEditingAvg(true); setTmpAvg(assumptions.avg_deal_value); }}
                     style={{ background: "#f8fafc", color: "#64748b", border: "1px solid #e2e4ed", borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
@@ -457,7 +434,12 @@ function MethodologyPanel({ assumptions, derived, qIndex, onSave }: {
             )}
           </div>
 
- borderBottom: "1px solid #f1f5f9" }}>
+          <div style={{ display: "flex", gap: 32, flexWrap: "wrap" }}>
+
+            {/* Quarterly Revenue Targets */}
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <div style={{ fontWeight: 700, fontSize: 12, color: "#374151", marginBottom: 6 }}>Quarterly Revenue Targets</div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#94a3b8", marginBottom: 4, paddingBottom: 4, borderBottom: "1px solid #f1f5f9" }}>
                 <span style={{ width: 28 }}>Q</span>
                 <span style={{ flex: 1, textAlign: "right" }}>Total</span>
                 <span style={{ flex: 1, textAlign: "right" }}>NB (⅔)</span>
@@ -468,13 +450,26 @@ function MethodologyPanel({ assumptions, derived, qIndex, onSave }: {
                 const exp = total - nb;
                 return (
                   <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3 }}>
-                    <span style={{ width: 28, color: i === qIndex ? "#0f172a" : "#374151", fontWeight: i === qIndex ? 700 : 400 }}>Q{i + 1}</span>
+                    <span style={{ width: 28, color: "#374151", fontWeight: i === qIndex ? 700 : 400 }}>Q{i + 1}</span>
                     <span style={{ flex: 1, textAlign: "right", color: "#374151", fontWeight: i === qIndex ? 700 : 400 }}>{fmtK(total)}</span>
                     <span style={{ flex: 1, textAlign: "right", color: "#374151", fontWeight: i === qIndex ? 700 : 400 }}>{fmtK(nb)}</span>
                     <span style={{ flex: 1, textAlign: "right", color: "#374151", fontWeight: i === qIndex ? 700 : 400 }}>{fmtK(exp)}</span>
                   </div>
                 );
               })}
+              {(() => {
+                const totalAll = QUARTERLY_TARGETS.reduce((s, v) => s + v, 0);
+                const totalNB  = QUARTERLY_TARGETS.reduce((s, v) => s + Math.round(v * NB_REVENUE_SHARE), 0);
+                const totalExp = totalAll - totalNB;
+                return (
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginTop: 4, paddingTop: 4, borderTop: "1px solid #f1f5f9" }}>
+                    <span style={{ width: 28, color: "#374151", fontWeight: 700 }}>Total</span>
+                    <span style={{ flex: 1, textAlign: "right", color: "#374151", fontWeight: 700 }}>{fmtK(totalAll)}</span>
+                    <span style={{ flex: 1, textAlign: "right", color: "#374151", fontWeight: 700 }}>{fmtK(totalNB)}</span>
+                    <span style={{ flex: 1, textAlign: "right", color: "#374151", fontWeight: 700 }}>{fmtK(totalExp)}</span>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Quarterly Close Targets */}
