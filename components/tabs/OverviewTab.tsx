@@ -9,6 +9,7 @@ import { deriveTargets } from "@/lib/assumptions";
 import { getSignsOfLife, getNeedsActionAlerts } from "@/lib/flags";
 import { TH, TD, TableCard, TableCardHeader } from "@/components/Table";
 import { CloseDateBadge, UnresolvedOwnerBadge } from "@/components/Badges";
+import DealLink from "@/components/DealLink";
 import DealTable from "@/components/DealTable";
 import type { TabId } from "@/components/TabNav";
 import type { PipelineCounts } from "@/app/page";
@@ -144,56 +145,18 @@ export default function OverviewTab({
         const qLabel      = `Q${Math.floor(now.getMonth() / 3) + 1}`;
         return (
           <div style={{ background: "#fff", border: "1px solid #e2e4ed", borderRadius: 12, padding: "18px 20px", marginBottom: 20, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-            {/* Bar */}
             <div style={{ position: "relative", height: 28, background: "#f1f5f9", borderRadius: 999, overflow: "visible", marginBottom: 10 }}>
-              {/* Closed Won segment */}
-              <div style={{
-                position: "absolute", left: 0, top: 0, height: "100%",
-                width: `${closedPct}%`,
-                background: "#16a34a",
-                borderRadius: wpPct > 0 ? "999px 0 0 999px" : "999px",
-              }} />
-              {/* Weighted Pipeline segment */}
+              <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${closedPct}%`, background: "#16a34a", borderRadius: wpPct > 0 ? "999px 0 0 999px" : "999px" }} />
               {wpPct > 0 && (
-                <div style={{
-                  position: "absolute", top: 0, height: "100%",
-                  left: `${closedPct}%`,
-                  width: `${wpPct}%`,
-                  background: "#93c5fd",
-                  borderRadius: combinedPct >= 100 ? "0 999px 999px 0" : "0",
-                }} />
+                <div style={{ position: "absolute", top: 0, height: "100%", left: `${closedPct}%`, width: `${wpPct}%`, background: "#93c5fd", borderRadius: combinedPct >= 100 ? "0 999px 999px 0" : "0" }} />
               )}
-              {/* Combined total marker */}
-              <div style={{
-                position: "absolute",
-                left: `${combinedPct}%`,
-                top: "50%",
-                transform: "translate(-50%, -50%)",
-                background: "#0f1117",
-                color: "#fff",
-                fontSize: 11,
-                fontWeight: 700,
-                padding: "2px 7px",
-                borderRadius: 999,
-                whiteSpace: "nowrap",
-                fontFamily: "'DM Sans', system-ui, sans-serif",
-                boxShadow: "0 1px 4px rgba(0,0,0,0.15)",
-              }}>
+              <div style={{ position: "absolute", left: `${combinedPct}%`, top: "50%", transform: "translate(-50%, -50%)", background: "#0f1117", color: "#fff", fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 999, whiteSpace: "nowrap", fontFamily: "'DM Sans', system-ui, sans-serif", boxShadow: "0 1px 4px rgba(0,0,0,0.15)" }}>
                 ${Math.round((closedWonTotal + wp) / 1000)}K
               </div>
-              {/* $600K target label */}
-              <div style={{
-                position: "absolute", right: 0, top: "50%",
-                transform: "translateY(-50%)",
-                fontSize: 11, color: "#94a3b8",
-                fontFamily: "'DM Sans', system-ui, sans-serif",
-                paddingRight: 4,
-              }}>
+              <div style={{ position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif", paddingRight: 4 }}>
                 $600K
               </div>
             </div>
-
-            {/* Stats row */}
             <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <div style={{ width: 10, height: 10, borderRadius: 2, background: "#16a34a", flexShrink: 0 }} />
@@ -253,7 +216,7 @@ export default function OverviewTab({
 
       {/* Closed Won YTD */}
       <TableCard>
-        <TableCardHeader><span>✅ Closed Won YTD</span></TableCardHeader>
+        <TableCardHeader><span>✅ Closed Won Q{Math.floor(now.getMonth() / 3) + 1}</span></TableCardHeader>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead><tr>{["Company", "Channel", "Amount", "Close Date", "Owner"].map(h => <TH key={h}>{h}</TH>)}</tr></thead>
           <tbody>
@@ -310,20 +273,20 @@ function AssumptionDrawer({ tileKey, assumptions, borderColor, onSave }: Assumpt
   const rows: { label: string; value: string | number; source: "historical" | "anecdotal" | "derived" }[] = (() => {
     switch (tileKey) {
       case "legal": return [
-        { label: "Deals to close this quarter",               value: assumptions.q_closes,              source: "anecdotal"  },
-        { label: "% of Legal deals that close",               value: `${assumptions.legal_to_close}%`,  source: "historical" },
+        { label: "Deals to close this quarter",               value: assumptions.q_closes,             source: "derived"    },
+        { label: "% of Legal deals that close",               value: `${assumptions.legal_to_close}%`, source: "historical" },
       ];
       case "proposal": return [
-        { label: "Legal deals needed this quarter",            value: legalNeeded,                       source: "derived"    },
-        { label: "% of Proposal deals that progress to Legal", value: `${assumptions.prop_to_legal}%`,  source: "historical" },
+        { label: "Legal deals needed this quarter",            value: legalNeeded,                      source: "derived"    },
+        { label: "% of Proposal deals that progress to Legal", value: `${assumptions.prop_to_legal}%`, source: "historical" },
       ];
       case "demo": return [
-        { label: "Proposal deals needed this quarter",         value: propNeeded,                        source: "derived"    },
-        { label: "% of Demo deals that convert to Proposal",   value: `${assumptions.demo_to_prop}%`,   source: "historical" },
+        { label: "Proposal deals needed this quarter",         value: propNeeded,                       source: "derived"    },
+        { label: "% of Demo deals that convert to Proposal",   value: `${assumptions.demo_to_prop}%`,  source: "historical" },
       ];
       case "discovery": return [
-        { label: "Demo deals needed this quarter",             value: demoNeeded,                        source: "derived"    },
-        { label: "% of Discovery deals that convert to Demo",  value: `${assumptions.disc_to_demo}%`,   source: "anecdotal"  },
+        { label: "Demo deals needed this quarter",             value: demoNeeded,                       source: "derived"    },
+        { label: "% of Discovery deals that convert to Demo",  value: `${assumptions.disc_to_demo}%`,  source: "anecdotal"  },
       ];
       default: return [];
     }
@@ -350,52 +313,26 @@ function AssumptionDrawer({ tileKey, assumptions, borderColor, onSave }: Assumpt
   const sourceLabel = (s: "historical" | "anecdotal" | "derived") => {
     if (s === "historical") return "Source: HubSpot historical data";
     if (s === "anecdotal")  return "Source: Anecdotal data";
-    return null; // derived rows show no source
+    return null;
   };
 
   return (
-    <div style={{
-      border: `1.5px solid ${borderColor}`,
-      borderTop: "none",
-      borderRadius: "0 0 12px 12px",
-      background: "#fff",
-      overflow: "hidden",
-    }}>
-      <button
-        onClick={() => setOpen(v => !v)}
-        style={{
-          width: "100%",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "8px 14px",
-          background: "none",
-          border: "none",
-          cursor: "pointer",
-          fontSize: 11,
-          color: "#94a3b8",
-          fontFamily: "'DM Sans', system-ui, sans-serif",
-        }}
-      >
+    <div style={{ border: `1.5px solid ${borderColor}`, borderTop: "none", borderRadius: "0 0 12px 12px", background: "#fff", overflow: "hidden" }}>
+      <button onClick={() => setOpen(v => !v)}
+        style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
         <span>Assumptions</span>
         <span>{open ? "▲" : "▼"}</span>
       </button>
-
       {open && (
         <div style={{ padding: "0 14px 14px" }}>
           {editing && tmp ? (
             <div>
               {editableFields.map(field => (
                 <div key={field} style={{ marginBottom: 8 }}>
-                  <label style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 3, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                    {fieldLabel(field)}
-                  </label>
-                  <input
-                    type="number"
-                    value={tmp[field] as number}
+                  <label style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 3, fontFamily: "'DM Sans', system-ui, sans-serif" }}>{fieldLabel(field)}</label>
+                  <input type="number" value={tmp[field] as number}
                     onChange={e => setTmp({ ...tmp, [field]: +e.target.value })}
-                    style={{ width: "100%", padding: "4px 8px", border: "1px solid #e2e4ed", borderRadius: 6, fontSize: 12, fontFamily: "'DM Sans', system-ui, sans-serif" }}
-                  />
+                    style={{ width: "100%", padding: "4px 8px", border: "1px solid #e2e4ed", borderRadius: 6, fontSize: 12, fontFamily: "'DM Sans', system-ui, sans-serif" }} />
                 </div>
               ))}
               <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
@@ -418,16 +355,12 @@ function AssumptionDrawer({ tileKey, assumptions, borderColor, onSave }: Assumpt
                     <span style={{ fontWeight: 500, color: "#0f1117", whiteSpace: "nowrap" }}>{value}</span>
                   </div>
                   {sourceLabel(source) && (
-                    <div style={{ fontSize: 10, color: "#b0b5c3", marginTop: 2, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                      {sourceLabel(source)}
-                    </div>
+                    <div style={{ fontSize: 10, color: "#b0b5c3", marginTop: 2, fontFamily: "'DM Sans', system-ui, sans-serif" }}>{sourceLabel(source)}</div>
                   )}
                 </div>
               ))}
-              <button
-                onClick={() => { setEditing(true); setTmp(JSON.parse(JSON.stringify(assumptions))); }}
-                style={{ marginTop: 4, background: "#f8fafc", color: "#64748b", border: "1px solid #e2e4ed", borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', system-ui, sans-serif" }}
-              >
+              <button onClick={() => { setEditing(true); setTmp(JSON.parse(JSON.stringify(assumptions))); }}
+                style={{ marginTop: 4, background: "#f8fafc", color: "#64748b", border: "1px solid #e2e4ed", borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
                 Edit
               </button>
             </div>
