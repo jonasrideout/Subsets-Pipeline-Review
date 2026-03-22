@@ -11,6 +11,7 @@ import { TH, TD, TableCard } from "@/components/Table";
 import { NewQBadge, StaleBadge, UnresolvedOwnerBadge } from "@/components/Badges";
 import DealLink from "@/components/DealLink";
 import PacingTable from "@/components/PacingTable";
+import DealTable from "@/components/DealTable";
 import StatCard from "@/components/StatCard";
 
 import type { PipelineCounts } from "@/app/page";
@@ -114,46 +115,15 @@ export default function DiscoveryTab({
 
       {/* Main table */}
       <TableCard>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr>
-              {["Company", "Channel", "Owner", "Entered Discovery", "Days in Stage", "Flags"].map(h => (
-                <TH key={h}>{h}</TH>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map(d => {
-              const genuineNew = isNewGenuine(d);
-              const stale      = isStale(d, now);
-              const daysIn     = daysSince(d.entered_current, now);
-              const rowBg      = stale ? "#fff5f5" : "white";
-
-              return (
-                <tr key={d.id} className="table-row-hover" style={{ background: rowBg, borderBottom: "1px solid #f4f5f8" }}
-                  onMouseEnter={e => (e.currentTarget.style.background = stale ? "#fff0f0" : "rgba(160,250,215,0.07)")}
-                  onMouseLeave={e => (e.currentTarget.style.background = rowBg)}>
-                  <TD><DealLink id={d.id} name={d.name} /></TD>
-                  <TD style={{ color: d.channel ? "#374151" : "#f59e0b" }}>
-                    {d.channel ?? "⚠ missing"}
-                  </TD>
-                  <TD style={{ color: "#374151" }}>
-                    {ownerName(d.owner)}
-                    {UNRESOLVED_OWNER_IDS.has(d.owner) && <UnresolvedOwnerBadge />}
-                  </TD>
-                  <TD style={{ color: "#8b90a0" }}>{fmtDate(d.entered_current)}</TD>
-                  <TD style={{ color: stale ? "#dc2626" : "#374151", fontWeight: stale ? 700 : 400 }}>
-                    {daysIn != null ? `${daysIn}d` : "—"}
-                  </TD>
-                  <TD>
-                    {genuineNew && <NewQBadge createdate={d.createdate} />}
-                    {stale      && <StaleBadge />}
-                  </TD>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <DealTable
+          deals={sorted}
+          mode="standard"
+          now={now}
+          qStart={qStart}
+          weekAgo={weekAgo}
+          enteredDateFn={d => d.entered_discovery || d.entered_current}
+          hiddenColumns={["amount", "closeDate", "closePlan"]}
+        />
       </TableCard>
     </div>
   );
