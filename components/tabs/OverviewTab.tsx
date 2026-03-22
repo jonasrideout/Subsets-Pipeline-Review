@@ -36,6 +36,11 @@ interface OverviewTabProps {
   onAssumptionsSave: (a: Assumptions) => Promise<void>;
 }
 
+const fmtProgress = (n: number) => {
+  if (n >= 1_000_000) return "$" + (n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1) + "M";
+  return "$" + Math.round(n / 1000) + "K";
+};
+
 export default function OverviewTab({
   active, legal, proposal, demo, discovery, closedWon, closedWonYTD,
   emailSignals, closePlans, assumptions, counts,
@@ -48,22 +53,23 @@ export default function OverviewTab({
   const discTarget = Object.values(channelQTargets).reduce((s, v) => s + v, 0);
 
   // Annual targets — sum deriveTargets across all 4 quarters
-  const annualDerived = QUARTERLY_TARGETS.map((_, i) => deriveTargets(assumptions, i));
+  const annualDerived     = QUARTERLY_TARGETS.map((_, i) => deriveTargets(assumptions, i));
   const annualLegalTarget = annualDerived.reduce((s, d) => s + d.combinedLegalTarget, 0);
   const annualPropTarget  = annualDerived.reduce((s, d) => s + d.combinedPropTarget, 0);
   const annualDemoTarget  = annualDerived.reduce((s, d) => s + d.combinedDemoTarget, 0);
   const annualDiscTarget  = annualDerived.reduce((s, d) => s + Object.values(d.channelQTargets).reduce((a, v) => a + v, 0), 0);
 
-  const { discNewW, discNewQ, demoNewW, demoNewQ, propNewW, propNewQ, legalNewW, legalNewQ, qElapsedPct,
-          discNewY, demoNewY, propNewY, legalNewY, yElapsedPct } = counts;
+  const {
+    discNewW, discNewQ, demoNewW, demoNewQ, propNewW, propNewQ, legalNewW, legalNewQ, qElapsedPct,
+    discNewY, demoNewY, propNewY, legalNewY, yElapsedPct,
+  } = counts;
 
-  const legalAmt       = legal.reduce((s, d) => s + (d.amount || 0), 0);
-  const propAmt        = proposal.reduce((s, d) => s + (d.amount || 0), 0);
-  const wp             = weightedPipeline(active);
+  const legalAmt          = legal.reduce((s, d) => s + (d.amount || 0), 0);
+  const propAmt           = proposal.reduce((s, d) => s + (d.amount || 0), 0);
+  const wp                = weightedPipeline(active);
   const closedWonTotal    = closedWon.reduce((s, d) => s + d.amount, 0);
   const closedWonYTDTotal = closedWonYTD.reduce((s, d) => s + d.amount, 0);
-
-  const QUARTERLY_TARGET = QUARTERLY_TARGETS[qIndex] ?? QUARTERLY_TARGETS[0];
+  const QUARTERLY_TARGET  = QUARTERLY_TARGETS[qIndex] ?? QUARTERLY_TARGETS[0];
 
   const elapsedPct = ytdMode ? yElapsedPct : qElapsedPct;
 
@@ -81,9 +87,9 @@ export default function OverviewTab({
   };
 
   const tileTooltip = (actual: number, target: number, ratio: number, label: string) => {
-    const pct      = Math.round(elapsedPct * 100);
-    const goalPct  = target > 0 ? Math.round((actual / target) * 100) : 0;
-    const period   = ytdMode ? "the year" : `Q${qIndex + 1}`;
+    const pct    = Math.round(elapsedPct * 100);
+    const goalPct = target > 0 ? Math.round((actual / target) * 100) : 0;
+    const period  = ytdMode ? "the year" : `Q${qIndex + 1}`;
     if (ratio >= 0.90) return `You're ${pct}% through ${period} and have reached ${goalPct}% of your ${label} target — on track.`;
     if (ratio >= 0.75) return `You're ${pct}% through ${period} and have reached ${goalPct}% of your ${label} target — slightly behind pace.`;
     if (ratio >= 0.50) return `You're ${pct}% through ${period} and have reached ${goalPct}% of your ${label} target — behind pace.`;
@@ -91,10 +97,10 @@ export default function OverviewTab({
   };
 
   const tiles = ytdMode ? [
-    { key: "legal" as TabId,     label: "Legal / Procurement",    count: legal.length,     amount: legalAmt, newW: legalNewW, newQ: legalNewY, target: annualLegalTarget, actual: legalNewY, periodLabel: "New this year" },
-    { key: "proposal" as TabId,  label: "Proposal / Negotiation", count: proposal.length,  amount: propAmt,  newW: propNewW,  newQ: propNewY,  target: annualPropTarget,  actual: propNewY,  periodLabel: "New this year" },
-    { key: "demo" as TabId,      label: "Meeting / Demo",         count: demo.length,      amount: null,     newW: demoNewW,  newQ: demoNewY,  target: annualDemoTarget,  actual: demoNewY,  periodLabel: "New this year" },
-    { key: "discovery" as TabId, label: "Discovery",              count: discovery.length, amount: null,     newW: discNewW,  newQ: discNewY,  target: annualDiscTarget,  actual: discNewY,  periodLabel: "New this year" },
+    { key: "legal" as TabId,     label: "Legal / Procurement",    count: legal.length,     amount: legalAmt, newW: legalNewW, newQ: legalNewY, target: annualLegalTarget, actual: legalNewY, periodLabel: "New this year"    },
+    { key: "proposal" as TabId,  label: "Proposal / Negotiation", count: proposal.length,  amount: propAmt,  newW: propNewW,  newQ: propNewY,  target: annualPropTarget,  actual: propNewY,  periodLabel: "New this year"    },
+    { key: "demo" as TabId,      label: "Meeting / Demo",         count: demo.length,      amount: null,     newW: demoNewW,  newQ: demoNewY,  target: annualDemoTarget,  actual: demoNewY,  periodLabel: "New this year"    },
+    { key: "discovery" as TabId, label: "Discovery",              count: discovery.length, amount: null,     newW: discNewW,  newQ: discNewY,  target: annualDiscTarget,  actual: discNewY,  periodLabel: "New this year"    },
   ] : [
     { key: "legal" as TabId,     label: "Legal / Procurement",    count: legal.length,     amount: legalAmt, newW: legalNewW, newQ: legalNewQ, target: combinedLegalTarget, actual: legalNewQ, periodLabel: "New this quarter" },
     { key: "proposal" as TabId,  label: "Proposal / Negotiation", count: proposal.length,  amount: propAmt,  newW: propNewW,  newQ: propNewQ,  target: combinedPropTarget,  actual: propNewQ,  periodLabel: "New this quarter" },
@@ -110,17 +116,19 @@ export default function OverviewTab({
     tooltip: tileTooltip(t.actual, t.target, paceRatio(t.actual, t.target), t.label),
   }));
 
-  const fmtProgress = (n: number) => {
-    if (n >= 1_000_000) return "$" + (n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1) + "M";
-    return "$" + Math.round(n / 1000) + "K";
-  };
+  const solRows  = useMemo(() => getSignsOfLife(active, emailSignals, now), [active, emailSignals, now]);
   const naAlerts = useMemo(() => getNeedsActionAlerts([...legal, ...proposal, ...demo], closePlans, now), [legal, proposal, demo, closePlans, now]);
 
-  // Progress bar values
-  const progressWon    = ytdMode ? closedWonYTDTotal : closedWonTotal;
-  const progressTarget = ytdMode ? ANNUAL_REVENUE_TARGET : QUARTERLY_TARGET;
+  const progressWon      = ytdMode ? closedWonYTDTotal : closedWonTotal;
+  const progressTarget   = ytdMode ? ANNUAL_REVENUE_TARGET : QUARTERLY_TARGET;
   const progressWonDeals = ytdMode ? closedWonYTD : closedWon;
-  const progressLabel  = ytdMode ? `${now.getFullYear()} YTD` : `Q${qIndex + 1}`;
+  const progressLabel    = ytdMode ? `${now.getFullYear()} YTD` : `Q${qIndex + 1}`;
+
+  // Quarterly cumulative milestones for YTD bar
+  const qMilestones = QUARTERLY_TARGETS.slice(0, -1).map((_, i) => ({
+    label: `Q${i + 1}`,
+    value: QUARTERLY_TARGETS.slice(0, i + 1).reduce((s, v) => s + v, 0),
+  }));
 
   return (
     <div>
@@ -144,7 +152,7 @@ export default function OverviewTab({
         </div>
       </div>
 
-      {/* Stage tiles + assumption drawers */}
+      {/* Stage tiles */}
       <div className="flex gap-3 mb-5 flex-wrap">
         {tilesWithColor.map(t => (
           <div key={t.key} style={{ flex: 1, minWidth: 140, display: "flex", flexDirection: "column" }}>
@@ -209,43 +217,30 @@ export default function OverviewTab({
               <div style={{ position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif", paddingRight: 4 }}>
                 {fmtProgress(progressTarget)}
               </div>
-              {/* Quarterly milestone ticks — YTD mode only */}
-              {ytdMode && (() => {
-                const cumulative = [0, ...QUARTERLY_TARGETS].reduce<number[]>((acc, v, i) => {
-                  if (i === 0) return [0];
-                  acc.push((acc[acc.length - 1] ?? 0) + (QUARTERLY_TARGETS[i - 1] ?? 0));
-                  return acc;
-                }, []);
-                const milestones = QUARTERLY_TARGETS.map((_, i) => ({
-                  label: `Q${i + 1}`,
-                  value: QUARTERLY_TARGETS.slice(0, i + 1).reduce((s, v) => s + v, 0),
-                }));
-                return milestones.slice(0, -1).map(m => {
-                  const pct = (m.value / ANNUAL_REVENUE_TARGET) * 100;
-                  return (
-                    <div key={m.label} style={{ position: "absolute", left: `${pct}%`, top: 0, transform: "translateX(-50%)" }}>
-                      <div style={{ width: 1.5, height: 28, background: "rgba(100,116,139,0.35)" }} />
-                      <div style={{ fontSize: 9, color: "#94a3b8", fontWeight: 600, textAlign: "center", marginTop: 3, whiteSpace: "nowrap", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                        {m.label} {fmtProgress(m.value)}
-                      </div>
+              {ytdMode && qMilestones.map(m => {
+                const pct = (m.value / ANNUAL_REVENUE_TARGET) * 100;
+                return (
+                  <div key={m.label} style={{ position: "absolute", left: `${pct}%`, top: 0, transform: "translateX(-50%)" }}>
+                    <div style={{ width: 1.5, height: 28, background: "rgba(100,116,139,0.35)" }} />
+                    <div style={{ fontSize: 9, color: "#94a3b8", fontWeight: 600, textAlign: "center", marginTop: 3, whiteSpace: "nowrap", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                      {m.label} {fmtProgress(m.value)}
                     </div>
-                  );
-                });
-              })()}
-            </div>
+                  </div>
+                );
+              })}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <div style={{ width: 10, height: 10, borderRadius: 2, background: "#16a34a", flexShrink: 0 }} />
                 <div>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#16a34a", fontFamily: "'DM Sans', system-ui, sans-serif" }}>${Math.round(progressWon / 1000)}K</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#16a34a", fontFamily: "'DM Sans', system-ui, sans-serif" }}>{fmtProgress(progressWon)}</span>
                   <span style={{ fontSize: 11, color: "#8b90a0", marginLeft: 5, fontFamily: "'DM Sans', system-ui, sans-serif" }}>Closed Won {progressLabel} · {progressWonDeals.length} deals · {Math.round(closedPct)}% of goal</span>
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <div style={{ width: 10, height: 10, borderRadius: 2, background: "#93c5fd", flexShrink: 0 }} />
                 <div>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#2563eb", fontFamily: "'DM Sans', system-ui, sans-serif" }}>${Math.round(wp / 1000)}K</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#2563eb", fontFamily: "'DM Sans', system-ui, sans-serif" }}>{fmtProgress(wp)}</span>
                   <span style={{ fontSize: 11, color: "#8b90a0", marginLeft: 5, fontFamily: "'DM Sans', system-ui, sans-serif" }}>Weighted Pipeline · {Math.round(combinedPct)}% combined</span>
                 </div>
               </div>
@@ -254,7 +249,7 @@ export default function OverviewTab({
         );
       })()}
 
-      {/* Signs of Life */}
+      {/* Pour Gas on These */}
       <TableCard>
         <TableCardHeader>
           <span>🔥 Pour Gas on These <span style={{ color: "#b0b5c3", fontWeight: 400, fontSize: 12 }}>— prospect-side activity in last 7 days</span></span>
@@ -307,11 +302,11 @@ export default function OverviewTab({
 // ── ASSUMPTION DRAWER ─────────────────────────────────────────────────────────
 
 interface AssumptionDrawerProps {
-  tileKey: TabId;
-  assumptions: Assumptions;
+  tileKey:      TabId;
+  assumptions:  Assumptions;
   hubspotRates: HubSpotRates | null;
-  borderColor: string;
-  onSave: (a: Assumptions) => Promise<void>;
+  borderColor:  string;
+  onSave:       (a: Assumptions) => Promise<void>;
 }
 
 function AssumptionDrawer({ tileKey, assumptions, hubspotRates, borderColor, onSave }: AssumptionDrawerProps) {
@@ -442,9 +437,9 @@ const HISTORICAL_AVG_DEAL_VALUE = 62137;
 
 function MethodologyPanel({ assumptions, derived, qIndex, onSave }: {
   assumptions: Assumptions;
-  derived: ReturnType<typeof deriveTargets>;
-  qIndex: number;
-  onSave: (a: Assumptions) => Promise<void>;
+  derived:     ReturnType<typeof deriveTargets>;
+  qIndex:      number;
+  onSave:      (a: Assumptions) => Promise<void>;
 }) {
   const fmtK    = (n: number) => "$" + Math.round(n / 1000) + "K";
   const fmtFull = (n: number) => "$" + n.toLocaleString();
