@@ -434,7 +434,7 @@ function MethodologyPanel({ assumptions, derived, qIndex, onSave }: {
             )}
           </div>
 
-          <div style={{ display: "flex", gap: 32, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 64, flexWrap: "wrap" }}>
 
             {/* Quarterly Revenue Targets */}
             <div style={{ flex: 1, minWidth: 200 }}>
