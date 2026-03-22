@@ -168,81 +168,119 @@ function NBAssumptionsDrawer({ assumptions, derived, onSave }: {
     setTmp(null);
   };
 
+  // Derive live annual closes per channel from tmp (for live preview in edit mode)
+  const annualCloses = (a: Assumptions) => {
+    const annualRevenue = QUARTERLY_REVENUE_TARGET * 4;
+    const result: Record<string, number> = {};
+    for (const ch of NB) {
+      result[ch] = (annualRevenue * (a.ch[ch] / 100)) / a.avg_deal_value;
+    }
+    return result;
+  };
+
+  const THc = ({ children }: { children: React.ReactNode }) => (
+    <th style={{ padding: "6px 12px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.4, borderBottom: "1px solid #f1f5f9", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+      {children}
+    </th>
+  );
+  const TDc = ({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) => (
+    <td style={{ padding: "7px 12px", fontSize: 12, color: "#374151", fontFamily: "'DM Sans', system-ui, sans-serif", ...style }}>
+      {children}
+    </td>
+  );
+
   return (
     <DrawerShell>
-      {editing && tmp ? (
-        <div>
-          <div style={{ fontWeight: 600, fontSize: 12, color: "#374151", marginBottom: 8 }}>
-            Revenue Share by Channel %
-          </div>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
-            {NB.map(ch => (
-              <label key={ch} style={{ display: "flex", flexDirection: "column", fontSize: 12, color: "#374151", gap: 3, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                {ch}
+      {editing && tmp ? (() => {
+        const liveCloses = annualCloses(tmp);
+        return (
+          <div>
+            {/* Avg Deal Size — above table, single shared field */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+              <label style={{ fontSize: 12, color: "#374151", fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                Avg Deal Size
+              </label>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ fontSize: 12, color: "#64748b" }}>$</span>
                 <input
                   type="number"
-                  value={tmp.ch[ch]}
-                  onChange={e => setTmp({ ...tmp, ch: { ...tmp.ch, [ch]: +e.target.value } })}
-                  style={{ width: 60, padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 6, fontSize: 13 }}
+                  value={tmp.avg_deal_value}
+                  onChange={e => setTmp({ ...tmp, avg_deal_value: +e.target.value })}
+                  style={{ width: 100, padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 6, fontSize: 13, fontFamily: "'DM Sans', system-ui, sans-serif" }}
                 />
-              </label>
-            ))}
-          </div>
-          <div style={{ fontWeight: 600, fontSize: 12, color: "#374151", marginBottom: 8 }}>
-            Avg Deal Value
-          </div>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
-            <label style={{ display: "flex", flexDirection: "column", fontSize: 12, color: "#374151", gap: 3, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-              $
-              <input
-                type="number"
-                value={tmp.avg_deal_value}
-                onChange={e => setTmp({ ...tmp, avg_deal_value: +e.target.value })}
-                style={{ width: 90, padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 6, fontSize: 13 }}
-              />
-            </label>
-          </div>
-          <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-            <button onClick={handleSave} disabled={saving}
-              style={{ background: "linear-gradient(135deg, #a0fad7, #82f6c6)", color: "#0a2e1f", border: "none", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontSize: 11, fontWeight: 700, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-              {saving ? "Saving…" : "Save"}
-            </button>
-            <button onClick={() => { setEditing(false); setTmp(null); }}
-              style={{ background: "#f1f5f9", color: "#374151", border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            {/* Revenue Share by Channel — editable input */}
-            <div style={{ flex: 1, background: "#f0fdfa", border: "1px solid #99f6e4", borderRadius: 10, padding: "12px 14px", minWidth: 160 }}>
-              <div style={{ fontWeight: 700, fontSize: 12, color: "#0f766e", marginBottom: 6 }}>Revenue Share by Channel</div>
-              {NB.map(ch => (
-                <div key={ch} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
-                  <span style={{ color: "#115e59" }}>{ch}</span>
-                  <span style={{ fontWeight: 700, color: "#0f766e" }}>{assumptions.ch[ch]}%</span>
-                </div>
-              ))}
-            </div>
-            {/* Annual Closes per Channel — derived */}
-            <div style={{ flex: 1, background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 10, padding: "12px 14px", minWidth: 160 }}>
-              <div style={{ fontWeight: 700, fontSize: 12, color: "#15803d", marginBottom: 2 }}>Annual Closes per Channel</div>
-              <div style={{ fontSize: 11, color: "#86efac", marginBottom: 6, fontStyle: "italic" }}>
-                derived · avg deal {fmtK(assumptions.avg_deal_value)}
               </div>
-              {NB.map(ch => (
-                <div key={ch} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
-                  <span style={{ color: "#166534" }}>{ch}</span>
-                  <span style={{ fontWeight: 700, color: "#15803d" }}>{derived.annualClosesByChannel[ch]?.toFixed(1)}</span>
-                </div>
-              ))}
+            </div>
+            {/* Table */}
+            <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 12 }}>
+              <thead>
+                <tr>
+                  <THc>Channel</THc>
+                  <THc>Revenue Share</THc>
+                  <THc>Avg Deal Size</THc>
+                  <THc>Derived Annual Deals</THc>
+                </tr>
+              </thead>
+              <tbody>
+                {NB.map(ch => (
+                  <tr key={ch} style={{ borderBottom: "1px solid #f8fafc" }}>
+                    <TDc><span style={{ fontWeight: 500 }}>{ch}</span></TDc>
+                    <TDc>
+                      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <input
+                          type="number"
+                          value={tmp.ch[ch]}
+                          onChange={e => setTmp({ ...tmp, ch: { ...tmp.ch, [ch]: +e.target.value } })}
+                          style={{ width: 52, padding: "3px 6px", border: "1px solid #cbd5e1", borderRadius: 6, fontSize: 12, fontFamily: "'DM Sans', system-ui, sans-serif" }}
+                        />
+                        <span style={{ fontSize: 12, color: "#64748b" }}>%</span>
+                      </div>
+                    </TDc>
+                    <TDc style={{ color: "#94a3b8" }}>{fmtK(tmp.avg_deal_value)}</TDc>
+                    <TDc style={{ fontWeight: 700, color: "#0f172a" }}>{liveCloses[ch].toFixed(1)}</TDc>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button onClick={handleSave} disabled={saving}
+                style={{ background: "linear-gradient(135deg, #a0fad7, #82f6c6)", color: "#0a2e1f", border: "none", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontSize: 11, fontWeight: 700, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                {saving ? "Saving…" : "Save"}
+              </button>
+              <button onClick={() => { setEditing(false); setTmp(null); }}
+                style={{ background: "#f1f5f9", color: "#374151", border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                Cancel
+              </button>
             </div>
           </div>
+        );
+      })() : (
+        <div>
+          <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 8, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+            Avg deal size: <strong style={{ color: "#374151" }}>{fmtK(assumptions.avg_deal_value)}</strong>
+          </div>
+          <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 10 }}>
+            <thead>
+              <tr>
+                <THc>Channel</THc>
+                <THc>Revenue Share</THc>
+                <THc>Avg Deal Size</THc>
+                <THc>Derived Annual Deals</THc>
+              </tr>
+            </thead>
+            <tbody>
+              {NB.map(ch => (
+                <tr key={ch} style={{ borderBottom: "1px solid #f8fafc" }}>
+                  <TDc><span style={{ fontWeight: 500 }}>{ch}</span></TDc>
+                  <TDc>{assumptions.ch[ch]}%</TDc>
+                  <TDc style={{ color: "#94a3b8" }}>{fmtK(assumptions.avg_deal_value)}</TDc>
+                  <TDc style={{ fontWeight: 700 }}>{derived.annualClosesByChannel[ch]?.toFixed(1)}</TDc>
+                </tr>
+              ))}
+            </tbody>
+          </table>
           <button
             onClick={() => { setEditing(true); setTmp(JSON.parse(JSON.stringify(assumptions))); }}
-            style={{ marginTop: 10, background: "#f8fafc", color: "#64748b", border: "1px solid #e2e4ed", borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+            style={{ background: "#f8fafc", color: "#64748b", border: "1px solid #e2e4ed", borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
             Edit
           </button>
         </div>
