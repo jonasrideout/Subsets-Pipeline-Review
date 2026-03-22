@@ -13,14 +13,11 @@ export async function GET() {
     await redis.connect();
     const raw = await redis.get(REDIS_ASSUMPTIONS_KEY);
     if (raw) {
-      // Merge with defaults so any new fields (e.g. prop_to_legal) fall back
-      // to their default values if not present in the saved data
       const saved = JSON.parse(raw);
       const merged: Assumptions = {
         ...DEFAULT_ASSUMPTIONS,
         ...saved,
         ch: { ...DEFAULT_ASSUMPTIONS.ch, ...(saved.ch ?? {}) },
-        annual_closes: { ...DEFAULT_ASSUMPTIONS.annual_closes, ...(saved.annual_closes ?? {}) },
       };
       return NextResponse.json(merged);
     }
@@ -37,12 +34,10 @@ export async function POST(req: NextRequest) {
   const redis = getRedis();
   try {
     const body = await req.json();
-    // Merge with defaults to ensure all keys are present
     const assumptions: Assumptions = {
       ...DEFAULT_ASSUMPTIONS,
       ...body,
       ch: { ...DEFAULT_ASSUMPTIONS.ch, ...(body.ch ?? {}) },
-      annual_closes: { ...DEFAULT_ASSUMPTIONS.annual_closes, ...(body.annual_closes ?? {}) },
     };
     await redis.connect();
     await redis.set(REDIS_ASSUMPTIONS_KEY, JSON.stringify(assumptions));
