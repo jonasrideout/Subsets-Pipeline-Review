@@ -39,7 +39,7 @@ export default function OverviewTab({
   now, weekAgo, qStart, qIndex, onTabChange, onAssumptionsSave,
 }: OverviewTabProps) {
   const derived = deriveTargets(assumptions, qIndex);
-  const { legalTarget, propTarget, demoTarget, channelQTargets } = derived;
+  const { qCloses, legalTarget, propTarget, demoTarget, channelQTargets } = derived;
   const discTarget = Object.values(channelQTargets).reduce((s, v) => s + v, 0);
 
   const { discNewW, discNewQ, demoNewW, demoNewQ, propNewW, propNewQ, legalNewW, legalNewQ } = counts;
@@ -268,14 +268,15 @@ function AssumptionDrawer({ tileKey, assumptions, borderColor, onSave }: Assumpt
     setTmp(null);
   };
 
-  const legalNeeded = Math.ceil(assumptions.q_closes / (assumptions.legal_to_close / 100));
-  const propNeeded  = Math.ceil(legalNeeded / (assumptions.prop_to_legal / 100));
-  const demoNeeded  = Math.ceil(propNeeded  / (assumptions.demo_to_prop  / 100));
+  const derived     = deriveTargets(assumptions, Math.floor(new Date().getMonth() / 3));
+  const legalNeeded = derived.legalTarget;
+  const propNeeded  = derived.propTarget;
+  const demoNeeded  = derived.demoTarget;
 
   const rows: { label: string; value: string | number; source: "historical" | "anecdotal" | "derived" }[] = (() => {
     switch (tileKey) {
       case "legal": return [
-        { label: "Deals to close this quarter",                value: assumptions.q_closes,             source: "derived"    },
+        { label: "Deals to close this quarter",                value: derived.qCloses,                  source: "derived"    },
         { label: "% of Legal deals that close",                value: `${assumptions.legal_to_close}%`, source: "historical" },
       ];
       case "proposal": return [
@@ -296,7 +297,7 @@ function AssumptionDrawer({ tileKey, assumptions, borderColor, onSave }: Assumpt
 
   const editableFields: (keyof Assumptions)[] = (() => {
     switch (tileKey) {
-      case "legal":     return ["q_closes", "legal_to_close"];
+      case "legal":     return ["legal_to_close"];
       case "proposal":  return ["prop_to_legal"];
       case "demo":      return ["demo_to_prop"];
       case "discovery": return ["disc_to_demo"];
@@ -305,7 +306,6 @@ function AssumptionDrawer({ tileKey, assumptions, borderColor, onSave }: Assumpt
   })();
 
   const fieldLabel = (f: keyof Assumptions): string => ({
-    q_closes:       "Deals to close this quarter",
     legal_to_close: "% Legal → Close",
     prop_to_legal:  "% Proposal → Legal",
     demo_to_prop:   "% Demo → Proposal",
@@ -380,7 +380,7 @@ function MethodologyPanel({ assumptions, derived, qIndex }: {
   derived: ReturnType<typeof deriveTargets>;
   qIndex: number;
 }) {
-  const { legalTarget, propTarget, demoTarget, discTarget, expansionQTarget, expansionQCloses, nbTargets, nbQRevenueTarget, expansionQRevenueTarget } = derived;
+  const { qCloses, legalTarget, propTarget, demoTarget, discTarget, expansionQTarget, expansionQCloses, nbTargets, nbQRevenueTarget, expansionQRevenueTarget } = derived;
   const NB_CHANNELS = ["Outbound", "Events", "Partnership", "Inbound"];
   const fmtK = (n: number) => "$" + Math.round(n / 1000) + "K";
 
@@ -421,7 +421,7 @@ function MethodologyPanel({ assumptions, derived, qIndex }: {
             <div style={{ flex: 1, background: "#f8fafc", border: "1px solid #e2e4ed", borderRadius: 10, padding: "12px 14px", minWidth: 200 }}>
               <div style={{ fontWeight: 700, fontSize: 12, color: "#374151", marginBottom: 6 }}>Q Stage Targets (Derived)</div>
               {[
-                ["Legal needed",     legalTarget, `${assumptions.q_closes} closes ÷ ${assumptions.legal_to_close}%`],
+                ["Legal needed",     legalTarget, `${qCloses} closes ÷ ${assumptions.legal_to_close}%`],
                 ["Proposal needed",  propTarget,  `${legalTarget} legal ÷ ${assumptions.prop_to_legal}%`],
                 ["Demo needed",      demoTarget,  `${propTarget} prop ÷ ${assumptions.demo_to_prop}%`],
                 ["Discovery needed", discTarget,  `${demoTarget} demo ÷ ${assumptions.disc_to_demo}%`],
