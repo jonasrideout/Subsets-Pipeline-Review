@@ -18,16 +18,18 @@ interface Sample {
   enteredProposal:  number;
   enteredLegal:     number;
   closedWon:        number;
+  nbDealsForAvg:    number;
   totalDeals:       number;
   periodMonths:     number;
 }
 
 interface RecalculateModalProps {
-  rates:       Rates;
-  sample:      Sample;
-  current:     Assumptions;
-  onConfirm:   (updated: Assumptions) => void;
-  onDismiss:   () => void;
+  rates:          Rates;
+  avg_deal_value: number | null;
+  sample:         Sample;
+  current:        Assumptions;
+  onConfirm:      (updated: Assumptions) => void;
+  onDismiss:      () => void;
 }
 
 const RATE_LABELS: Record<string, string> = {
@@ -37,21 +39,26 @@ const RATE_LABELS: Record<string, string> = {
   legal_to_close: "Legal → Close",
 };
 
-export default function RecalculateModal({ rates, sample, current, onConfirm, onDismiss }: RecalculateModalProps) {
-  // Build updated assumptions
+const fmtCur = (n: number) => "$" + n.toLocaleString();
+
+export default function RecalculateModal({ rates, avg_deal_value, sample, current, onConfirm, onDismiss }: RecalculateModalProps) {
+  const rateKeys = ["disc_to_demo", "demo_to_prop", "prop_to_legal", "legal_to_close"] as const;
+
   const updated: Assumptions = {
     ...current,
     ...(rates.disc_to_demo   !== null && { disc_to_demo:   rates.disc_to_demo   }),
     ...(rates.demo_to_prop   !== null && { demo_to_prop:   rates.demo_to_prop   }),
     ...(rates.prop_to_legal  !== null && { prop_to_legal:  rates.prop_to_legal  }),
     ...(rates.legal_to_close !== null && { legal_to_close: rates.legal_to_close }),
+    ...(avg_deal_value !== null        && { avg_deal_value                       }),
   };
 
   const currentTargets = deriveTargets(current);
   const updatedTargets = deriveTargets(updated);
 
-  const rateKeys = ["disc_to_demo", "demo_to_prop", "prop_to_legal", "legal_to_close"] as const;
-  const anyChange = rateKeys.some(k => rates[k] !== null && rates[k] !== current[k]);
+  const anyRateChange    = rateKeys.some(k => rates[k] !== null && rates[k] !== current[k]);
+  const avgChanged       = avg_deal_value !== null && avg_deal_value !== current.avg_deal_value;
+  const anyChange        = anyRateChange || avgChanged;
 
   return (
     <div style={{
@@ -61,7 +68,7 @@ export default function RecalculateModal({ rates, sample, current, onConfirm, on
       fontFamily: "'DM Sans', system-ui, sans-serif",
     }}>
       <div style={{
-        background: "#fff", borderRadius: 16, width: "100%", maxWidth: 580,
+        background: "#fff", borderRadius: 16, width: "100%", maxWidth: 600,
         margin: "0 24px", boxShadow: "0 24px 64px rgba(15,10,46,0.2)",
         overflow: "hidden",
       }}>
@@ -86,6 +93,7 @@ export default function RecalculateModal({ rates, sample, current, onConfirm, on
               ["Entered Proposal",  sample.enteredProposal],
               ["Entered Legal",     sample.enteredLegal],
               ["Closed Won",        sample.closedWon],
+              ["NB Deals (avg)",    sample.nbDealsForAvg],
             ].map(([label, val]) => (
               <div key={String(label)} style={{ flex: 1, minWidth: 80, background: "#f8fafc", border: "1px solid #e2e4ed", borderRadius: 8, padding: "8px 12px" }}>
                 <div style={{ fontSize: 18, fontWeight: 800, color: "#0f1117" }}>{val}</div>
@@ -93,6 +101,28 @@ export default function RecalculateModal({ rates, sample, current, onConfirm, on
               </div>
             ))}
           </div>
+
+          {/* Avg Deal Value row */}
+          {avg_deal_value !== null && (
+            <div style={{ background: avgChanged ? "rgba(130,246,198,0.05)" : "#fafbfc", border: "1px solid #e2e4ed", borderRadius: 8, padding: "10px 14px", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>Avg NB Deal Value</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 13, color: "#64748b" }}>{fmtCur(current.avg_deal_value)}</span>
+                <span style={{ fontSize: 13, color: "#94a3b8" }}>→</span>
+                <span style={{ fontSize: 13, fontWeight: avgChanged ? 700 : 400, color: avgChanged ? "#0f1117" : "#94a3b8" }}>{fmtCur(avg_deal_value)}</span>
+                {avgChanged && (
+                  <span style={{
+                    fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 999,
+                    background: avg_deal_value > current.avg_deal_value ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
+                    color: avg_deal_value > current.avg_deal_value ? "#16a34a" : "#dc2626",
+                  }}>
+                    {avg_deal_value > current.avg_deal_value ? "+" : ""}{fmtCur(avg_deal_value - current.avg_deal_value)}
+                  </span>
+                )}
+                {!avgChanged && <span style={{ fontSize: 11, color: "#b0b5c3" }}>no change</span>}
+              </div>
+            </div>
+          )}
 
           {/* Rate comparison table */}
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, marginBottom: 20 }}>
@@ -105,8 +135,8 @@ export default function RecalculateModal({ rates, sample, current, onConfirm, on
             </thead>
             <tbody>
               {rateKeys.map(k => {
-                const cur = current[k];
-                const nw  = rates[k];
+                const cur  = current[k];
+                const nw   = rates[k];
                 const diff = nw !== null ? nw - cur : null;
                 const changed = diff !== null && diff !== 0;
                 return (
@@ -141,10 +171,10 @@ export default function RecalculateModal({ rates, sample, current, onConfirm, on
               <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 10 }}>Impact on Q Targets</div>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                 {[
-                  ["Legal",     currentTargets.legalTarget,   updatedTargets.legalTarget],
-                  ["Proposal",  currentTargets.propTarget,    updatedTargets.propTarget],
-                  ["Demo",      currentTargets.demoTarget,    updatedTargets.demoTarget],
-                  ["Discovery", currentTargets.discTarget,    updatedTargets.discTarget],
+                  ["Legal",     currentTargets.combinedLegalTarget, updatedTargets.combinedLegalTarget],
+                  ["Proposal",  currentTargets.combinedPropTarget,  updatedTargets.combinedPropTarget],
+                  ["Demo",      currentTargets.combinedDemoTarget,  updatedTargets.combinedDemoTarget],
+                  ["Discovery", currentTargets.discTarget,          updatedTargets.discTarget],
                 ].map(([label, cur, upd]) => {
                   const diff = (upd as number) - (cur as number);
                   return (
