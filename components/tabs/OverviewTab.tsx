@@ -239,7 +239,7 @@ export default function OverviewTab({
       </TableCard>
 
       {/* Methodology */}
-      <MethodologyPanel assumptions={assumptions} derived={derived} qIndex={qIndex} />
+      <MethodologyPanel assumptions={assumptions} derived={derived} qIndex={qIndex} onSave={onAssumptionsSave} />
     </div>
   );
 }
@@ -375,14 +375,29 @@ function AssumptionDrawer({ tileKey, assumptions, borderColor, onSave }: Assumpt
 
 // ── METHODOLOGY PANEL ─────────────────────────────────────────────────────────
 
-function MethodologyPanel({ assumptions, derived, qIndex }: {
+const HISTORICAL_AVG_DEAL_VALUE = 62137; // trailing 12m from HubSpot — updated by Recalculate
+
+function MethodologyPanel({ assumptions, derived, qIndex, onSave }: {
   assumptions: Assumptions;
   derived: ReturnType<typeof deriveTargets>;
   qIndex: number;
+  onSave: (a: Assumptions) => Promise<void>;
 }) {
   const { qCloses, legalTarget, propTarget, demoTarget, discTarget, expansionQTarget, expansionQCloses, nbTargets, nbQRevenueTarget, expansionQRevenueTarget } = derived;
   const NB_CHANNELS = ["Outbound", "Events", "Partnership", "Inbound"];
   const fmtK = (n: number) => "$" + Math.round(n / 1000) + "K";
+  const fmtFull = (n: number) => "$" + n.toLocaleString();
+
+  const [editingAvg, setEditingAvg] = useState(false);
+  const [tmpAvg, setTmpAvg]         = useState<number>(assumptions.avg_deal_value);
+  const [saving, setSaving]         = useState(false);
+
+  const handleSaveAvg = async () => {
+    setSaving(true);
+    await onSave({ ...assumptions, avg_deal_value: tmpAvg });
+    setSaving(false);
+    setEditingAvg(false);
+  };
 
   return (
     <TableCard>
@@ -392,6 +407,50 @@ function MethodologyPanel({ assumptions, derived, qIndex }: {
           <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 400 }}>expand ▼</span>
         </summary>
         <div style={{ padding: "0 18px 18px" }}>
+
+          {/* Average Deal Value */}
+          <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid #f1f5f9" }}>
+            {editingAvg ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                <label style={{ fontSize: 12, color: "#374151", fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                  Avg Deal Value
+                </label>
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <span style={{ fontSize: 12, color: "#64748b" }}>$</span>
+                  <input
+                    type="number"
+                    value={tmpAvg}
+                    onChange={e => setTmpAvg(+e.target.value)}
+                    style={{ width: 110, padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 6, fontSize: 13, fontFamily: "'DM Sans', system-ui, sans-serif" }}
+                  />
+                </div>
+                <button onClick={handleSaveAvg} disabled={saving}
+                  style={{ background: "linear-gradient(135deg, #a0fad7, #82f6c6)", color: "#0a2e1f", border: "none", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontSize: 11, fontWeight: 700, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                  {saving ? "Saving…" : "Save"}
+                </button>
+                <button onClick={() => { setEditingAvg(false); setTmpAvg(assumptions.avg_deal_value); }}
+                  style={{ background: "#f1f5f9", color: "#374151", border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: "flex", alignItems: "baseline", gap: 20, flexWrap: "wrap" }}>
+                <div>
+                  <span style={{ fontSize: 12, color: "#374151", fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif" }}>Avg Deal Value </span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", fontFamily: "'DM Sans', system-ui, sans-serif" }}>{fmtFull(assumptions.avg_deal_value)}</span>
+                </div>
+                <div>
+                  <span style={{ fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif" }}>12-month rolling avg </span>
+                  <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif" }}>{fmtFull(HISTORICAL_AVG_DEAL_VALUE)}</span>
+                </div>
+                <button onClick={() => { setEditingAvg(true); setTmpAvg(assumptions.avg_deal_value); }}
+                  style={{ background: "#f8fafc", color: "#64748b", border: "1px solid #e2e4ed", borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                  Edit
+                </button>
+              </div>
+            )}
+          </div>
+
           <div className="flex gap-3 flex-wrap">
 
             {/* Quarterly Revenue Targets */}
