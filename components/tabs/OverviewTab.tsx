@@ -202,47 +202,100 @@ export default function OverviewTab({
       {/* Pipeline Progress */}
       {(() => {
         const closedPct   = Math.min(100, progressWon / progressTarget * 100);
-        const wpPct       = Math.min(100 - closedPct, wp / progressTarget * 100);
         const combinedPct = Math.min(100, (progressWon + wp) / progressTarget * 100);
+        const wpPct       = Math.min(100 - closedPct, wp / progressTarget * 100);
+        const dayPct      = Math.min(100, elapsedPct * 100);
+
         return (
           <div style={{ background: "#fff", border: "1px solid #e2e4ed", borderRadius: 12, padding: "18px 20px", marginBottom: 20, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-            <div style={{ position: "relative", height: 28, background: "#f1f5f9", borderRadius: 999, overflow: "visible", marginBottom: ytdMode ? 24 : 10 }}>
-              <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${closedPct}%`, background: "#16a34a", borderRadius: wpPct > 0 ? "999px 0 0 999px" : "999px" }} />
-              {wpPct > 0 && (
-                <div style={{ position: "absolute", top: 0, height: "100%", left: `${closedPct}%`, width: `${wpPct}%`, background: "#93c5fd", borderRadius: combinedPct >= 100 ? "0 999px 999px 0" : "0" }} />
-              )}
-              <div style={{ position: "absolute", left: `${combinedPct}%`, top: "50%", transform: "translate(-50%, -50%)", background: "#0f1117", color: "#fff", fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 999, whiteSpace: "nowrap", fontFamily: "'DM Sans', system-ui, sans-serif", boxShadow: "0 1px 4px rgba(0,0,0,0.15)" }}>
-                {fmtProgress(progressWon + wp)}
+
+            {/* Bars container — both rows share the same width so the day marker aligns */}
+            <div style={{ position: "relative", marginBottom: ytdMode ? 24 : 14 }}>
+
+              {/* Dashed day marker — spans both bars */}
+              <div style={{
+                position: "absolute", left: `${dayPct}%`, top: 0, bottom: 0,
+                width: 1, borderLeft: "2px dashed #94a3b8", zIndex: 10,
+                pointerEvents: "none",
+              }} />
+
+              {/* Row 1: Closed Won */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                <div style={{ flex: 1, position: "relative", height: 20, background: "#f1f5f9", borderRadius: 999, overflow: "hidden" }}>
+                  <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${closedPct}%`, background: "#16a34a", borderRadius: 999 }} />
+                </div>
+                <div style={{
+                  flexShrink: 0, fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 999,
+                  background: "#dcfce7", color: "#15803d", fontFamily: "'DM Sans', system-ui, sans-serif",
+                  minWidth: 52, textAlign: "center",
+                }}>
+                  {Math.round(closedPct)}%
+                </div>
               </div>
-              <div style={{ position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif", paddingRight: 4 }}>
-                {fmtProgress(progressTarget)}
+
+              {/* Row 2: Weighted Pipeline */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ flex: 1, position: "relative", height: 20, background: "#f1f5f9", borderRadius: 999, overflow: "hidden" }}>
+                  <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${closedPct}%`, background: "rgba(22,163,74,0.15)", borderRadius: "999px 0 0 999px" }} />
+                  {wpPct > 0 && (
+                    <div style={{ position: "absolute", top: 0, height: "100%", left: `${closedPct}%`, width: `${wpPct}%`, background: "#bfdbfe" }} />
+                  )}
+                </div>
+                <div style={{
+                  flexShrink: 0, fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 999,
+                  background: "#eff6ff", color: "#2563eb", fontFamily: "'DM Sans', system-ui, sans-serif",
+                  minWidth: 52, textAlign: "center",
+                }}>
+                  {Math.round(combinedPct)}%
+                </div>
               </div>
+
+              {/* YTD quarterly milestone ticks */}
               {ytdMode && qMilestones.map(m => {
                 const pct = (m.value / ANNUAL_REVENUE_TARGET) * 100;
                 return (
-                  <div key={m.label} style={{ position: "absolute", left: `${pct}%`, top: 0, transform: "translateX(-50%)" }}>
-                    <div style={{ width: 1.5, height: 28, background: "rgba(100,116,139,0.35)" }} />
-                    <div style={{ fontSize: 9, color: "#94a3b8", fontWeight: 600, textAlign: "center", marginTop: 3, whiteSpace: "nowrap", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                      {m.label} {fmtProgress(m.value)}
-                    </div>
+                  <div key={m.label} style={{ position: "absolute", left: `${pct}%`, top: 0, bottom: 0, transform: "translateX(-50%)", pointerEvents: "none" }}>
+                    <div style={{ width: 1, height: "100%", background: "rgba(100,116,139,0.25)" }} />
                   </div>
                 );
               })}
             </div>
+
+            {/* YTD milestone labels */}
+            {ytdMode && (
+              <div style={{ position: "relative", height: 14, marginBottom: 10 }}>
+                {qMilestones.map(m => {
+                  const pct = (m.value / ANNUAL_REVENUE_TARGET) * 100;
+                  return (
+                    <div key={m.label} style={{ position: "absolute", left: `${pct}%`, transform: "translateX(-50%)", fontSize: 9, color: "#94a3b8", fontWeight: 600, whiteSpace: "nowrap", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                      {m.label} {fmtProgress(m.value)}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Legend */}
             <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <div style={{ width: 10, height: 10, borderRadius: 2, background: "#16a34a", flexShrink: 0 }} />
-                <div>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#16a34a", fontFamily: "'DM Sans', system-ui, sans-serif" }}>{fmtProgress(progressWon)}</span>
-                  <span style={{ fontSize: 11, color: "#8b90a0", marginLeft: 5, fontFamily: "'DM Sans', system-ui, sans-serif" }}>Closed Won {progressLabel} · {progressWonDeals.length} deals · {Math.round(closedPct)}% of goal</span>
-                </div>
+                <span style={{ fontSize: 11, color: "#8b90a0", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                  <span style={{ fontWeight: 700, color: "#16a34a" }}>{fmtProgress(progressWon)}</span>
+                  {" "}Closed Won {progressLabel} · {progressWonDeals.length} deals
+                </span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <div style={{ width: 10, height: 10, borderRadius: 2, background: "#93c5fd", flexShrink: 0 }} />
-                <div>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#2563eb", fontFamily: "'DM Sans', system-ui, sans-serif" }}>{fmtProgress(wp)}</span>
-                  <span style={{ fontSize: 11, color: "#8b90a0", marginLeft: 5, fontFamily: "'DM Sans', system-ui, sans-serif" }}>Weighted Pipeline · {Math.round(combinedPct)}% combined</span>
-                </div>
+                <div style={{ width: 10, height: 10, borderRadius: 2, background: "#bfdbfe", flexShrink: 0 }} />
+                <span style={{ fontSize: 11, color: "#8b90a0", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                  <span style={{ fontWeight: 700, color: "#2563eb" }}>{fmtProgress(wp)}</span>
+                  {" "}Weighted Pipeline
+                </span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ width: 10, height: 10, borderRadius: 2, borderLeft: "2px dashed #94a3b8", flexShrink: 0 }} />
+                <span style={{ fontSize: 11, color: "#8b90a0", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                  {Math.round(elapsedPct * 100)}% of {ytdMode ? "year" : "quarter"} elapsed
+                </span>
               </div>
             </div>
           </div>
