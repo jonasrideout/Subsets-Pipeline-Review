@@ -6,10 +6,10 @@ import { useMemo, useState } from "react";
 import type { Deal, ClosedWonDeal, EmailSignalMap, ClosePlanMap, Assumptions } from "@/types/deals";
 import { ownerName, fmtDate, fmtCur, daysSince, weightedPipeline, UNRESOLVED_OWNER_IDS } from "@/lib/deals";
 import { deriveTargets } from "@/lib/assumptions";
-import { getSignsOfLife, getNeedsActionAlerts, opensColor } from "@/lib/flags";
+import { getSignsOfLife, getNeedsActionAlerts } from "@/lib/flags";
 import { TH, TD, TableCard, TableCardHeader } from "@/components/Table";
-import { CloseDateBadge, StageBadge, UnresolvedOwnerBadge } from "@/components/Badges";
-import DealLink from "@/components/DealLink";
+import { CloseDateBadge, UnresolvedOwnerBadge } from "@/components/Badges";
+import DealTable from "@/components/DealTable";
 import type { TabId } from "@/components/TabNav";
 import type { PipelineCounts } from "@/app/page";
 
@@ -222,24 +222,15 @@ export default function OverviewTab({
         {solRows.length === 0 ? (
           <div style={{ padding: "16px 18px", color: "#b0b5c3", fontSize: 13 }}>No signals this week.</div>
         ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead><tr>{["Company", "Stage", "Owner", "Last Inbound", "Opens 7d", "Clicks 7d", "Last Subject"].map(h => <TH key={h}>{h}</TH>)}</tr></thead>
-            <tbody>
-              {solRows.map(({ deal: d, opens7d, clicks7d, lastInbound, lastSubject, enteredNew }) => (
-                <tr key={d.id} className="table-row-hover" style={{ background: lastInbound ? "#f0fdf4" : "white", borderBottom: "1px solid #f4f5f8" }}>
-                  <TD><DealLink id={d.id} name={d.name} /></TD>
-                  <TD><StageBadge stage={d.stage} /></TD>
-                  <TD style={{ color: "#374151" }}>{ownerName(d.owner)}</TD>
-                  <TD style={{ color: "#15803d", fontWeight: lastInbound ? 600 : 400 }}>{lastInbound ? fmtDate(lastInbound) : "—"}</TD>
-                  <TD style={{ color: opensColor(opens7d), fontWeight: opens7d >= 2 ? 700 : 400 }}>{opens7d > 0 ? opens7d : "—"}</TD>
-                  <TD style={{ color: clicks7d > 0 ? "#7c3aed" : "#b0b5c3" }}>{clicks7d > 0 ? clicks7d : "—"}</TD>
-                  <TD style={{ color: "#8b90a0", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {lastSubject ?? (enteredNew ? "🆕 Entered stage" : "—")}
-                  </TD>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <DealTable
+            deals={solRows.map(r => r.deal)}
+            mode="sol"
+            closePlans={closePlans}
+            emailSignals={emailSignals}
+            now={now}
+            qStart={qStart}
+            weekAgo={weekAgo}
+          />
         )}
       </TableCard>
 
@@ -249,18 +240,14 @@ export default function OverviewTab({
         {naAlerts.length === 0 ? (
           <div style={{ padding: "16px 18px", color: "#b0b5c3", fontSize: 13 }}>All clear.</div>
         ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead><tr>{["Company", "Stage", "Alerts"].map(h => <TH key={h}>{h}</TH>)}</tr></thead>
-            <tbody>
-              {naAlerts.map(({ deal: d, alerts, stageLabel: sl }) => (
-                <tr key={d.id} className="table-row-hover" style={{ borderBottom: "1px solid #f4f5f8" }}>
-                  <TD><DealLink id={d.id} name={d.name} /></TD>
-                  <TD><span style={{ fontSize: 12, fontWeight: 600, color: "#8b90a0" }}>{sl}</span></TD>
-                  <TD style={{ lineHeight: 1.8 }}>{alerts.join("  ·  ")}</TD>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <DealTable
+            deals={naAlerts.map(a => a.deal)}
+            mode="needs-action"
+            closePlans={closePlans}
+            now={now}
+            qStart={qStart}
+            weekAgo={weekAgo}
+          />
         )}
       </TableCard>
 
