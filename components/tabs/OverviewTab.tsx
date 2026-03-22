@@ -236,10 +236,8 @@ export default function OverviewTab({
               {/* Row 2: Weighted Pipeline */}
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <div style={{ flex: 1, position: "relative", height: 20, background: "#f1f5f9", borderRadius: 999, overflow: "hidden" }}>
-                  <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${closedPct}%`, background: "rgba(22,163,74,0.15)", borderRadius: "999px 0 0 999px" }} />
-                  {wpPct > 0 && (
-                    <div style={{ position: "absolute", top: 0, height: "100%", left: `${closedPct}%`, width: `${wpPct}%`, background: "#bfdbfe" }} />
-                  )}
+                  <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${Math.min(100, closedPct + wpPct)}%`, background: "#bfdbfe", borderRadius: 999 }} />
+                  <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${closedPct}%`, background: "rgba(22,163,74,0.12)", borderRadius: 999 }} />
                 </div>
                 <div style={{
                   flexShrink: 0, fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 999,
