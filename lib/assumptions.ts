@@ -2,7 +2,11 @@
 
 import type { Assumptions } from "@/types/deals";
 
-export const QUARTERLY_REVENUE_TARGET = 600_000;
+// Quarterly combined revenue targets (NB + Expansion) — not editable
+export const QUARTERLY_TARGETS = [600_000, 800_000, 500_000, 1_100_000] as const;
+
+// NB share of combined quarterly target — not editable
+export const NB_REVENUE_SHARE = 2 / 3;
 
 export const DEFAULT_ASSUMPTIONS: Assumptions = {
   // Four-step funnel — updated from 12 months of HubSpot historical data (Mar 2025–Mar 2026)
@@ -10,11 +14,10 @@ export const DEFAULT_ASSUMPTIONS: Assumptions = {
   demo_to_prop:   92,  // % — HubSpot historical
   prop_to_legal:  64,  // % — HubSpot historical
   legal_to_close: 86,  // % — HubSpot historical
-  // Quarterly close target
+  // Quarterly NB close target (deals)
   q_closes: 6,
-  // Average deal value — used to derive annual closes per channel from revenue share
-  // $75K → Outbound ≈ 8.0 annual closes (GTM spreadsheet: 8.1)
-  avg_deal_value: 75_000,
+  // Average NB deal value — from GTM spreadsheet (23 deals, $3.003M NB revenue)
+  avg_deal_value: 130_750,
   // Channel revenue share %
   ch: {
     Outbound:    25,
@@ -24,43 +27,48 @@ export const DEFAULT_ASSUMPTIONS: Assumptions = {
     Expansion:   20,
   },
   // Expansion-specific inputs
-  expansion_q_revenue_target: 250_000, // $1M annual / 4
-  expansion_avg_deal_size:    75_000,  // editable — placeholder pending real data
-  expansion_close_rate:       40,
+  expansion_avg_deal_size: 75_000,  // placeholder — editable
+  expansion_close_rate:    40,
 };
 
 export interface DerivedTargets {
-  legalTarget:           number;
-  propTarget:            number;
-  demoTarget:            number;
-  discTarget:            number;
-  expansionQCloses:      number;
-  expansionQTarget:      number;
-  nbTargets:             Record<string, number>;
-  channelQTargets:       Record<string, number>;
-  annualClosesByChannel: Record<string, number>;
+  legalTarget:             number;
+  propTarget:              number;
+  demoTarget:              number;
+  discTarget:              number;
+  expansionQCloses:        number;
+  expansionQTarget:        number;
+  nbQRevenueTarget:        number;  // derived from QUARTERLY_TARGETS × NB_REVENUE_SHARE
+  expansionQRevenueTarget: number;  // derived from QUARTERLY_TARGETS × (1 - NB_REVENUE_SHARE)
+  nbTargets:               Record<string, number>;
+  channelQTargets:         Record<string, number>;
+  annualClosesByChannel:   Record<string, number>;
 }
 
-export const deriveTargets = (a: Assumptions): DerivedTargets => {
-  // Four-step funnel — work backwards from Q closes
-  const legalTarget = Math.ceil(a.q_closes   / (a.legal_to_close / 100));
-  const propTarget  = Math.ceil(legalTarget  / (a.prop_to_legal  / 100));
-  const demoTarget  = Math.ceil(propTarget   / (a.demo_to_prop   / 100));
-  const discTarget  = Math.ceil(demoTarget   / (a.disc_to_demo   / 100));
+export const deriveTargets = (a: Assumptions, qIndex: number = 0): DerivedTargets => {
+  const qTotal                 = QUARTERLY_TARGETS[qIndex] ?? QUARTERLY_TARGETS[0];
+  const nbQRevenueTarget        = Math.round(qTotal * NB_REVENUE_SHARE);
+  const expansionQRevenueTarget = qTotal - nbQRevenueTarget;
 
-  // Expansion Q target — derived from quarterly revenue target and avg deal size
-  const expansionQCloses = Math.ceil(a.expansion_q_revenue_target / a.expansion_avg_deal_size);
+  // Four-step NB funnel — work backwards from Q closes
+  const legalTarget = Math.ceil(a.q_closes  / (a.legal_to_close / 100));
+  const propTarget  = Math.ceil(legalTarget / (a.prop_to_legal  / 100));
+  const demoTarget  = Math.ceil(propTarget  / (a.demo_to_prop   / 100));
+  const discTarget  = Math.ceil(demoTarget  / (a.disc_to_demo   / 100));
+
+  // Expansion — independent pipeline-to-close rate, no per-stage funnel
+  const expansionQCloses = Math.ceil(expansionQRevenueTarget / a.expansion_avg_deal_size);
   const expansionQTarget = Math.ceil(expansionQCloses / (a.expansion_close_rate / 100));
 
   const nbChannels = ["Outbound", "Events", "Partnership", "Inbound"] as const;
 
-  // Annual closes per channel = (annual revenue × channel share%) / avg deal value
-  const annualRevenue = QUARTERLY_REVENUE_TARGET * 4;
+  // NB annual closes per channel = (annual NB revenue × channel share%) / avg deal value
+  const annualNBRevenue = nbQRevenueTarget * 4;
   const annualClosesByChannel: Record<string, number> = {};
   const nbTargets: Record<string, number> = {};
 
   for (const ch of nbChannels) {
-    const annualCloses = (annualRevenue * (a.ch[ch] / 100)) / a.avg_deal_value;
+    const annualCloses = (annualNBRevenue * (a.ch[ch] / 100)) / a.avg_deal_value;
     annualClosesByChannel[ch] = annualCloses;
     const annualDiscovery =
       annualCloses /
@@ -78,7 +86,9 @@ export const deriveTargets = (a: Assumptions): DerivedTargets => {
 
   return {
     legalTarget, propTarget, demoTarget, discTarget,
-    expansionQCloses, expansionQTarget, nbTargets, channelQTargets, annualClosesByChannel,
+    expansionQCloses, expansionQTarget,
+    nbQRevenueTarget, expansionQRevenueTarget,
+    nbTargets, channelQTargets, annualClosesByChannel,
   };
 };
 
