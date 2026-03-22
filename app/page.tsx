@@ -220,13 +220,13 @@ export default function Page() {
               />
             )}
             {tab === "legal" && (
-              <LegalTab deals={legal} closePlans={closePlans} now={now} weekAgo={weekAgo} qStart={qStart} counts={counts} legalQTarget={derived.legalTarget} />
+              <LegalTab deals={legal} closePlans={closePlans} now={now} weekAgo={weekAgo} qStart={qStart} counts={counts} legalQTarget={derived.combinedLegalTarget} />
             )}
             {tab === "proposal" && (
-              <ProposalTab deals={proposal} closePlans={closePlans} onClosePlanSave={handleClosePlanSave} now={now} weekAgo={weekAgo} qStart={qStart} counts={counts} propQTarget={derived.propTarget} />
+              <ProposalTab deals={proposal} closePlans={closePlans} onClosePlanSave={handleClosePlanSave} now={now} weekAgo={weekAgo} qStart={qStart} counts={counts} propQTarget={derived.combinedPropTarget} />
             )}
             {tab === "demo" && (
-              <DemoTab deals={demo} allActive={active} closePlans={closePlans} now={now} weekAgo={weekAgo} qStart={qStart} counts={counts} demoQTarget={derived.demoTarget} />
+              <DemoTab deals={demo} allActive={active} closePlans={closePlans} now={now} weekAgo={weekAgo} qStart={qStart} counts={counts} demoQTarget={derived.combinedDemoTarget} />
             )}
             {tab === "discovery" && (
               <DiscoveryTab deals={discovery} allActive={active} assumptions={assumptions} onAssumptionsSave={handleAssumptionsSave} now={now} weekAgo={weekAgo} qStart={qStart} qIndex={qIndex} counts={counts} />
