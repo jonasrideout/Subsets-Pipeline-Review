@@ -11,13 +11,8 @@ interface HeaderProps {
 }
 
 // Returns true if we're in the first 7 days after a quarter end
-function isRecalculateWindow(now: Date): boolean {
-  const m = now.getMonth(); // 0-indexed
-  const d = now.getDate();
-  // Quarter ends: Mar(2), Jun(5), Sep(8), Dec(11)
-  // Active window: first 7 days of Apr, Jul, Oct, Jan
-  const isQuarterStart = m === 0 || m === 3 || m === 6 || m === 9;
-  return isQuarterStart && d <= 7;
+function isRecalculateWindow(_now: Date): boolean {
+  return true; // TODO: restrict to first 7 days after quarter end before go-live
 }
 
 export default function Header({ asOf, loading, onRefresh, onRecalculate, recalculating }: HeaderProps) {
