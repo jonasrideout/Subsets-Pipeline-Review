@@ -110,7 +110,10 @@ export default function OverviewTab({
     tooltip: tileTooltip(t.actual, t.target, paceRatio(t.actual, t.target), t.label),
   }));
 
-  const solRows  = useMemo(() => getSignsOfLife(active, emailSignals, now), [active, emailSignals, now]);
+  const fmtProgress = (n: number) => {
+    if (n >= 1_000_000) return "$" + (n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1) + "M";
+    return "$" + Math.round(n / 1000) + "K";
+  };
   const naAlerts = useMemo(() => getNeedsActionAlerts([...legal, ...proposal, ...demo], closePlans, now), [legal, proposal, demo, closePlans, now]);
 
   // Progress bar values
@@ -195,17 +198,41 @@ export default function OverviewTab({
         const combinedPct = Math.min(100, (progressWon + wp) / progressTarget * 100);
         return (
           <div style={{ background: "#fff", border: "1px solid #e2e4ed", borderRadius: 12, padding: "18px 20px", marginBottom: 20, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-            <div style={{ position: "relative", height: 28, background: "#f1f5f9", borderRadius: 999, overflow: "visible", marginBottom: 10 }}>
+            <div style={{ position: "relative", height: 28, background: "#f1f5f9", borderRadius: 999, overflow: "visible", marginBottom: ytdMode ? 24 : 10 }}>
               <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${closedPct}%`, background: "#16a34a", borderRadius: wpPct > 0 ? "999px 0 0 999px" : "999px" }} />
               {wpPct > 0 && (
                 <div style={{ position: "absolute", top: 0, height: "100%", left: `${closedPct}%`, width: `${wpPct}%`, background: "#93c5fd", borderRadius: combinedPct >= 100 ? "0 999px 999px 0" : "0" }} />
               )}
               <div style={{ position: "absolute", left: `${combinedPct}%`, top: "50%", transform: "translate(-50%, -50%)", background: "#0f1117", color: "#fff", fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 999, whiteSpace: "nowrap", fontFamily: "'DM Sans', system-ui, sans-serif", boxShadow: "0 1px 4px rgba(0,0,0,0.15)" }}>
-                ${Math.round((progressWon + wp) / 1000)}K
+                {fmtProgress(progressWon + wp)}
               </div>
               <div style={{ position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif", paddingRight: 4 }}>
-                {fmtCur(progressTarget)}
+                {fmtProgress(progressTarget)}
               </div>
+              {/* Quarterly milestone ticks — YTD mode only */}
+              {ytdMode && (() => {
+                const cumulative = [0, ...QUARTERLY_TARGETS].reduce<number[]>((acc, v, i) => {
+                  if (i === 0) return [0];
+                  acc.push((acc[acc.length - 1] ?? 0) + (QUARTERLY_TARGETS[i - 1] ?? 0));
+                  return acc;
+                }, []);
+                const milestones = QUARTERLY_TARGETS.map((_, i) => ({
+                  label: `Q${i + 1}`,
+                  value: QUARTERLY_TARGETS.slice(0, i + 1).reduce((s, v) => s + v, 0),
+                }));
+                return milestones.slice(0, -1).map(m => {
+                  const pct = (m.value / ANNUAL_REVENUE_TARGET) * 100;
+                  return (
+                    <div key={m.label} style={{ position: "absolute", left: `${pct}%`, top: 0, transform: "translateX(-50%)" }}>
+                      <div style={{ width: 1.5, height: 28, background: "rgba(100,116,139,0.35)" }} />
+                      <div style={{ fontSize: 9, color: "#94a3b8", fontWeight: 600, textAlign: "center", marginTop: 3, whiteSpace: "nowrap", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                        {m.label} {fmtProgress(m.value)}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
