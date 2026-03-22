@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "redis";
 
-export const REDIS_HUBSPOT_RATES_KEY = "pipeline:hubspot_rates";
+const REDIS_HUBSPOT_RATES_KEY = "pipeline:hubspot_rates";
 
 export interface HubSpotRates {
   disc_to_demo:   number | null;
