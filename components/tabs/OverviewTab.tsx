@@ -413,7 +413,7 @@ function MethodologyPanel({ assumptions, derived }: { assumptions: Assumptions; 
               ))}
               <div style={{ marginTop: 8, borderTop: "1px solid #e2e4ed", paddingTop: 8, fontSize: 12 }}>
                 <div style={{ fontWeight: 600, color: "#374151", marginBottom: 4 }}>Expansion (Upsell)</div>
-                <div style={{ color: "#64748b" }}>{assumptions.expansion_annual_deals} annual ÷ 4 ÷ {assumptions.expansion_close_rate}% = <strong style={{ color: "#0f172a" }}>{expansionQTarget}</strong></div>
+                <div style={{ color: "#64748b" }}>{fmtCur(assumptions.expansion_q_revenue_target)} target ÷ {fmtCur(assumptions.expansion_avg_deal_size)} avg deal ÷ {assumptions.expansion_close_rate}% close rate = <strong style={{ color: "#0f172a" }}>{expansionQTarget}</strong></div>
               </div>
             </div>
             <div style={{ flex: 1, background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 10, padding: "12px 14px", minWidth: 160 }}>
