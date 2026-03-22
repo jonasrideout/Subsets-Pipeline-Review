@@ -42,9 +42,13 @@ export default function Header({ asOf, loading, onRefresh, onRecalculate, recalc
       position: "sticky", top: 0, zIndex: 100,
     }}>
       <div style={{
-        padding: "0 24px", height: 64,
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        maxWidth: 1600, margin: "0 auto", gap: 12,
+        padding: "16px 24px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        maxWidth: 1600,
+        margin: "0 auto",
+        gap: 12,
       }}>
         {/* Left — logo + title */}
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
