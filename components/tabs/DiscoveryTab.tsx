@@ -309,27 +309,73 @@ function UpsellAssumptionsDrawer({ assumptions, derived, onSave }: {
     setTmp(null);
   };
 
+  // Live derived values for edit preview
+  const liveQCloses = (a: Assumptions) =>
+    Math.ceil(a.expansion_q_revenue_target / a.expansion_avg_deal_size);
+  const liveQTarget = (a: Assumptions) =>
+    Math.ceil(liveQCloses(a) / (a.expansion_close_rate / 100));
+
+  const THc = ({ children }: { children: React.ReactNode }) => (
+    <th style={{ padding: "6px 12px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.4, borderBottom: "1px solid #f1f5f9", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+      {children}
+    </th>
+  );
+  const TDc = ({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) => (
+    <td style={{ padding: "7px 12px", fontSize: 12, color: "#374151", fontFamily: "'DM Sans', system-ui, sans-serif", ...style }}>
+      {children}
+    </td>
+  );
+
   return (
     <DrawerShell>
       {editing && tmp ? (
         <div>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
-            {([
-              ["expansion_annual_deals", "Annual Deals Needed"],
-              ["expansion_close_rate",   "Close Rate %"],
-            ] as [keyof Assumptions, string][]).map(([k, label]) => (
-              <label key={k} style={{ display: "flex", flexDirection: "column", fontSize: 12, color: "#374151", gap: 3, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                {label}
-                <input
-                  type="number"
-                  value={tmp[k] as number}
-                  onChange={e => setTmp({ ...tmp, [k]: +e.target.value })}
-                  style={{ width: 80, padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 6, fontSize: 13 }}
-                />
-              </label>
-            ))}
+          {/* Editable inputs above table */}
+          <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 14, flexWrap: "wrap" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#374151", fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+              Q Revenue Target
+              <span style={{ fontSize: 12, color: "#64748b" }}>$</span>
+              <input type="number" value={tmp.expansion_q_revenue_target}
+                onChange={e => setTmp({ ...tmp, expansion_q_revenue_target: +e.target.value })}
+                style={{ width: 100, padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 6, fontSize: 13, fontFamily: "'DM Sans', system-ui, sans-serif" }} />
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#374151", fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+              Avg Deal Size
+              <span style={{ fontSize: 12, color: "#64748b" }}>$</span>
+              <input type="number" value={tmp.expansion_avg_deal_size}
+                onChange={e => setTmp({ ...tmp, expansion_avg_deal_size: +e.target.value })}
+                style={{ width: 100, padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 6, fontSize: 13, fontFamily: "'DM Sans', system-ui, sans-serif" }} />
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#374151", fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+              Close Rate
+              <input type="number" value={tmp.expansion_close_rate}
+                onChange={e => setTmp({ ...tmp, expansion_close_rate: +e.target.value })}
+                style={{ width: 60, padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 6, fontSize: 13, fontFamily: "'DM Sans', system-ui, sans-serif" }} />
+              <span style={{ fontSize: 12, color: "#64748b" }}>%</span>
+            </label>
           </div>
-          <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+          {/* Table */}
+          <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 12 }}>
+            <thead>
+              <tr>
+                <THc>Channel</THc>
+                <THc>Q Revenue Target</THc>
+                <THc>Avg Deal Size</THc>
+                <THc>Q Closes Needed</THc>
+                <THc>Q Discovery Target</THc>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <TDc><span style={{ fontWeight: 500 }}>Expansion</span></TDc>
+                <TDc style={{ color: "#94a3b8" }}>{fmtK(tmp.expansion_q_revenue_target)}</TDc>
+                <TDc style={{ color: "#94a3b8" }}>{fmtK(tmp.expansion_avg_deal_size)}</TDc>
+                <TDc>{liveQCloses(tmp)}</TDc>
+                <TDc style={{ fontWeight: 700, color: "#0f172a" }}>{liveQTarget(tmp)}</TDc>
+              </tr>
+            </tbody>
+          </table>
+          <div style={{ display: "flex", gap: 6 }}>
             <button onClick={handleSave} disabled={saving}
               style={{ background: "linear-gradient(135deg, #a0fad7, #82f6c6)", color: "#0a2e1f", border: "none", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontSize: 11, fontWeight: 700, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
               {saving ? "Saving…" : "Save"}
@@ -342,24 +388,34 @@ function UpsellAssumptionsDrawer({ assumptions, derived, onSave }: {
         </div>
       ) : (
         <div>
-          <div style={{ display: "inline-block", background: "#fefce8", border: "1px solid #fde68a", borderRadius: 10, padding: "12px 14px", minWidth: 160 }}>
-            <div style={{ fontWeight: 700, fontSize: 12, color: "#92400e", marginBottom: 6 }}>Expansion (Upsell)</div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2, gap: 24 }}>
-              <span style={{ color: "#78350f" }}>Annual deals needed</span>
-              <span style={{ fontWeight: 700, color: "#92400e" }}>{assumptions.expansion_annual_deals}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
-              <span style={{ color: "#78350f" }}>Close rate</span>
-              <span style={{ fontWeight: 700, color: "#92400e" }}>{assumptions.expansion_close_rate}%</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginTop: 6, borderTop: "1px solid #fde68a", paddingTop: 6 }}>
-              <span style={{ color: "#78350f" }}>Q Discovery target</span>
-              <span style={{ fontWeight: 700, color: "#92400e" }}>{derived.expansionQTarget}</span>
-            </div>
+          <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 8, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+            Q target: <strong style={{ color: "#374151" }}>{fmtK(assumptions.expansion_q_revenue_target)}</strong>
+            &nbsp;·&nbsp;Avg deal: <strong style={{ color: "#374151" }}>{fmtK(assumptions.expansion_avg_deal_size)}</strong>
+            &nbsp;·&nbsp;Close rate: <strong style={{ color: "#374151" }}>{assumptions.expansion_close_rate}%</strong>
           </div>
+          <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 10 }}>
+            <thead>
+              <tr>
+                <THc>Channel</THc>
+                <THc>Q Revenue Target</THc>
+                <THc>Avg Deal Size</THc>
+                <THc>Q Closes Needed</THc>
+                <THc>Q Discovery Target</THc>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <TDc><span style={{ fontWeight: 500 }}>Expansion</span></TDc>
+                <TDc style={{ color: "#94a3b8" }}>{fmtK(assumptions.expansion_q_revenue_target)}</TDc>
+                <TDc style={{ color: "#94a3b8" }}>{fmtK(assumptions.expansion_avg_deal_size)}</TDc>
+                <TDc>{derived.expansionQCloses}</TDc>
+                <TDc style={{ fontWeight: 700 }}>{derived.expansionQTarget}</TDc>
+              </tr>
+            </tbody>
+          </table>
           <button
             onClick={() => { setEditing(true); setTmp(JSON.parse(JSON.stringify(assumptions))); }}
-            style={{ marginTop: 10, display: "block", background: "#f8fafc", color: "#64748b", border: "1px solid #e2e4ed", borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+            style={{ background: "#f8fafc", color: "#64748b", border: "1px solid #e2e4ed", borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
             Edit
           </button>
         </div>
