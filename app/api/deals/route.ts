@@ -1,7 +1,7 @@
 // app/api/deals/route.ts
 
 import { NextResponse } from "next/server";
-import { fetchActiveDeals, fetchClosedWonYTD, fetchAllEmailSignals } from "@/lib/hubspot";
+import { fetchActiveDeals, fetchClosedWonQTD, fetchClosedWonYTD, fetchAllEmailSignals } from "@/lib/hubspot";
 
 export const dynamic = "force-dynamic";
 
@@ -9,9 +9,10 @@ export async function GET() {
   try {
     const now = new Date();
 
-    // Fetch active deals and closed won in parallel
-    const [active, closedWon] = await Promise.all([
+    // Fetch active deals and both closed won datasets in parallel
+    const [active, closedWonQTD, closedWonYTD] = await Promise.all([
       fetchActiveDeals(),
+      fetchClosedWonQTD(),
       fetchClosedWonYTD(),
     ]);
 
@@ -20,7 +21,8 @@ export async function GET() {
 
     return NextResponse.json({
       active,
-      closedWon,
+      closedWon:    closedWonQTD,   // quarterly — used by default Q view
+      closedWonYTD,                  // full year — used by YTD toggle
       emailSignals,
       asOf: now.toISOString(),
     });
