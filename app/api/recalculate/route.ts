@@ -1,6 +1,10 @@
 // app/api/recalculate/route.ts
 
 import { NextResponse } from "next/server";
+import { createClient } from "redis";
+
+const REDIS_HUBSPOT_RATES_KEY = "pipeline:hubspot_rates";
+const getRedis = () => createClient({ url: process.env.REDIS_URL });
 
 const BASE  = "https://api.hubapi.com";
 const TOKEN = process.env.HUBSPOT_TOKEN!;
@@ -100,6 +104,22 @@ export async function GET() {
     const avg_deal_value = nbClosedWonAmounts.length > 0
       ? Math.round(nbClosedWonAmounts.reduce((s, v) => s + v, 0) / nbClosedWonAmounts.length)
       : null;
+
+    // Persist HubSpot-derived rates to Redis for source labeling in UI
+    const hubspotRates = {
+      disc_to_demo, demo_to_prop, prop_to_legal, legal_to_close,
+      avg_deal_value,
+      as_of: now.toISOString(),
+    };
+    try {
+      const redis = getRedis();
+      await redis.connect();
+      await redis.set(REDIS_HUBSPOT_RATES_KEY, JSON.stringify(hubspotRates));
+      await redis.disconnect();
+    } catch (redisErr) {
+      console.error("Failed to persist hubspot rates:", redisErr);
+      // Non-fatal — still return the response
+    }
 
     return NextResponse.json({
       rates: { disc_to_demo, demo_to_prop, prop_to_legal, legal_to_close },
