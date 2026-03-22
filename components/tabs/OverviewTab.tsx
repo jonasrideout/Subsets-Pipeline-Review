@@ -137,63 +137,82 @@ export default function OverviewTab({
       </div>
 
       {/* Combined Pipeline Progress */}
-      <div style={{ background: "#fff", border: "1px solid #e2e4ed", borderRadius: 12, padding: "18px 20px", marginBottom: 20, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
-          {/* Closed Won */}
-          <div>
-            <div style={{ fontSize: 11, color: "#8b90a0", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 2 }}>Closed Won YTD</div>
-            <div style={{ fontSize: 28, fontWeight: 900, color: "#16a34a", letterSpacing: "-0.5px" }}>${Math.round(closedWonTotal / 1000)}K</div>
-            <div style={{ fontSize: 11, color: "#8b90a0", marginTop: 2 }}>
-              {closedWon.length} deals · <span style={{ color: "#16a34a", fontWeight: 600 }}>{Math.round(closedWonTotal / QUARTERLY_TARGET * 100)}% of goal</span>
+      {(() => {
+        const closedPct   = Math.min(100, closedWonTotal / QUARTERLY_TARGET * 100);
+        const wpPct       = Math.min(100 - closedPct, wp / QUARTERLY_TARGET * 100);
+        const combinedPct = Math.min(100, (closedWonTotal + wp) / QUARTERLY_TARGET * 100);
+        const qLabel      = `Q${Math.floor(now.getMonth() / 3) + 1}`;
+        return (
+          <div style={{ background: "#fff", border: "1px solid #e2e4ed", borderRadius: 12, padding: "18px 20px", marginBottom: 20, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+            {/* Bar */}
+            <div style={{ position: "relative", height: 28, background: "#f1f5f9", borderRadius: 999, overflow: "visible", marginBottom: 10 }}>
+              {/* Closed Won segment */}
+              <div style={{
+                position: "absolute", left: 0, top: 0, height: "100%",
+                width: `${closedPct}%`,
+                background: "#16a34a",
+                borderRadius: wpPct > 0 ? "999px 0 0 999px" : "999px",
+              }} />
+              {/* Weighted Pipeline segment */}
+              {wpPct > 0 && (
+                <div style={{
+                  position: "absolute", top: 0, height: "100%",
+                  left: `${closedPct}%`,
+                  width: `${wpPct}%`,
+                  background: "#93c5fd",
+                  borderRadius: combinedPct >= 100 ? "0 999px 999px 0" : "0",
+                }} />
+              )}
+              {/* Combined total marker */}
+              <div style={{
+                position: "absolute",
+                left: `${combinedPct}%`,
+                top: "50%",
+                transform: "translate(-50%, -50%)",
+                background: "#0f1117",
+                color: "#fff",
+                fontSize: 11,
+                fontWeight: 700,
+                padding: "2px 7px",
+                borderRadius: 999,
+                whiteSpace: "nowrap",
+                fontFamily: "'DM Sans', system-ui, sans-serif",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.15)",
+              }}>
+                ${Math.round((closedWonTotal + wp) / 1000)}K
+              </div>
+              {/* $600K target label */}
+              <div style={{
+                position: "absolute", right: 0, top: "50%",
+                transform: "translateY(-50%)",
+                fontSize: 11, color: "#94a3b8",
+                fontFamily: "'DM Sans', system-ui, sans-serif",
+                paddingRight: 4,
+              }}>
+                $600K
+              </div>
+            </div>
+
+            {/* Stats row */}
+            <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ width: 10, height: 10, borderRadius: 2, background: "#16a34a", flexShrink: 0 }} />
+                <div>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#16a34a", fontFamily: "'DM Sans', system-ui, sans-serif" }}>${Math.round(closedWonTotal / 1000)}K</span>
+                  <span style={{ fontSize: 11, color: "#8b90a0", marginLeft: 5, fontFamily: "'DM Sans', system-ui, sans-serif" }}>Closed Won {qLabel} · {closedWon.length} deals · {Math.round(closedPct)}% of goal</span>
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ width: 10, height: 10, borderRadius: 2, background: "#93c5fd", flexShrink: 0 }} />
+                <div>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#2563eb", fontFamily: "'DM Sans', system-ui, sans-serif" }}>${Math.round(wp / 1000)}K</span>
+                  <span style={{ fontSize: 11, color: "#8b90a0", marginLeft: 5, fontFamily: "'DM Sans', system-ui, sans-serif" }}>Weighted Pipeline · {Math.round(combinedPct)}% combined</span>
+                </div>
+              </div>
             </div>
           </div>
-          {/* Combined */}
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 11, color: "#8b90a0", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 2 }}>Combined</div>
-            <div style={{ fontSize: 28, fontWeight: 900, color: "#0f1117", letterSpacing: "-0.5px" }}>${Math.round((closedWonTotal + wp) / 1000)}K</div>
-            <div style={{ fontSize: 11, color: "#8b90a0", marginTop: 2 }}>
-              of $600K · <span style={{ color: (closedWonTotal + wp) >= QUARTERLY_TARGET ? "#16a34a" : "#ea580c", fontWeight: 600 }}>{Math.round((closedWonTotal + wp) / QUARTERLY_TARGET * 100)}% of goal</span>
-            </div>
-          </div>
-          {/* Weighted Pipeline */}
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 11, color: "#8b90a0", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 2 }}>Weighted Pipeline</div>
-            <div style={{ fontSize: 28, fontWeight: 900, color: "#2563eb", letterSpacing: "-0.5px" }}>${Math.round(wp / 1000)}K</div>
-            <div style={{ fontSize: 11, color: "#8b90a0", marginTop: 2 }}>probability-weighted</div>
-          </div>
-        </div>
-
-        {/* Stacked progress bar */}
-        <div style={{ position: "relative", height: 10, background: "#f1f5f9", borderRadius: 999, overflow: "hidden" }}>
-          {/* Closed Won segment */}
-          <div style={{
-            position: "absolute", left: 0, top: 0, height: "100%",
-            width: `${Math.min(100, closedWonTotal / QUARTERLY_TARGET * 100)}%`,
-            background: "#16a34a", borderRadius: "999px 0 0 999px",
-          }} />
-          {/* Weighted Pipeline segment */}
-          <div style={{
-            position: "absolute", top: 0, height: "100%",
-            left: `${Math.min(100, closedWonTotal / QUARTERLY_TARGET * 100)}%`,
-            width: `${Math.min(100 - closedWonTotal / QUARTERLY_TARGET * 100, wp / QUARTERLY_TARGET * 100)}%`,
-            background: "#93c5fd",
-            borderRadius: (closedWonTotal + wp) >= QUARTERLY_TARGET ? "0 999px 999px 0" : "0",
-          }} />
-        </div>
-
-        {/* Bar legend */}
-        <div style={{ display: "flex", gap: 16, marginTop: 8 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#8b90a0" }}>
-            <div style={{ width: 8, height: 8, borderRadius: 2, background: "#16a34a" }} />
-            Closed Won
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#8b90a0" }}>
-            <div style={{ width: 8, height: 8, borderRadius: 2, background: "#93c5fd" }} />
-            Weighted Pipeline
-          </div>
-          <div style={{ marginLeft: "auto", fontSize: 11, color: "#8b90a0" }}>Target: $600K</div>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* Signs of Life */}
       <TableCard>
