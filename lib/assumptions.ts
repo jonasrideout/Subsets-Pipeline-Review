@@ -14,9 +14,7 @@ export const DEFAULT_ASSUMPTIONS: Assumptions = {
   demo_to_prop:   92,  // % — HubSpot historical
   prop_to_legal:  64,  // % — HubSpot historical
   legal_to_close: 86,  // % — HubSpot historical
-  // Quarterly NB close target (deals)
-  q_closes: 6,
-  // Average NB deal value — from GTM spreadsheet (23 deals, $3.003M NB revenue)
+  // Average NB deal value — drives q_closes and annual closes per channel
   avg_deal_value: 130_750,
   // Channel revenue share %
   ch: {
@@ -32,6 +30,7 @@ export const DEFAULT_ASSUMPTIONS: Assumptions = {
 };
 
 export interface DerivedTargets {
+  qCloses:                 number;  // derived: ceil(nbQRevenueTarget / avg_deal_value)
   legalTarget:             number;
   propTarget:              number;
   demoTarget:              number;
@@ -50,8 +49,11 @@ export const deriveTargets = (a: Assumptions, qIndex: number = 0): DerivedTarget
   const nbQRevenueTarget        = Math.round(qTotal * NB_REVENUE_SHARE);
   const expansionQRevenueTarget = qTotal - nbQRevenueTarget;
 
-  // Four-step NB funnel — work backwards from Q closes
-  const legalTarget = Math.ceil(a.q_closes  / (a.legal_to_close / 100));
+  // Q closes derived from NB revenue target and avg deal value
+  const qCloses     = Math.ceil(nbQRevenueTarget / a.avg_deal_value);
+
+  // Four-step NB funnel — work backwards from q closes
+  const legalTarget = Math.ceil(qCloses         / (a.legal_to_close / 100));
   const propTarget  = Math.ceil(legalTarget / (a.prop_to_legal  / 100));
   const demoTarget  = Math.ceil(propTarget  / (a.demo_to_prop   / 100));
   const discTarget  = Math.ceil(demoTarget  / (a.disc_to_demo   / 100));
@@ -85,6 +87,7 @@ export const deriveTargets = (a: Assumptions, qIndex: number = 0): DerivedTarget
   };
 
   return {
+    qCloses,
     legalTarget, propTarget, demoTarget, discTarget,
     expansionQCloses, expansionQTarget,
     nbQRevenueTarget, expansionQRevenueTarget,
