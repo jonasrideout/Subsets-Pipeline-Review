@@ -44,9 +44,6 @@ export default function LegalTab({ deals, closePlans, now, weekAgo, qStart, coun
           enteredDateFn={d => d.entered_legal || d.entered_current}
         />
       </TableCard>
-      <div style={{ background: "rgba(234,179,8,0.08)", border: "1px solid rgba(234,179,8,0.25)", borderRadius: 10, padding: "12px 16px", fontSize: 13, color: "#92400e", marginTop: 8 }}>
-        <strong>Discussion:</strong> Current status and blockers — what needs to happen this week to move to signed?
-      </div>
     </div>
   );
 }
