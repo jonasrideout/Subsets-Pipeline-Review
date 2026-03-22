@@ -122,7 +122,7 @@ export default function Page() {
       const res  = await fetch("/api/recalculate");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      setRecalcModal({ rates: data.rates, sample: data.sample });
+      setRecalcModal({ rates: data.rates, avg_deal_value: data.avg_deal_value ?? null, sample: data.sample });
     } catch (e) {
       console.error("Recalculate failed:", e);
     } finally {
@@ -226,6 +226,7 @@ export default function Page() {
       {recalcModal && (
         <RecalculateModal
           rates={recalcModal.rates}
+          avg_deal_value={recalcModal.avg_deal_value}
           sample={recalcModal.sample}
           current={assumptions}
           onConfirm={handleRecalcConfirm}
