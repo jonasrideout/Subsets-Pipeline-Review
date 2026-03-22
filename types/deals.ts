@@ -53,7 +53,8 @@ export interface Assumptions {
   demo_to_prop:   number;  // % Demo → Proposal      (HubSpot historical)
   prop_to_legal:  number;  // % Proposal → Legal     (HubSpot historical)
   legal_to_close: number;  // % Legal → Close        (HubSpot historical)
-
+  // Quarterly close target
+  q_closes: number;
   // Average deal value — used to derive annual closes per channel from revenue share
   avg_deal_value: number;
   // Channel revenue share %
@@ -67,6 +68,15 @@ export interface Assumptions {
   // Expansion-specific inputs
   expansion_avg_deal_size: number;  // avg expansion deal size
   expansion_close_rate:    number;  // % close rate
+}
+
+export interface HubSpotRates {
+  disc_to_demo:   number | null;
+  demo_to_prop:   number | null;
+  prop_to_legal:  number | null;
+  legal_to_close: number | null;
+  avg_deal_value: number | null;
+  as_of:          string;
 }
 
 export interface PipelineData {
