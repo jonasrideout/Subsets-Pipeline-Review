@@ -33,30 +33,24 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const now         = new Date();
+    const now = new Date();
     const twelveMonthsAgo = new Date(now);
     twelveMonthsAgo.setFullYear(now.getFullYear() - 1);
     const cutoff = twelveMonthsAgo.toISOString();
 
-    // Pull all closed/lost deals from last 12 months
+    // Pull all closed/lost deals from last 12 months (for conversion rates)
     const raw = await searchAll({
       filterGroups: [{
         filters: [
-          {
-            propertyName: "dealstage",
-            operator: "IN",
-            values: ["closedwon", "closedlost", "563428070", "582003949"],
-          },
-          {
-            propertyName: "closedate",
-            operator: "GTE",
-            value: cutoff,
-          },
+          { propertyName: "dealstage", operator: "IN", values: ["closedwon", "closedlost", "563428070", "582003949"] },
+          { propertyName: "closedate", operator: "GTE", value: cutoff },
         ],
       }],
       properties: [
         "dealname",
         "dealstage",
+        "deal_attribution",
+        "amount",
         "hs_v2_date_entered_appointmentscheduled",
         "hs_v2_date_entered_qualifiedtobuy",
         "hs_v2_date_entered_contractsent",
@@ -71,6 +65,9 @@ export async function GET() {
     let enteredLegal     = 0;
     let closedWon        = 0;
 
+    // For avg NB deal value — closed won, non-Expansion only
+    const nbClosedWonAmounts: number[] = [];
+
     for (const d of raw) {
       const p = d.properties ?? {};
       const hasDisc  = !!p.hs_v2_date_entered_appointmentscheduled;
@@ -84,24 +81,36 @@ export async function GET() {
       if (hasProp)  enteredProposal++;
       if (hasLegal) enteredLegal++;
       if (isWon)    closedWon++;
+
+      // Avg NB deal value: closed won, not Expansion, has amount
+      if (isWon && p.deal_attribution !== "Expansion" && p.amount) {
+        const amt = parseFloat(p.amount);
+        if (!isNaN(amt) && amt > 0) nbClosedWonAmounts.push(amt);
+      }
     }
 
-    // Calculate conversion rates (as percentages, rounded to 1dp)
-    const round = (n: number) => Math.round(n * 1000) / 10; // e.g. 0.857 → 85.7
-
+    // Conversion rates (as percentages, rounded to 1dp)
+    const round = (n: number) => Math.round(n * 1000) / 10;
     const disc_to_demo   = enteredDiscovery > 0 ? round(enteredDemo     / enteredDiscovery) : null;
     const demo_to_prop   = enteredDemo      > 0 ? round(enteredProposal / enteredDemo)      : null;
     const prop_to_legal  = enteredProposal  > 0 ? round(enteredLegal    / enteredProposal)  : null;
     const legal_to_close = enteredLegal     > 0 ? round(closedWon       / enteredLegal)     : null;
 
+    // Avg NB deal value
+    const avg_deal_value = nbClosedWonAmounts.length > 0
+      ? Math.round(nbClosedWonAmounts.reduce((s, v) => s + v, 0) / nbClosedWonAmounts.length)
+      : null;
+
     return NextResponse.json({
       rates: { disc_to_demo, demo_to_prop, prop_to_legal, legal_to_close },
+      avg_deal_value,
       sample: {
         enteredDiscovery,
         enteredDemo,
         enteredProposal,
         enteredLegal,
         closedWon,
+        nbDealsForAvg: nbClosedWonAmounts.length,
         totalDeals: raw.length,
         periodMonths: 12,
       },
