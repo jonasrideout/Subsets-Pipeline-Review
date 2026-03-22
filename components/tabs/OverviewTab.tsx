@@ -5,7 +5,7 @@
 import { useMemo, useState } from "react";
 import type { Deal, ClosedWonDeal, EmailSignalMap, ClosePlanMap, Assumptions, HubSpotRates } from "@/types/deals";
 import { ownerName, fmtCur, weightedPipeline, UNRESOLVED_OWNER_IDS } from "@/lib/deals";
-import { deriveTargets, QUARTERLY_TARGETS, NB_REVENUE_SHARE } from "@/lib/assumptions";
+import { deriveTargets, QUARTERLY_TARGETS, NB_REVENUE_SHARE, ANNUAL_REVENUE_TARGET } from "@/lib/assumptions";
 import { getSignsOfLife, getNeedsActionAlerts } from "@/lib/flags";
 import { TH, TD, TableCard, TableCardHeader } from "@/components/Table";
 import { CloseDateBadge, UnresolvedOwnerBadge } from "@/components/Badges";
@@ -21,6 +21,7 @@ interface OverviewTabProps {
   demo: Deal[];
   discovery: Deal[];
   closedWon: ClosedWonDeal[];
+  closedWonYTD: ClosedWonDeal[];
   emailSignals: EmailSignalMap;
   closePlans: ClosePlanMap;
   assumptions: Assumptions;
@@ -28,6 +29,7 @@ interface OverviewTabProps {
   now: Date;
   weekAgo: Date;
   qStart: Date;
+  yearStart: Date;
   qIndex: number;
   hubspotRates: HubSpotRates | null;
   onTabChange: (tab: TabId) => void;
@@ -35,30 +37,40 @@ interface OverviewTabProps {
 }
 
 export default function OverviewTab({
-  active, legal, proposal, demo, discovery, closedWon,
+  active, legal, proposal, demo, discovery, closedWon, closedWonYTD,
   emailSignals, closePlans, assumptions, counts,
-  now, weekAgo, qStart, qIndex, onTabChange, onAssumptionsSave, hubspotRates,
+  now, weekAgo, qStart, yearStart, qIndex, hubspotRates, onTabChange, onAssumptionsSave,
 }: OverviewTabProps) {
+  const [ytdMode, setYtdMode] = useState(false);
+
   const derived = deriveTargets(assumptions, qIndex);
-  const { legalTarget, propTarget, demoTarget, channelQTargets, combinedLegalTarget, combinedPropTarget, combinedDemoTarget } = derived;
+  const { channelQTargets, combinedLegalTarget, combinedPropTarget, combinedDemoTarget } = derived;
   const discTarget = Object.values(channelQTargets).reduce((s, v) => s + v, 0);
 
-  const { discNewW, discNewQ, demoNewW, demoNewQ, propNewW, propNewQ, legalNewW, legalNewQ } = counts;
+  // Annual targets — sum deriveTargets across all 4 quarters
+  const annualDerived = QUARTERLY_TARGETS.map((_, i) => deriveTargets(assumptions, i));
+  const annualLegalTarget = annualDerived.reduce((s, d) => s + d.combinedLegalTarget, 0);
+  const annualPropTarget  = annualDerived.reduce((s, d) => s + d.combinedPropTarget, 0);
+  const annualDemoTarget  = annualDerived.reduce((s, d) => s + d.combinedDemoTarget, 0);
+  const annualDiscTarget  = annualDerived.reduce((s, d) => s + Object.values(d.channelQTargets).reduce((a, v) => a + v, 0), 0);
+
+  const { discNewW, discNewQ, demoNewW, demoNewQ, propNewW, propNewQ, legalNewW, legalNewQ, qElapsedPct,
+          discNewY, demoNewY, propNewY, legalNewY, yElapsedPct } = counts;
 
   const legalAmt       = legal.reduce((s, d) => s + (d.amount || 0), 0);
   const propAmt        = proposal.reduce((s, d) => s + (d.amount || 0), 0);
   const wp             = weightedPipeline(active);
-  const closedWonTotal = closedWon.reduce((s, d) => s + d.amount, 0);
+  const closedWonTotal    = closedWon.reduce((s, d) => s + d.amount, 0);
+  const closedWonYTDTotal = closedWonYTD.reduce((s, d) => s + d.amount, 0);
+
   const QUARTERLY_TARGET = QUARTERLY_TARGETS[qIndex] ?? QUARTERLY_TARGETS[0];
 
-  const qTotalDays   = (new Date(now.getFullYear(), qIndex * 3 + 3, 1).getTime() - qStart.getTime()) / 86400000;
-  const qElapsedDays = (now.getTime() - qStart.getTime()) / 86400000;
-  const qElapsedPct  = qElapsedDays / qTotalDays;
+  const elapsedPct = ytdMode ? yElapsedPct : qElapsedPct;
 
   const paceRatio = (actual: number, target: number) => {
     if (target === 0) return 1;
-    if (qElapsedPct === 0) return 1;
-    return (actual / target) / qElapsedPct;
+    if (elapsedPct === 0) return 1;
+    return (actual / target) / elapsedPct;
   };
 
   const tileColor = (ratio: number) => {
@@ -69,21 +81,28 @@ export default function OverviewTab({
   };
 
   const tileTooltip = (actual: number, target: number, ratio: number, label: string) => {
-    const elapsedPct = Math.round(qElapsedPct * 100);
-    const goalPct    = target > 0 ? Math.round((actual / target) * 100) : 0;
-    const qLabel     = `Q${qIndex + 1}`;
-    if (ratio >= 0.90) return `You're ${elapsedPct}% through ${qLabel} and have reached ${goalPct}% of your ${label} target — on track.`;
-    if (ratio >= 0.75) return `You're ${elapsedPct}% through ${qLabel} and have reached ${goalPct}% of your ${label} target — slightly behind pace.`;
-    if (ratio >= 0.50) return `You're ${elapsedPct}% through ${qLabel} and have reached ${goalPct}% of your ${label} target — behind pace.`;
-    return `You're ${elapsedPct}% through ${qLabel} and have reached ${goalPct}% of your ${label} target — significantly behind, needs attention.`;
+    const pct      = Math.round(elapsedPct * 100);
+    const goalPct  = target > 0 ? Math.round((actual / target) * 100) : 0;
+    const period   = ytdMode ? "the year" : `Q${qIndex + 1}`;
+    if (ratio >= 0.90) return `You're ${pct}% through ${period} and have reached ${goalPct}% of your ${label} target — on track.`;
+    if (ratio >= 0.75) return `You're ${pct}% through ${period} and have reached ${goalPct}% of your ${label} target — slightly behind pace.`;
+    if (ratio >= 0.50) return `You're ${pct}% through ${period} and have reached ${goalPct}% of your ${label} target — behind pace.`;
+    return `You're ${pct}% through ${period} and have reached ${goalPct}% of your ${label} target — significantly behind, needs attention.`;
   };
 
-  const tiles = [
-    { key: "legal" as TabId,     label: "Legal / Procurement",    count: legal.length,     amount: legalAmt, newW: legalNewW, newQ: legalNewQ, target: combinedLegalTarget, actual: legalNewQ },
-    { key: "proposal" as TabId,  label: "Proposal / Negotiation", count: proposal.length,  amount: propAmt,  newW: propNewW,  newQ: propNewQ,  target: combinedPropTarget,  actual: propNewQ  },
-    { key: "demo" as TabId,      label: "Meeting / Demo",         count: demo.length,      amount: null,     newW: demoNewW,  newQ: demoNewQ,  target: combinedDemoTarget,  actual: demoNewQ  },
-    { key: "discovery" as TabId, label: "Discovery",              count: discovery.length, amount: null,     newW: discNewW,  newQ: discNewQ,  target: discTarget,          actual: discNewQ  },
-  ].map(t => ({
+  const tiles = ytdMode ? [
+    { key: "legal" as TabId,     label: "Legal / Procurement",    count: legal.length,     amount: legalAmt, newW: legalNewW, newQ: legalNewY, target: annualLegalTarget, actual: legalNewY, periodLabel: "New this year" },
+    { key: "proposal" as TabId,  label: "Proposal / Negotiation", count: proposal.length,  amount: propAmt,  newW: propNewW,  newQ: propNewY,  target: annualPropTarget,  actual: propNewY,  periodLabel: "New this year" },
+    { key: "demo" as TabId,      label: "Meeting / Demo",         count: demo.length,      amount: null,     newW: demoNewW,  newQ: demoNewY,  target: annualDemoTarget,  actual: demoNewY,  periodLabel: "New this year" },
+    { key: "discovery" as TabId, label: "Discovery",              count: discovery.length, amount: null,     newW: discNewW,  newQ: discNewY,  target: annualDiscTarget,  actual: discNewY,  periodLabel: "New this year" },
+  ] : [
+    { key: "legal" as TabId,     label: "Legal / Procurement",    count: legal.length,     amount: legalAmt, newW: legalNewW, newQ: legalNewQ, target: combinedLegalTarget, actual: legalNewQ, periodLabel: "New this quarter" },
+    { key: "proposal" as TabId,  label: "Proposal / Negotiation", count: proposal.length,  amount: propAmt,  newW: propNewW,  newQ: propNewQ,  target: combinedPropTarget,  actual: propNewQ,  periodLabel: "New this quarter" },
+    { key: "demo" as TabId,      label: "Meeting / Demo",         count: demo.length,      amount: null,     newW: demoNewW,  newQ: demoNewQ,  target: combinedDemoTarget,  actual: demoNewQ,  periodLabel: "New this quarter" },
+    { key: "discovery" as TabId, label: "Discovery",              count: discovery.length, amount: null,     newW: discNewW,  newQ: discNewQ,  target: discTarget,          actual: discNewQ,  periodLabel: "New this quarter" },
+  ];
+
+  const tilesWithColor = tiles.map(t => ({
     ...t,
     ratio:   paceRatio(t.actual, t.target),
     color:   tileColor(paceRatio(t.actual, t.target)),
@@ -94,11 +113,37 @@ export default function OverviewTab({
   const solRows  = useMemo(() => getSignsOfLife(active, emailSignals, now), [active, emailSignals, now]);
   const naAlerts = useMemo(() => getNeedsActionAlerts([...legal, ...proposal, ...demo], closePlans, now), [legal, proposal, demo, closePlans, now]);
 
+  // Progress bar values
+  const progressWon    = ytdMode ? closedWonYTDTotal : closedWonTotal;
+  const progressTarget = ytdMode ? ANNUAL_REVENUE_TARGET : QUARTERLY_TARGET;
+  const progressWonDeals = ytdMode ? closedWonYTD : closedWon;
+  const progressLabel  = ytdMode ? `${now.getFullYear()} YTD` : `Q${qIndex + 1}`;
+
   return (
     <div>
+      {/* Q / YTD toggle */}
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+        <div style={{ display: "flex", background: "#f1f5f9", borderRadius: 8, padding: 3, gap: 2 }}>
+          {(["Q", "YTD"] as const).map(mode => (
+            <button key={mode}
+              onClick={() => setYtdMode(mode === "YTD")}
+              style={{
+                padding: "5px 16px", borderRadius: 6, border: "none", cursor: "pointer",
+                fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif",
+                background: (mode === "YTD") === ytdMode ? "#fff" : "transparent",
+                color: (mode === "YTD") === ytdMode ? "#0f172a" : "#94a3b8",
+                boxShadow: (mode === "YTD") === ytdMode ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                transition: "all 0.15s",
+              }}>
+              {mode}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Stage tiles + assumption drawers */}
       <div className="flex gap-3 mb-5 flex-wrap">
-        {tiles.map(t => (
+        {tilesWithColor.map(t => (
           <div key={t.key} style={{ flex: 1, minWidth: 140, display: "flex", flexDirection: "column" }}>
             <div
               onClick={() => onTabChange(t.key)}
@@ -114,14 +159,16 @@ export default function OverviewTab({
                 {t.amount != null ? fmtCur(t.amount) : "placeholder"}
               </div>
               <div style={{ borderTop: `1px solid ${t.color.border}`, marginTop: 8, paddingTop: 8 }}>
-                {[["New this week", t.newW], ["New this quarter", t.newQ]].map(([l, v]) => (
-                  <div key={String(l)} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
-                    <span style={{ color: t.color.text }}>{l}</span>
-                    <span style={{ fontWeight: 700, color: t.color.text }}>{v}</span>
-                  </div>
-                ))}
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
-                  <span style={{ color: t.color.text }}>Q target</span>
+                  <span style={{ color: t.color.text }}>New this week</span>
+                  <span style={{ fontWeight: 700, color: t.color.text }}>{t.newW}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
+                  <span style={{ color: t.color.text }}>{t.periodLabel}</span>
+                  <span style={{ fontWeight: 700, color: t.color.text }}>{t.newQ}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
+                  <span style={{ color: t.color.text }}>{ytdMode ? "Annual target" : "Q target"}</span>
                   <span style={{ fontWeight: 700, color: t.color.text }}>{t.target}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
@@ -141,12 +188,11 @@ export default function OverviewTab({
         ))}
       </div>
 
-      {/* Combined Pipeline Progress */}
+      {/* Pipeline Progress */}
       {(() => {
-        const closedPct   = Math.min(100, closedWonTotal / QUARTERLY_TARGET * 100);
-        const wpPct       = Math.min(100 - closedPct, wp / QUARTERLY_TARGET * 100);
-        const combinedPct = Math.min(100, (closedWonTotal + wp) / QUARTERLY_TARGET * 100);
-        const qLabel      = `Q${qIndex + 1}`;
+        const closedPct   = Math.min(100, progressWon / progressTarget * 100);
+        const wpPct       = Math.min(100 - closedPct, wp / progressTarget * 100);
+        const combinedPct = Math.min(100, (progressWon + wp) / progressTarget * 100);
         return (
           <div style={{ background: "#fff", border: "1px solid #e2e4ed", borderRadius: 12, padding: "18px 20px", marginBottom: 20, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
             <div style={{ position: "relative", height: 28, background: "#f1f5f9", borderRadius: 999, overflow: "visible", marginBottom: 10 }}>
@@ -155,18 +201,18 @@ export default function OverviewTab({
                 <div style={{ position: "absolute", top: 0, height: "100%", left: `${closedPct}%`, width: `${wpPct}%`, background: "#93c5fd", borderRadius: combinedPct >= 100 ? "0 999px 999px 0" : "0" }} />
               )}
               <div style={{ position: "absolute", left: `${combinedPct}%`, top: "50%", transform: "translate(-50%, -50%)", background: "#0f1117", color: "#fff", fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 999, whiteSpace: "nowrap", fontFamily: "'DM Sans', system-ui, sans-serif", boxShadow: "0 1px 4px rgba(0,0,0,0.15)" }}>
-                ${Math.round((closedWonTotal + wp) / 1000)}K
+                ${Math.round((progressWon + wp) / 1000)}K
               </div>
               <div style={{ position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif", paddingRight: 4 }}>
-                {fmtCur(QUARTERLY_TARGET)}
+                {fmtCur(progressTarget)}
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <div style={{ width: 10, height: 10, borderRadius: 2, background: "#16a34a", flexShrink: 0 }} />
                 <div>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#16a34a", fontFamily: "'DM Sans', system-ui, sans-serif" }}>${Math.round(closedWonTotal / 1000)}K</span>
-                  <span style={{ fontSize: 11, color: "#8b90a0", marginLeft: 5, fontFamily: "'DM Sans', system-ui, sans-serif" }}>Closed Won {qLabel} · {closedWon.length} deals · {Math.round(closedPct)}% of goal</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#16a34a", fontFamily: "'DM Sans', system-ui, sans-serif" }}>${Math.round(progressWon / 1000)}K</span>
+                  <span style={{ fontSize: 11, color: "#8b90a0", marginLeft: 5, fontFamily: "'DM Sans', system-ui, sans-serif" }}>Closed Won {progressLabel} · {progressWonDeals.length} deals · {Math.round(closedPct)}% of goal</span>
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -184,7 +230,7 @@ export default function OverviewTab({
       {/* Signs of Life */}
       <TableCard>
         <TableCardHeader>
-          <span>🔥 Pour Gas on These <span style={{ color: "#b0b5c3", fontWeight: 400, fontSize: 12 }}>— prospect-side activity in last 7 days</span></span>
+          <span>🔥 Signs of Life <span style={{ color: "#b0b5c3", fontWeight: 400, fontSize: 12 }}>— prospect-side activity in last 7 days</span></span>
         </TableCardHeader>
         {solRows.length === 0 ? (
           <div style={{ padding: "16px 18px", color: "#b0b5c3", fontSize: 13 }}>No signals this week.</div>
@@ -205,11 +251,11 @@ export default function OverviewTab({
 
       {/* Closed Won */}
       <TableCard>
-        <TableCardHeader><span>✅ Closed Won Q{qIndex + 1}</span></TableCardHeader>
+        <TableCardHeader><span>✅ Closed Won {ytdMode ? `${now.getFullYear()} YTD` : `Q${qIndex + 1}`}</span></TableCardHeader>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead><tr>{["Company", "Channel", "Amount", "Close Date", "Owner"].map(h => <TH key={h}>{h}</TH>)}</tr></thead>
           <tbody>
-            {closedWon.map(d => (
+            {progressWonDeals.map(d => (
               <tr key={d.id} className="table-row-hover" style={{ borderBottom: "1px solid #f4f5f8" }}>
                 <TD><DealLink id={d.id} name={d.name} /></TD>
                 <TD style={{ color: "#374151" }}>{d.channel ?? "—"}</TD>
@@ -256,10 +302,10 @@ function AssumptionDrawer({ tileKey, assumptions, hubspotRates, borderColor, onS
     setTmp(null);
   };
 
-  const derived       = deriveTargets(assumptions, Math.floor(new Date().getMonth() / 3));
-  const legalNeeded   = derived.combinedLegalTarget;
-  const propNeeded    = derived.combinedPropTarget;
-  const demoNeeded    = derived.combinedDemoTarget;
+  const derived     = deriveTargets(assumptions, Math.floor(new Date().getMonth() / 3));
+  const legalNeeded = derived.combinedLegalTarget;
+  const propNeeded  = derived.combinedPropTarget;
+  const demoNeeded  = derived.combinedDemoTarget;
 
   const rows: { label: string; value: string | number; field: keyof Assumptions | null }[] = (() => {
     switch (tileKey) {
@@ -282,7 +328,7 @@ function AssumptionDrawer({ tileKey, assumptions, hubspotRates, borderColor, onS
       default: return [];
     }
   })();
-  
+
   const editableFields: (keyof Assumptions)[] = (() => {
     switch (tileKey) {
       case "legal":     return ["legal_to_close"];
@@ -301,10 +347,10 @@ function AssumptionDrawer({ tileKey, assumptions, hubspotRates, borderColor, onS
   } as Record<string, string>)[f as string] ?? String(f);
 
   const sourceLabel = (field: keyof Assumptions) => {
-    if (!hubspotRates) return "Source: HubSpot historical data";
-    const hsVal = hubspotRates[field as keyof HubSpotRates];
+    if (!hubspotRates) return null;
+    const hsVal  = hubspotRates[field as keyof HubSpotRates];
     const curVal = assumptions[field];
-    if (hsVal === null || hsVal === undefined) return "Source: HubSpot historical data";
+    if (hsVal === null || hsVal === undefined) return null;
     return hsVal === curVal ? "Source: HubSpot historical data" : "Manually entered";
   };
 
@@ -346,7 +392,7 @@ function AssumptionDrawer({ tileKey, assumptions, hubspotRates, borderColor, onS
                     <span style={{ flex: 1, paddingRight: 8 }}>{label}</span>
                     <span style={{ fontWeight: 500, color: "#0f1117", whiteSpace: "nowrap" }}>{value}</span>
                   </div>
-                  {field && (
+                  {field && sourceLabel(field) && (
                     <div style={{ fontSize: 10, color: "#b0b5c3", marginTop: 2, fontFamily: "'DM Sans', system-ui, sans-serif" }}>{sourceLabel(field)}</div>
                   )}
                 </div>
@@ -365,7 +411,7 @@ function AssumptionDrawer({ tileKey, assumptions, hubspotRates, borderColor, onS
 
 // ── METHODOLOGY PANEL ─────────────────────────────────────────────────────────
 
-const HISTORICAL_AVG_DEAL_VALUE = 62137; // trailing 12m from HubSpot — updated by Recalculate
+const HISTORICAL_AVG_DEAL_VALUE = 62137;
 
 function MethodologyPanel({ assumptions, derived, qIndex, onSave }: {
   assumptions: Assumptions;
