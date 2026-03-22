@@ -184,7 +184,7 @@ export default function OverviewTab({
       {/* Signs of Life */}
       <TableCard>
         <TableCardHeader>
-          <span>⚡ Signs of Life <span style={{ color: "#b0b5c3", fontWeight: 400, fontSize: 12 }}>— prospect-side activity in last 7 days</span></span>
+          <span>🔥 Heating Up - pour gas on these <span style={{ color: "#b0b5c3", fontWeight: 400, fontSize: 12 }}>— prospect-side activity in last 7 days</span></span>
         </TableCardHeader>
         {solRows.length === 0 ? (
           <div style={{ padding: "16px 18px", color: "#b0b5c3", fontSize: 13 }}>No signals this week.</div>
