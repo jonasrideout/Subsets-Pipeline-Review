@@ -261,28 +261,28 @@ function AssumptionDrawer({ tileKey, assumptions, hubspotRates, borderColor, onS
   const propNeeded    = derived.combinedPropTarget;
   const demoNeeded    = derived.combinedDemoTarget;
 
-  const rows: { label: string; value: string | number; source: "historical" | "anecdotal" | "derived" }[] = (() => {
+  const rows: { label: string; value: string | number; field: keyof Assumptions | null }[] = (() => {
     switch (tileKey) {
       case "legal": return [
-        { label: "Deals to close this quarter",                value: derived.qCloses,                  source: "derived"    },
-        { label: "% of Legal deals that close",                value: `${assumptions.legal_to_close}%`, source: "historical" },
+        { label: "Deals to close this quarter (NB + Expansion)", value: derived.qCloses + derived.expansionQCloses, field: null },
+        { label: "% of Legal deals that close",                  value: `${assumptions.legal_to_close}%`,           field: "legal_to_close" },
       ];
       case "proposal": return [
-        { label: "Legal deals needed this quarter",            value: legalNeeded,                      source: "derived"    },
-        { label: "% of Proposal deals that progress to Legal", value: `${assumptions.prop_to_legal}%`,  source: "historical" },
+        { label: "Legal deals needed this quarter",              value: legalNeeded,                                field: null },
+        { label: "% of Proposal deals that progress to Legal",   value: `${assumptions.prop_to_legal}%`,            field: "prop_to_legal" },
       ];
       case "demo": return [
-        { label: "Proposal deals needed this quarter",         value: propNeeded,                       source: "derived"    },
-        { label: "% of Demo deals that convert to Proposal",   value: `${assumptions.demo_to_prop}%`,   source: "historical" },
+        { label: "Proposal deals needed this quarter",           value: propNeeded,                                 field: null },
+        { label: "% of Demo deals that convert to Proposal",     value: `${assumptions.demo_to_prop}%`,             field: "demo_to_prop" },
       ];
       case "discovery": return [
-        { label: "Demo deals needed this quarter",             value: demoNeeded,                       source: "derived"    },
-        { label: "% of Discovery deals that convert to Demo",  value: `${assumptions.disc_to_demo}%`,   source: "anecdotal"  },
+        { label: "Demo deals needed this quarter",               value: demoNeeded,                                 field: null },
+        { label: "% of Discovery deals that convert to Demo",    value: `${assumptions.disc_to_demo}%`,             field: "disc_to_demo" },
       ];
       default: return [];
     }
   })();
-
+  
   const editableFields: (keyof Assumptions)[] = (() => {
     switch (tileKey) {
       case "legal":     return ["legal_to_close"];
