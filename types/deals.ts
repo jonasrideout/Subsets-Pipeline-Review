@@ -66,9 +66,8 @@ export interface Assumptions {
     Expansion:   number;
   };
   // Expansion-specific inputs
-  expansion_q_revenue_target: number;  // quarterly upsell revenue target
-  expansion_avg_deal_size:    number;  // avg expansion deal size
-  expansion_close_rate:       number;  // % close rate
+  expansion_avg_deal_size: number;  // avg expansion deal size
+  expansion_close_rate:    number;  // % close rate
 }
 
 export interface PipelineData {
