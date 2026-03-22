@@ -64,7 +64,7 @@ export default function Page() {
 
   // Recalculate modal
   const [recalculating, setRecalculating] = useState(false);
-  const [recalcModal, setRecalcModal]     = useState<{ rates: any; sample: any } | null>(null);
+  const [recalcModal, setRecalcModal] = useState<{ rates: any; avg_deal_value: number | null; sample: any } | null>(null);
 
   // Date anchors
   const [now, setNow] = useState<Date>(new Date());
