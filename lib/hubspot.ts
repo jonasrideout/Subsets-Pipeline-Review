@@ -83,7 +83,7 @@ const mapDeal = (raw: any): Deal => {
     entered_proposal:  p.hs_v2_date_entered_contractsent            ?? null,
     entered_demo:      p.hs_v2_date_entered_qualifiedtobuy          ?? null,
     entered_discovery: p.hs_v2_date_entered_appointmentscheduled    ?? null,
-    new_genuine:       false, // resolved after fetch
+    new_genuine:       false,
   };
 };
 
@@ -104,13 +104,16 @@ const mapClosedWon = (raw: any): ClosedWonDeal => {
 const getQStart = (now: Date): Date =>
   new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
 
+const getYearStart = (now: Date): Date =>
+  new Date(now.getFullYear(), 0, 1);
+
 // ── ACTIVE DEALS ──────────────────────────────────────────────────────────────
 
 export const fetchActiveDeals = async (): Promise<Deal[]> => {
   const now    = new Date();
   const qStart = getQStart(now);
 
-  const raw   = await searchAll("/crm/v3/objects/deals/search", {
+  const raw = await searchAll("/crm/v3/objects/deals/search", {
     filterGroups: [{
       filters: [{
         propertyName: "dealstage",
@@ -124,7 +127,6 @@ export const fetchActiveDeals = async (): Promise<Deal[]> => {
 
   const deals = raw.map(mapDeal);
 
-  // new_genuine = created this quarter, regardless of which stage they entered first
   for (const d of deals) {
     d.new_genuine = !!d.createdate && new Date(d.createdate) >= qStart;
   }
@@ -132,16 +134,33 @@ export const fetchActiveDeals = async (): Promise<Deal[]> => {
   return deals;
 };
 
-// ── CLOSED WON YTD ────────────────────────────────────────────────────────────
+// ── CLOSED WON — CURRENT QUARTER ─────────────────────────────────────────────
 
-export const fetchClosedWonYTD = async (): Promise<ClosedWonDeal[]> => {
-  const now      = new Date();
-  const qStart   = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1).toISOString();
-  const raw = await searchAll("/crm/v3/objects/deals/search", {
+export const fetchClosedWonQTD = async (): Promise<ClosedWonDeal[]> => {
+  const now    = new Date();
+  const qStart = getQStart(now).toISOString();
+  const raw    = await searchAll("/crm/v3/objects/deals/search", {
     filterGroups: [{
       filters: [
         { propertyName: "dealstage", operator: "EQ",  value: "closedwon" },
         { propertyName: "closedate", operator: "GTE", value: qStart },
+      ],
+    }],
+    properties: ["dealname", "amount", "closedate", "hubspot_owner_id", "deal_attribution"],
+  });
+  return raw.map(mapClosedWon);
+};
+
+// ── CLOSED WON — FULL YEAR ────────────────────────────────────────────────────
+
+export const fetchClosedWonYTD = async (): Promise<ClosedWonDeal[]> => {
+  const now       = new Date();
+  const yearStart = getYearStart(now).toISOString();
+  const raw       = await searchAll("/crm/v3/objects/deals/search", {
+    filterGroups: [{
+      filters: [
+        { propertyName: "dealstage", operator: "EQ",  value: "closedwon" },
+        { propertyName: "closedate", operator: "GTE", value: yearStart },
       ],
     }],
     properties: ["dealname", "amount", "closedate", "hubspot_owner_id", "deal_attribution"],
