@@ -11,8 +11,18 @@ interface HeaderProps {
 }
 
 // Returns true if we're in the first 7 days after a quarter end
-function isRecalculateWindow(_now: Date): boolean {
-  return true; // TODO: restrict to first 7 days after quarter end before go-live
+// Returns true if we're in the first 7 days after a quarter end,
+// OR if ?recalculate=true is in the URL
+function isRecalculateWindow(now: Date): boolean {
+  const m = now.getMonth();
+  const d = now.getDate();
+  const isQuarterStart = m === 0 || m === 3 || m === 6 || m === 9;
+  const inWindow = isQuarterStart && d <= 7;
+  if (inWindow) return true;
+  if (typeof window !== "undefined") {
+    return new URLSearchParams(window.location.search).get("recalculate") === "true";
+  }
+  return false;
 }
 
 export default function Header({ asOf, loading, onRefresh, onRecalculate, recalculating }: HeaderProps) {
