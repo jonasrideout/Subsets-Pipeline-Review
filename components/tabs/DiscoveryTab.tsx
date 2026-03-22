@@ -5,7 +5,7 @@
 import { useState } from "react";
 import type { Deal, Assumptions } from "@/types/deals";
 import { NB_CHANNELS, earliestStageEntry } from "@/lib/deals";
-import { deriveTargets, type DerivedTargets } from "@/lib/assumptions";
+import { deriveTargets, QUARTERLY_REVENUE_TARGET, type DerivedTargets } from "@/lib/assumptions";
 import { isStale } from "@/lib/flags";
 import { TableCard } from "@/components/Table";
 import PacingTable from "@/components/PacingTable";
@@ -197,22 +197,7 @@ function NBAssumptionsDrawer({ assumptions, derived, onSave }: {
     <DrawerShell>
       {editing && tmp ? (
         <div>
-          {/* Avg Deal Size — single shared field above table */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-            <label style={{ fontSize: 12, color: "#374151", fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-              Avg Deal Size
-            </label>
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <span style={{ fontSize: 12, color: "#64748b" }}>$</span>
-              <input
-                type="number"
-                value={tmp.avg_deal_value}
-                onChange={e => setTmp({ ...tmp, avg_deal_value: +e.target.value })}
-                style={{ width: 100, padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 6, fontSize: 13, fontFamily: "'DM Sans', system-ui, sans-serif" }}
-              />
-            </div>
-          </div>
-          {/* Table */}
+          {/* Table — revenue share editable, avg deal size read-only */}
           <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 12 }}>
             <thead>
               <tr>
@@ -261,6 +246,7 @@ function NBAssumptionsDrawer({ assumptions, derived, onSave }: {
         <div>
           <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 8, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
             Avg deal size: <strong style={{ color: "#374151" }}>{fmtK(assumptions.avg_deal_value)}</strong>
+            <span style={{ marginLeft: 8, color: "#cbd5e1" }}>· edit in Methodology</span>
           </div>
           <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 10 }}>
             <thead>
