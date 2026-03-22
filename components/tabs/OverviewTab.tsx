@@ -5,7 +5,7 @@
 import { useMemo, useState } from "react";
 import type { Deal, ClosedWonDeal, EmailSignalMap, ClosePlanMap, Assumptions } from "@/types/deals";
 import { ownerName, fmtDate, fmtCur, daysSince, weightedPipeline, UNRESOLVED_OWNER_IDS } from "@/lib/deals";
-import { deriveTargets } from "@/lib/assumptions";
+import { deriveTargets, QUARTERLY_TARGETS, NB_REVENUE_SHARE } from "@/lib/assumptions";
 import { getSignsOfLife, getNeedsActionAlerts } from "@/lib/flags";
 import { TH, TD, TableCard, TableCardHeader } from "@/components/Table";
 import { CloseDateBadge, UnresolvedOwnerBadge } from "@/components/Badges";
@@ -28,6 +28,7 @@ interface OverviewTabProps {
   now: Date;
   weekAgo: Date;
   qStart: Date;
+  qIndex: number;
   onTabChange: (tab: TabId) => void;
   onAssumptionsSave: (a: Assumptions) => Promise<void>;
 }
@@ -35,21 +36,21 @@ interface OverviewTabProps {
 export default function OverviewTab({
   active, legal, proposal, demo, discovery, closedWon,
   emailSignals, closePlans, assumptions, counts,
-  now, weekAgo, qStart, onTabChange, onAssumptionsSave,
+  now, weekAgo, qStart, qIndex, onTabChange, onAssumptionsSave,
 }: OverviewTabProps) {
-  const derived = deriveTargets(assumptions);
+  const derived = deriveTargets(assumptions, qIndex);
   const { legalTarget, propTarget, demoTarget, channelQTargets } = derived;
   const discTarget = Object.values(channelQTargets).reduce((s, v) => s + v, 0);
 
   const { discNewW, discNewQ, demoNewW, demoNewQ, propNewW, propNewQ, legalNewW, legalNewQ } = counts;
 
-  const legalAmt = legal.reduce((s, d) => s + (d.amount || 0), 0);
-  const propAmt  = proposal.reduce((s, d) => s + (d.amount || 0), 0);
-  const wp       = weightedPipeline(active);
+  const legalAmt       = legal.reduce((s, d) => s + (d.amount || 0), 0);
+  const propAmt        = proposal.reduce((s, d) => s + (d.amount || 0), 0);
+  const wp             = weightedPipeline(active);
   const closedWonTotal = closedWon.reduce((s, d) => s + d.amount, 0);
-  const QUARTERLY_TARGET = 600000;
+  const QUARTERLY_TARGET = QUARTERLY_TARGETS[qIndex] ?? QUARTERLY_TARGETS[0];
 
-  const qTotalDays   = (new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3 + 3, 1).getTime() - qStart.getTime()) / 86400000;
+  const qTotalDays   = (new Date(now.getFullYear(), qIndex * 3 + 3, 1).getTime() - qStart.getTime()) / 86400000;
   const qElapsedDays = (now.getTime() - qStart.getTime()) / 86400000;
   const qElapsedPct  = qElapsedDays / qTotalDays;
 
@@ -69,17 +70,18 @@ export default function OverviewTab({
   const tileTooltip = (actual: number, target: number, ratio: number, label: string) => {
     const elapsedPct = Math.round(qElapsedPct * 100);
     const goalPct    = target > 0 ? Math.round((actual / target) * 100) : 0;
-    if (ratio >= 0.90) return `You're ${elapsedPct}% through Q1 and have reached ${goalPct}% of your ${label} target — on track.`;
-    if (ratio >= 0.75) return `You're ${elapsedPct}% through Q1 and have reached ${goalPct}% of your ${label} target — slightly behind pace.`;
-    if (ratio >= 0.50) return `You're ${elapsedPct}% through Q1 and have reached ${goalPct}% of your ${label} target — behind pace.`;
-    return `You're ${elapsedPct}% through Q1 and have reached ${goalPct}% of your ${label} target — significantly behind, needs attention.`;
+    const qLabel     = `Q${qIndex + 1}`;
+    if (ratio >= 0.90) return `You're ${elapsedPct}% through ${qLabel} and have reached ${goalPct}% of your ${label} target — on track.`;
+    if (ratio >= 0.75) return `You're ${elapsedPct}% through ${qLabel} and have reached ${goalPct}% of your ${label} target — slightly behind pace.`;
+    if (ratio >= 0.50) return `You're ${elapsedPct}% through ${qLabel} and have reached ${goalPct}% of your ${label} target — behind pace.`;
+    return `You're ${elapsedPct}% through ${qLabel} and have reached ${goalPct}% of your ${label} target — significantly behind, needs attention.`;
   };
 
   const tiles = [
-    { key: "legal" as TabId,     label: "Legal / Procurement",    count: legal.length,    amount: legalAmt, newW: legalNewW, newQ: legalNewQ, target: legalTarget, actual: legalNewQ },
-    { key: "proposal" as TabId,  label: "Proposal / Negotiation", count: proposal.length, amount: propAmt,  newW: propNewW,  newQ: propNewQ,  target: propTarget,  actual: propNewQ  },
-    { key: "demo" as TabId,      label: "Meeting / Demo",         count: demo.length,     amount: null,     newW: demoNewW,  newQ: demoNewQ,  target: demoTarget,  actual: demoNewQ  },
-    { key: "discovery" as TabId, label: "Discovery",              count: discovery.length,amount: null,     newW: discNewW,  newQ: discNewQ,  target: discTarget,  actual: discNewQ  },
+    { key: "legal" as TabId,     label: "Legal / Procurement",    count: legal.length,     amount: legalAmt, newW: legalNewW, newQ: legalNewQ, target: legalTarget, actual: legalNewQ },
+    { key: "proposal" as TabId,  label: "Proposal / Negotiation", count: proposal.length,  amount: propAmt,  newW: propNewW,  newQ: propNewQ,  target: propTarget,  actual: propNewQ  },
+    { key: "demo" as TabId,      label: "Meeting / Demo",         count: demo.length,      amount: null,     newW: demoNewW,  newQ: demoNewQ,  target: demoTarget,  actual: demoNewQ  },
+    { key: "discovery" as TabId, label: "Discovery",              count: discovery.length, amount: null,     newW: discNewW,  newQ: discNewQ,  target: discTarget,  actual: discNewQ  },
   ].map(t => ({
     ...t,
     ratio:   paceRatio(t.actual, t.target),
@@ -142,7 +144,7 @@ export default function OverviewTab({
         const closedPct   = Math.min(100, closedWonTotal / QUARTERLY_TARGET * 100);
         const wpPct       = Math.min(100 - closedPct, wp / QUARTERLY_TARGET * 100);
         const combinedPct = Math.min(100, (closedWonTotal + wp) / QUARTERLY_TARGET * 100);
-        const qLabel      = `Q${Math.floor(now.getMonth() / 3) + 1}`;
+        const qLabel      = `Q${qIndex + 1}`;
         return (
           <div style={{ background: "#fff", border: "1px solid #e2e4ed", borderRadius: 12, padding: "18px 20px", marginBottom: 20, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
             <div style={{ position: "relative", height: 28, background: "#f1f5f9", borderRadius: 999, overflow: "visible", marginBottom: 10 }}>
@@ -154,7 +156,7 @@ export default function OverviewTab({
                 ${Math.round((closedWonTotal + wp) / 1000)}K
               </div>
               <div style={{ position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif", paddingRight: 4 }}>
-                $600K
+                {fmtCur(QUARTERLY_TARGET)}
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
@@ -214,9 +216,9 @@ export default function OverviewTab({
         )}
       </TableCard>
 
-      {/* Closed Won YTD */}
+      {/* Closed Won */}
       <TableCard>
-        <TableCardHeader><span>✅ Closed Won Q{Math.floor(now.getMonth() / 3) + 1}</span></TableCardHeader>
+        <TableCardHeader><span>✅ Closed Won Q{qIndex + 1}</span></TableCardHeader>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead><tr>{["Company", "Channel", "Amount", "Close Date", "Owner"].map(h => <TH key={h}>{h}</TH>)}</tr></thead>
           <tbody>
@@ -237,7 +239,7 @@ export default function OverviewTab({
       </TableCard>
 
       {/* Methodology */}
-      <MethodologyPanel assumptions={assumptions} derived={derived} />
+      <MethodologyPanel assumptions={assumptions} derived={derived} qIndex={qIndex} />
     </div>
   );
 }
@@ -273,20 +275,20 @@ function AssumptionDrawer({ tileKey, assumptions, borderColor, onSave }: Assumpt
   const rows: { label: string; value: string | number; source: "historical" | "anecdotal" | "derived" }[] = (() => {
     switch (tileKey) {
       case "legal": return [
-        { label: "Deals to close this quarter",               value: assumptions.q_closes,             source: "derived"    },
-        { label: "% of Legal deals that close",               value: `${assumptions.legal_to_close}%`, source: "historical" },
+        { label: "Deals to close this quarter",                value: assumptions.q_closes,             source: "derived"    },
+        { label: "% of Legal deals that close",                value: `${assumptions.legal_to_close}%`, source: "historical" },
       ];
       case "proposal": return [
         { label: "Legal deals needed this quarter",            value: legalNeeded,                      source: "derived"    },
-        { label: "% of Proposal deals that progress to Legal", value: `${assumptions.prop_to_legal}%`, source: "historical" },
+        { label: "% of Proposal deals that progress to Legal", value: `${assumptions.prop_to_legal}%`,  source: "historical" },
       ];
       case "demo": return [
         { label: "Proposal deals needed this quarter",         value: propNeeded,                       source: "derived"    },
-        { label: "% of Demo deals that convert to Proposal",   value: `${assumptions.demo_to_prop}%`,  source: "historical" },
+        { label: "% of Demo deals that convert to Proposal",   value: `${assumptions.demo_to_prop}%`,   source: "historical" },
       ];
       case "discovery": return [
         { label: "Demo deals needed this quarter",             value: demoNeeded,                       source: "derived"    },
-        { label: "% of Discovery deals that convert to Demo",  value: `${assumptions.disc_to_demo}%`,  source: "anecdotal"  },
+        { label: "% of Discovery deals that convert to Demo",  value: `${assumptions.disc_to_demo}%`,   source: "anecdotal"  },
       ];
       default: return [];
     }
@@ -373,9 +375,14 @@ function AssumptionDrawer({ tileKey, assumptions, borderColor, onSave }: Assumpt
 
 // ── METHODOLOGY PANEL ─────────────────────────────────────────────────────────
 
-function MethodologyPanel({ assumptions, derived }: { assumptions: Assumptions; derived: ReturnType<typeof deriveTargets> }) {
-  const { legalTarget, propTarget, demoTarget, discTarget, expansionQTarget, nbTargets } = derived;
+function MethodologyPanel({ assumptions, derived, qIndex }: {
+  assumptions: Assumptions;
+  derived: ReturnType<typeof deriveTargets>;
+  qIndex: number;
+}) {
+  const { legalTarget, propTarget, demoTarget, discTarget, expansionQTarget, expansionQCloses, nbTargets, nbQRevenueTarget, expansionQRevenueTarget } = derived;
   const NB_CHANNELS = ["Outbound", "Events", "Partnership", "Inbound"];
+  const fmtK = (n: number) => "$" + Math.round(n / 1000) + "K";
 
   return (
     <TableCard>
@@ -386,6 +393,31 @@ function MethodologyPanel({ assumptions, derived }: { assumptions: Assumptions; 
         </summary>
         <div style={{ padding: "0 18px 18px" }}>
           <div className="flex gap-3 flex-wrap">
+
+            {/* Quarterly Revenue Targets */}
+            <div style={{ flex: 1, background: "#f8fafc", border: "1px solid #e2e4ed", borderRadius: 10, padding: "12px 14px", minWidth: 200 }}>
+              <div style={{ fontWeight: 700, fontSize: 12, color: "#374151", marginBottom: 6 }}>Quarterly Revenue Targets</div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#94a3b8", marginBottom: 4, paddingBottom: 4, borderBottom: "1px solid #f1f5f9" }}>
+                <span style={{ width: 28 }}>Q</span>
+                <span style={{ flex: 1, textAlign: "right" }}>Total</span>
+                <span style={{ flex: 1, textAlign: "right" }}>NB (⅔)</span>
+                <span style={{ flex: 1, textAlign: "right" }}>Expansion (⅓)</span>
+              </div>
+              {QUARTERLY_TARGETS.map((total, i) => {
+                const nb  = Math.round(total * NB_REVENUE_SHARE);
+                const exp = total - nb;
+                return (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3 }}>
+                    <span style={{ width: 28, color: i === qIndex ? "#0f172a" : "#374151", fontWeight: i === qIndex ? 700 : 400 }}>Q{i + 1}</span>
+                    <span style={{ flex: 1, textAlign: "right", color: "#374151", fontWeight: i === qIndex ? 700 : 400 }}>{fmtK(total)}</span>
+                    <span style={{ flex: 1, textAlign: "right", color: "#374151", fontWeight: i === qIndex ? 700 : 400 }}>{fmtK(nb)}</span>
+                    <span style={{ flex: 1, textAlign: "right", color: "#374151", fontWeight: i === qIndex ? 700 : 400 }}>{fmtK(exp)}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Q Stage Targets */}
             <div style={{ flex: 1, background: "#f8fafc", border: "1px solid #e2e4ed", borderRadius: 10, padding: "12px 14px", minWidth: 200 }}>
               <div style={{ fontWeight: 700, fontSize: 12, color: "#374151", marginBottom: 6 }}>Q Stage Targets (Derived)</div>
               {[
@@ -403,8 +435,10 @@ function MethodologyPanel({ assumptions, derived }: { assumptions: Assumptions; 
                 </div>
               ))}
             </div>
+
+            {/* Q Channel Targets */}
             <div style={{ flex: 1, background: "#f8fafc", border: "1px solid #e2e4ed", borderRadius: 10, padding: "12px 14px", minWidth: 200 }}>
-              <div style={{ fontWeight: 700, fontSize: 12, color: "#374151", marginBottom: 6 }}>Q Channel Targets (New Business Discovery)</div>
+              <div style={{ fontWeight: 700, fontSize: 12, color: "#374151", marginBottom: 6 }}>Q Channel Targets (Discovery)</div>
               {NB_CHANNELS.map(ch => (
                 <div key={ch} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3 }}>
                   <span style={{ color: "#374151" }}>{ch}</span>
@@ -413,18 +447,21 @@ function MethodologyPanel({ assumptions, derived }: { assumptions: Assumptions; 
               ))}
               <div style={{ marginTop: 8, borderTop: "1px solid #e2e4ed", paddingTop: 8, fontSize: 12 }}>
                 <div style={{ fontWeight: 600, color: "#374151", marginBottom: 4 }}>Expansion (Upsell)</div>
-                <div style={{ color: "#64748b" }}>{fmtCur(assumptions.expansion_q_revenue_target)} target ÷ {fmtCur(assumptions.expansion_avg_deal_size)} avg deal ÷ {assumptions.expansion_close_rate}% close rate = <strong style={{ color: "#0f172a" }}>{expansionQTarget}</strong></div>
+                <div style={{ color: "#64748b" }}>{fmtK(expansionQRevenueTarget)} target ÷ {fmtK(assumptions.expansion_avg_deal_size)} avg deal = {expansionQCloses} closes ÷ {assumptions.expansion_close_rate}% = <strong style={{ color: "#0f172a" }}>{expansionQTarget}</strong></div>
               </div>
             </div>
+
+            {/* Quarterly Close Targets */}
             <div style={{ flex: 1, background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 10, padding: "12px 14px", minWidth: 160 }}>
-              <div style={{ fontWeight: 700, fontSize: 12, color: "#2563eb", marginBottom: 6 }}>Quarterly Close Targets</div>
-              {[["Q1", 6], ["Q2", 6], ["Q3", 5], ["Q4", 6]].map(([q, n]) => (
+              <div style={{ fontWeight: 700, fontSize: 12, color: "#2563eb", marginBottom: 6 }}>Quarterly Close Targets (NB)</div>
+              {[["Q1", 6], ["Q2", 6], ["Q3", 5], ["Q4", 6]].map(([q, n], i) => (
                 <div key={String(q)} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
-                  <span style={{ color: "#1e40af" }}>{q}</span>
-                  <span style={{ fontWeight: 700, color: "#2563eb" }}>{n} closes</span>
+                  <span style={{ color: i === qIndex ? "#1e40af" : "#93c5fd", fontWeight: i === qIndex ? 700 : 400 }}>{q}</span>
+                  <span style={{ fontWeight: i === qIndex ? 700 : 400, color: "#2563eb" }}>{n} closes</span>
                 </div>
               ))}
             </div>
+
           </div>
         </div>
       </details>
