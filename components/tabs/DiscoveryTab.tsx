@@ -5,7 +5,7 @@
 import { useState } from "react";
 import type { Deal, Assumptions } from "@/types/deals";
 import { NB_CHANNELS, earliestStageEntry } from "@/lib/deals";
-import { deriveTargets, QUARTERLY_REVENUE_TARGET, type DerivedTargets } from "@/lib/assumptions";
+import { deriveTargets, type DerivedTargets } from "@/lib/assumptions";
 import { isStale } from "@/lib/flags";
 import { TableCard } from "@/components/Table";
 import PacingTable from "@/components/PacingTable";
