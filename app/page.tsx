@@ -13,21 +13,20 @@ import LegalTab from "@/components/tabs/LegalTab";
 import ProposalTab from "@/components/tabs/ProposalTab";
 import DemoTab from "@/components/tabs/DemoTab";
 import DiscoveryTab from "@/components/tabs/DiscoveryTab";
+import RecalculateModal from "@/components/RecalculateModal";
 
 // ── COUNT HELPER ──────────────────────────────────────────────────────────────
-// Compute all "new" counts ONCE from the raw active array.
-// This is the single source of truth — passed to both Overview and tab tiles.
 
 export interface PipelineCounts {
-  discNewW:  number;
-  discNewQ:  number;
-  demoNewW:  number;
-  demoNewQ:  number;
-  propNewW:  number;
-  propNewQ:  number;
-  legalNewW: number;
-  legalNewQ: number;
-  qElapsedPct: number; // fraction of quarter elapsed (0–1)
+  discNewW:    number;
+  discNewQ:    number;
+  demoNewW:    number;
+  demoNewQ:    number;
+  propNewW:    number;
+  propNewQ:    number;
+  legalNewW:   number;
+  legalNewQ:   number;
+  qElapsedPct: number;
 }
 
 function computeCounts(active: Deal[], weekAgo: Date, qStart: Date, now: Date): PipelineCounts {
@@ -36,14 +35,14 @@ function computeCounts(active: Deal[], weekAgo: Date, qStart: Date, now: Date): 
   const qElapsedPct = Math.min(1, (now.getTime() - qStart.getTime()) / 86400000 / qTotalDays);
 
   return {
-    discNewW:  active.filter(d => d.createdate && new Date(d.createdate) >= weekAgo).length,
-    discNewQ:  active.filter(d => d.createdate && new Date(d.createdate) >= qStart).length,
-    demoNewW:  active.filter(d => d.entered_demo     && d.createdate && new Date(d.createdate) >= weekAgo).length,
-    demoNewQ:  active.filter(d => d.entered_demo     && d.createdate && new Date(d.createdate) >= qStart).length,
-    propNewW:  active.filter(d => d.entered_proposal && d.createdate && new Date(d.createdate) >= weekAgo).length,
-    propNewQ:  active.filter(d => d.entered_proposal && d.createdate && new Date(d.createdate) >= qStart).length,
-    legalNewW: active.filter(d => d.entered_legal    && d.createdate && new Date(d.createdate) >= weekAgo).length,
-    legalNewQ: active.filter(d => d.entered_legal    && d.createdate && new Date(d.createdate) >= qStart).length,
+    discNewW:    active.filter(d => d.createdate && new Date(d.createdate) >= weekAgo).length,
+    discNewQ:    active.filter(d => d.createdate && new Date(d.createdate) >= qStart).length,
+    demoNewW:    active.filter(d => d.entered_demo     && d.createdate && new Date(d.createdate) >= weekAgo).length,
+    demoNewQ:    active.filter(d => d.entered_demo     && d.createdate && new Date(d.createdate) >= qStart).length,
+    propNewW:    active.filter(d => d.entered_proposal && d.createdate && new Date(d.createdate) >= weekAgo).length,
+    propNewQ:    active.filter(d => d.entered_proposal && d.createdate && new Date(d.createdate) >= qStart).length,
+    legalNewW:   active.filter(d => d.entered_legal    && d.createdate && new Date(d.createdate) >= weekAgo).length,
+    legalNewQ:   active.filter(d => d.entered_legal    && d.createdate && new Date(d.createdate) >= qStart).length,
     qElapsedPct,
   };
 }
@@ -63,12 +62,15 @@ export default function Page() {
   const [closePlans, setClosePlans]     = useState<ClosePlanMap>({});
   const [assumptions, setAssumptions]   = useState<Assumptions>(DEFAULT_ASSUMPTIONS);
 
-  // Date anchors — set from API response timestamp
+  // Recalculate modal
+  const [recalculating, setRecalculating]   = useState(false);
+  const [recalcModal, setRecalcModal]       = useState<{ rates: any; sample: any } | null>(null);
+
+  // Date anchors
   const [now, setNow] = useState<Date>(new Date());
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const qStart  = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
 
-  // ── Single source of truth for all counts ────────────────────────────────
   const counts = computeCounts(active, weekAgo, qStart, now);
 
   // ── FETCH PIPELINE DATA ───────────────────────────────────────────────────
@@ -76,7 +78,7 @@ export default function Page() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/deals");
+      const res  = await fetch("/api/deals");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setActive(data.active ?? []);
@@ -112,7 +114,27 @@ export default function Page() {
     fetchAssumptions();
   }, [fetchPipeline, fetchClosePlans, fetchAssumptions]);
 
-  // ── HANDLERS ──────────────────────────────────────────────────────────────
+  // ── RECALCULATE ───────────────────────────────────────────────────────────
+  const handleRecalculate = async () => {
+    setRecalculating(true);
+    try {
+      const res  = await fetch("/api/recalculate");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setRecalcModal({ rates: data.rates, sample: data.sample });
+    } catch (e) {
+      console.error("Recalculate failed:", e);
+    } finally {
+      setRecalculating(false);
+    }
+  };
+
+  const handleRecalcConfirm = async (updated: Assumptions) => {
+    await handleAssumptionsSave(updated);
+    setRecalcModal(null);
+  };
+
+  // ── HANDLERS ─────────────────────────────────────────────────────────────
   const handleClosePlanSave = async (dealId: string, url: string) => {
     try {
       await fetch("/api/closeplans", {
@@ -150,7 +172,13 @@ export default function Page() {
   // ── RENDER ────────────────────────────────────────────────────────────────
   return (
     <div style={{ minHeight: "100vh", background: "#f5f6fa" }}>
-      <Header asOf={asOf} loading={loading} onRefresh={fetchPipeline} />
+      <Header
+        asOf={asOf}
+        loading={loading}
+        onRefresh={fetchPipeline}
+        onRecalculate={handleRecalculate}
+        recalculating={recalculating}
+      />
 
       {error && (
         <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", padding: "12px 24px", fontSize: 13, fontWeight: 500 }}>
@@ -183,23 +211,25 @@ export default function Page() {
               <ProposalTab deals={proposal} closePlans={closePlans} onClosePlanSave={handleClosePlanSave} now={now} weekAgo={weekAgo} qStart={qStart} counts={counts} propQTarget={derived.propTarget} />
             )}
             {tab === "demo"     && (
-              <DemoTab
-                deals={demo} allActive={active} closePlans={closePlans}
-                now={now} weekAgo={weekAgo} qStart={qStart}
-                counts={counts} demoQTarget={derived.demoTarget}
-              />
+              <DemoTab deals={demo} allActive={active} closePlans={closePlans} now={now} weekAgo={weekAgo} qStart={qStart} counts={counts} demoQTarget={derived.demoTarget} />
             )}
             {tab === "discovery" && (
-              <DiscoveryTab
-                deals={discovery} allActive={active} assumptions={assumptions}
-                onAssumptionsSave={handleAssumptionsSave}
-                now={now} weekAgo={weekAgo} qStart={qStart}
-                counts={counts}
-              />
+              <DiscoveryTab deals={discovery} allActive={active} assumptions={assumptions} onAssumptionsSave={handleAssumptionsSave} now={now} weekAgo={weekAgo} qStart={qStart} counts={counts} />
             )}
           </>
         )}
       </div>
+
+      {/* Recalculate modal */}
+      {recalcModal && (
+        <RecalculateModal
+          rates={recalcModal.rates}
+          sample={recalcModal.sample}
+          current={assumptions}
+          onConfirm={handleRecalcConfirm}
+          onDismiss={() => setRecalcModal(null)}
+        />
+      )}
     </div>
   );
 }
