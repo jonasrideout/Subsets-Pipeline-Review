@@ -44,21 +44,8 @@ export interface EmailSignal {
   lastSubject: string | null;
 }
 
-export interface EmailSignalMap {
-  [dealId: string]: EmailSignal;
-}
-
-export interface ClosePlanMap {
-  [dealId: string]: string;
-}
-
-export interface ChannelAnnualCloses {
-  Outbound:    number;
-  Events:      number;
-  Partnership: number;
-  Inbound:     number;
-  Expansion:   number;
-}
+export interface EmailSignalMap { [dealId: string]: EmailSignal; }
+export interface ClosePlanMap   { [dealId: string]: string; }
 
 export interface Assumptions {
   // Four-step funnel conversion rates
@@ -68,7 +55,9 @@ export interface Assumptions {
   legal_to_close: number;  // % Legal → Close        (HubSpot historical)
   // Quarterly close target
   q_closes: number;
-  // Channel revenue share % (Methodology panel only)
+  // Average deal value — used to derive annual closes per channel from revenue share
+  avg_deal_value: number;
+  // Channel revenue share %
   ch: {
     Outbound:    number;
     Events:      number;
@@ -76,8 +65,6 @@ export interface Assumptions {
     Inbound:     number;
     Expansion:   number;
   };
-  // Annual closes needed per channel
-  annual_closes: ChannelAnnualCloses;
   // Expansion-specific inputs
   expansion_annual_deals: number;
   expansion_close_rate:   number;
