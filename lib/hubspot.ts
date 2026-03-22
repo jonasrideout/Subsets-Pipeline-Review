@@ -135,12 +135,13 @@ export const fetchActiveDeals = async (): Promise<Deal[]> => {
 // ── CLOSED WON YTD ────────────────────────────────────────────────────────────
 
 export const fetchClosedWonYTD = async (): Promise<ClosedWonDeal[]> => {
-  const yearStart = `${new Date().getFullYear()}-01-01T00:00:00.000Z`;
+  const now      = new Date();
+  const qStart   = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1).toISOString();
   const raw = await searchAll("/crm/v3/objects/deals/search", {
     filterGroups: [{
       filters: [
         { propertyName: "dealstage", operator: "EQ",  value: "closedwon" },
-        { propertyName: "closedate", operator: "GTE", value: yearStart },
+        { propertyName: "closedate", operator: "GTE", value: qStart },
       ],
     }],
     properties: ["dealname", "amount", "closedate", "hubspot_owner_id", "deal_attribution"],
