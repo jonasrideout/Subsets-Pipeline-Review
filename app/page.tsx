@@ -35,14 +35,14 @@ function computeCounts(active: Deal[], weekAgo: Date, qStart: Date, now: Date): 
   const qElapsedPct = Math.min(1, (now.getTime() - qStart.getTime()) / 86400000 / qTotalDays);
 
   return {
-    discNewW:    active.filter(d => d.createdate && new Date(d.createdate) >= weekAgo).length,
-    discNewQ:    active.filter(d => d.createdate && new Date(d.createdate) >= qStart).length,
-    demoNewW:    active.filter(d => d.entered_demo     && d.createdate && new Date(d.createdate) >= weekAgo).length,
-    demoNewQ:    active.filter(d => d.entered_demo     && d.createdate && new Date(d.createdate) >= qStart).length,
-    propNewW:    active.filter(d => d.entered_proposal && d.createdate && new Date(d.createdate) >= weekAgo).length,
-    propNewQ:    active.filter(d => d.entered_proposal && d.createdate && new Date(d.createdate) >= qStart).length,
-    legalNewW:   active.filter(d => d.entered_legal    && d.createdate && new Date(d.createdate) >= weekAgo).length,
-    legalNewQ:   active.filter(d => d.entered_legal    && d.createdate && new Date(d.createdate) >= qStart).length,
+    discNewW:  active.filter(d => d.createdate && new Date(d.createdate) >= weekAgo).length,
+    discNewQ:  active.filter(d => d.createdate && new Date(d.createdate) >= qStart).length,
+    demoNewW:  active.filter(d => d.entered_demo     && d.createdate && new Date(d.createdate) >= weekAgo).length,
+    demoNewQ:  active.filter(d => d.entered_demo     && d.createdate && new Date(d.createdate) >= qStart).length,
+    propNewW:  active.filter(d => d.entered_proposal && d.createdate && new Date(d.createdate) >= weekAgo).length,
+    propNewQ:  active.filter(d => d.entered_proposal && d.createdate && new Date(d.createdate) >= qStart).length,
+    legalNewW: active.filter(d => d.entered_legal    && d.createdate && new Date(d.createdate) >= weekAgo).length,
+    legalNewQ: active.filter(d => d.entered_legal    && d.createdate && new Date(d.createdate) >= qStart).length,
     qElapsedPct,
   };
 }
@@ -63,15 +63,16 @@ export default function Page() {
   const [assumptions, setAssumptions]   = useState<Assumptions>(DEFAULT_ASSUMPTIONS);
 
   // Recalculate modal
-  const [recalculating, setRecalculating]   = useState(false);
-  const [recalcModal, setRecalcModal]       = useState<{ rates: any; sample: any } | null>(null);
+  const [recalculating, setRecalculating] = useState(false);
+  const [recalcModal, setRecalcModal]     = useState<{ rates: any; sample: any } | null>(null);
 
   // Date anchors
   const [now, setNow] = useState<Date>(new Date());
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  const qStart  = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
+  const qIndex  = Math.floor(now.getMonth() / 3);
+  const qStart  = new Date(now.getFullYear(), qIndex * 3, 1);
 
-  const counts = computeCounts(active, weekAgo, qStart, now);
+  const counts  = computeCounts(active, weekAgo, qStart, now);
 
   // ── FETCH PIPELINE DATA ───────────────────────────────────────────────────
   const fetchPipeline = useCallback(async () => {
@@ -167,7 +168,7 @@ export default function Page() {
   const proposal  = filterByStage(active, "contractsent");
   const demo      = filterByStage(active, "qualifiedtobuy");
   const discovery = filterByStage(active, "appointmentscheduled");
-  const derived   = deriveTargets(assumptions);
+  const derived   = deriveTargets(assumptions, qIndex);
 
   // ── RENDER ────────────────────────────────────────────────────────────────
   return (
@@ -195,32 +196,33 @@ export default function Page() {
           </div>
         ) : (
           <>
-            {tab === "overview"  && (
+            {tab === "overview" && (
               <OverviewTab
                 active={active}
                 legal={legal} proposal={proposal} demo={demo} discovery={discovery}
                 closedWon={closedWon} emailSignals={emailSignals} closePlans={closePlans}
                 assumptions={assumptions} counts={counts}
-                now={now} weekAgo={weekAgo} qStart={qStart}
+                now={now} weekAgo={weekAgo} qStart={qStart} qIndex={qIndex}
                 onTabChange={setTab}
                 onAssumptionsSave={handleAssumptionsSave}
               />
             )}
-            {tab === "legal"    && <LegalTab deals={legal} closePlans={closePlans} now={now} weekAgo={weekAgo} qStart={qStart} counts={counts} legalQTarget={derived.legalTarget} />}
+            {tab === "legal" && (
+              <LegalTab deals={legal} closePlans={closePlans} now={now} weekAgo={weekAgo} qStart={qStart} counts={counts} legalQTarget={derived.legalTarget} />
+            )}
             {tab === "proposal" && (
               <ProposalTab deals={proposal} closePlans={closePlans} onClosePlanSave={handleClosePlanSave} now={now} weekAgo={weekAgo} qStart={qStart} counts={counts} propQTarget={derived.propTarget} />
             )}
-            {tab === "demo"     && (
+            {tab === "demo" && (
               <DemoTab deals={demo} allActive={active} closePlans={closePlans} now={now} weekAgo={weekAgo} qStart={qStart} counts={counts} demoQTarget={derived.demoTarget} />
             )}
             {tab === "discovery" && (
-              <DiscoveryTab deals={discovery} allActive={active} assumptions={assumptions} onAssumptionsSave={handleAssumptionsSave} now={now} weekAgo={weekAgo} qStart={qStart} counts={counts} />
+              <DiscoveryTab deals={discovery} allActive={active} assumptions={assumptions} onAssumptionsSave={handleAssumptionsSave} now={now} weekAgo={weekAgo} qStart={qStart} qIndex={qIndex} counts={counts} />
             )}
           </>
         )}
       </div>
 
-      {/* Recalculate modal */}
       {recalcModal && (
         <RecalculateModal
           rates={recalcModal.rates}
