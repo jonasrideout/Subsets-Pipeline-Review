@@ -39,7 +39,7 @@ export default function OverviewTab({
   now, weekAgo, qStart, qIndex, onTabChange, onAssumptionsSave,
 }: OverviewTabProps) {
   const derived = deriveTargets(assumptions, qIndex);
-  const { legalTarget, propTarget, demoTarget, channelQTargets } = derived;
+  const { legalTarget, propTarget, demoTarget, channelQTargets, combinedLegalTarget, combinedPropTarget, combinedDemoTarget } = derived;
   const discTarget = Object.values(channelQTargets).reduce((s, v) => s + v, 0);
 
   const { discNewW, discNewQ, demoNewW, demoNewQ, propNewW, propNewQ, legalNewW, legalNewQ } = counts;
@@ -78,10 +78,10 @@ export default function OverviewTab({
   };
 
   const tiles = [
-    { key: "legal" as TabId,     label: "Legal / Procurement",    count: legal.length,     amount: legalAmt, newW: legalNewW, newQ: legalNewQ, target: legalTarget, actual: legalNewQ },
-    { key: "proposal" as TabId,  label: "Proposal / Negotiation", count: proposal.length,  amount: propAmt,  newW: propNewW,  newQ: propNewQ,  target: propTarget,  actual: propNewQ  },
-    { key: "demo" as TabId,      label: "Meeting / Demo",         count: demo.length,      amount: null,     newW: demoNewW,  newQ: demoNewQ,  target: demoTarget,  actual: demoNewQ  },
-    { key: "discovery" as TabId, label: "Discovery",              count: discovery.length, amount: null,     newW: discNewW,  newQ: discNewQ,  target: discTarget,  actual: discNewQ  },
+    { key: "legal" as TabId,     label: "Legal / Procurement",    count: legal.length,     amount: legalAmt, newW: legalNewW, newQ: legalNewQ, target: combinedLegalTarget, actual: legalNewQ },
+    { key: "proposal" as TabId,  label: "Proposal / Negotiation", count: proposal.length,  amount: propAmt,  newW: propNewW,  newQ: propNewQ,  target: combinedPropTarget,  actual: propNewQ  },
+    { key: "demo" as TabId,      label: "Meeting / Demo",         count: demo.length,      amount: null,     newW: demoNewW,  newQ: demoNewQ,  target: combinedDemoTarget,  actual: demoNewQ  },
+    { key: "discovery" as TabId, label: "Discovery",              count: discovery.length, amount: null,     newW: discNewW,  newQ: discNewQ,  target: discTarget,          actual: discNewQ  },
   ].map(t => ({
     ...t,
     ratio:   paceRatio(t.actual, t.target),
@@ -253,10 +253,10 @@ function AssumptionDrawer({ tileKey, assumptions, borderColor, onSave }: Assumpt
     setTmp(null);
   };
 
-  const derived     = deriveTargets(assumptions, Math.floor(new Date().getMonth() / 3));
-  const legalNeeded = derived.legalTarget;
-  const propNeeded  = derived.propTarget;
-  const demoNeeded  = derived.demoTarget;
+  const derived       = deriveTargets(assumptions, Math.floor(new Date().getMonth() / 3));
+  const legalNeeded   = derived.combinedLegalTarget;
+  const propNeeded    = derived.combinedPropTarget;
+  const demoNeeded    = derived.combinedDemoTarget;
 
   const rows: { label: string; value: string | number; source: "historical" | "anecdotal" | "derived" }[] = (() => {
     switch (tileKey) {
