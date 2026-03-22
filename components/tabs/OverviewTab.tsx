@@ -408,7 +408,7 @@ function MethodologyPanel({ assumptions, derived }: { assumptions: Assumptions; 
               {NB_CHANNELS.map(ch => (
                 <div key={ch} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3 }}>
                   <span style={{ color: "#374151" }}>{ch}</span>
-                  <span style={{ color: "#64748b" }}>{assumptions.annual_closes[ch as keyof typeof assumptions.annual_closes]} annual closes → <strong style={{ color: "#0f172a" }}>{nbTargets[ch]}</strong></span>
+                  <span style={{ color: "#64748b" }}>{derived.annualClosesByChannel[ch]?.toFixed(1)} annual closes → <strong style={{ color: "#0f172a" }}>{nbTargets[ch]}</strong></span>
                 </div>
               ))}
               <div style={{ marginTop: 8, borderTop: "1px solid #e2e4ed", paddingTop: 8, fontSize: 12 }}>
