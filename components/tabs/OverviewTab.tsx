@@ -434,19 +434,19 @@ function MethodologyPanel({ assumptions, derived, qIndex, onSave }: {
                 </button>
               </div>
             ) : (
-              <div style={{ display: "flex", alignItems: "baseline", gap: 20, flexWrap: "wrap" }}>
-                <div>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 4 }}>
                   <span style={{ fontSize: 12, color: "#374151", fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif" }}>Avg Deal Value </span>
                   <span style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", fontFamily: "'DM Sans', system-ui, sans-serif" }}>{fmtFull(assumptions.avg_deal_value)}</span>
+                  <button onClick={() => { setEditingAvg(true); setTmpAvg(assumptions.avg_deal_value); }}
+                    style={{ background: "#f8fafc", color: "#64748b", border: "1px solid #e2e4ed", borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                    Edit
+                  </button>
                 </div>
                 <div>
                   <span style={{ fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif" }}>12-month rolling avg </span>
                   <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif" }}>{fmtFull(HISTORICAL_AVG_DEAL_VALUE)}</span>
                 </div>
-                <button onClick={() => { setEditingAvg(true); setTmpAvg(assumptions.avg_deal_value); }}
-                  style={{ background: "#f8fafc", color: "#64748b", border: "1px solid #e2e4ed", borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                  Edit
-                </button>
               </div>
             )}
           </div>
@@ -454,7 +454,7 @@ function MethodologyPanel({ assumptions, derived, qIndex, onSave }: {
           <div className="flex gap-3 flex-wrap">
 
             {/* Quarterly Revenue Targets */}
-            <div style={{ flex: 1, background: "#f8fafc", border: "1px solid #e2e4ed", borderRadius: 10, padding: "12px 14px", minWidth: 200 }}>
+            <div style={{ flex: 1, minWidth: 200, paddingRight: 16, borderRight: "1px solid #f1f5f9" }}>
               <div style={{ fontWeight: 700, fontSize: 12, color: "#374151", marginBottom: 6 }}>Quarterly Revenue Targets</div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#94a3b8", marginBottom: 4, paddingBottom: 4, borderBottom: "1px solid #f1f5f9" }}>
                 <span style={{ width: 28 }}>Q</span>
@@ -477,7 +477,7 @@ function MethodologyPanel({ assumptions, derived, qIndex, onSave }: {
             </div>
 
             {/* Q Stage Targets */}
-            <div style={{ flex: 1, background: "#f8fafc", border: "1px solid #e2e4ed", borderRadius: 10, padding: "12px 14px", minWidth: 200 }}>
+            <div style={{ flex: 1, minWidth: 200, paddingRight: 16, borderRight: "1px solid #f1f5f9" }}>
               <div style={{ fontWeight: 700, fontSize: 12, color: "#374151", marginBottom: 6 }}>Q Stage Targets (Derived)</div>
               {[
                 ["Legal needed",     legalTarget, `${qCloses} closes ÷ ${assumptions.legal_to_close}%`],
@@ -495,30 +495,25 @@ function MethodologyPanel({ assumptions, derived, qIndex, onSave }: {
               ))}
             </div>
 
-            {/* Q Channel Targets */}
-            <div style={{ flex: 1, background: "#f8fafc", border: "1px solid #e2e4ed", borderRadius: 10, padding: "12px 14px", minWidth: 200 }}>
-              <div style={{ fontWeight: 700, fontSize: 12, color: "#374151", marginBottom: 6 }}>Q Channel Targets (Discovery)</div>
-              {NB_CHANNELS.map(ch => (
-                <div key={ch} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3 }}>
-                  <span style={{ color: "#374151" }}>{ch}</span>
-                  <span style={{ color: "#64748b" }}>{derived.annualClosesByChannel[ch]?.toFixed(1)} annual closes → <strong style={{ color: "#0f172a" }}>{nbTargets[ch]}</strong></span>
-                </div>
-              ))}
-              <div style={{ marginTop: 8, borderTop: "1px solid #e2e4ed", paddingTop: 8, fontSize: 12 }}>
-                <div style={{ fontWeight: 600, color: "#374151", marginBottom: 4 }}>Expansion (Upsell)</div>
-                <div style={{ color: "#64748b" }}>{fmtK(expansionQRevenueTarget)} target ÷ {fmtK(assumptions.expansion_avg_deal_size)} avg deal = {expansionQCloses} closes ÷ {assumptions.expansion_close_rate}% = <strong style={{ color: "#0f172a" }}>{expansionQTarget}</strong></div>
-              </div>
-            </div>
-
             {/* Quarterly Close Targets */}
-            <div style={{ flex: 1, background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 10, padding: "12px 14px", minWidth: 160 }}>
-              <div style={{ fontWeight: 700, fontSize: 12, color: "#2563eb", marginBottom: 6 }}>Quarterly Close Targets (NB)</div>
-              {[["Q1", 6], ["Q2", 6], ["Q3", 5], ["Q4", 6]].map(([q, n], i) => (
-                <div key={String(q)} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
-                  <span style={{ color: i === qIndex ? "#1e40af" : "#93c5fd", fontWeight: i === qIndex ? 700 : 400 }}>{q}</span>
-                  <span style={{ fontWeight: i === qIndex ? 700 : 400, color: "#2563eb" }}>{n} closes</span>
-                </div>
-              ))}
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <div style={{ fontWeight: 700, fontSize: 12, color: "#374151", marginBottom: 6 }}>Quarterly Close Targets</div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#94a3b8", marginBottom: 4, paddingBottom: 4, borderBottom: "1px solid #f1f5f9" }}>
+                <span style={{ width: 28 }}>Q</span>
+                <span style={{ flex: 1, textAlign: "right" }}>NB Closes</span>
+                <span style={{ flex: 1, textAlign: "right" }}>Exp Closes</span>
+              </div>
+              {QUARTERLY_TARGETS.map((_, i) => {
+                const qd = deriveTargets(assumptions, i);
+                const isCurrent = i === qIndex;
+                return (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3 }}>
+                    <span style={{ width: 28, color: "#374151", fontWeight: isCurrent ? 700 : 400 }}>Q{i + 1}</span>
+                    <span style={{ flex: 1, textAlign: "right", color: "#374151", fontWeight: isCurrent ? 700 : 400 }}>{qd.qCloses}</span>
+                    <span style={{ flex: 1, textAlign: "right", color: "#374151", fontWeight: isCurrent ? 700 : 400 }}>{qd.expansionQCloses}</span>
+                  </div>
+                );
+              })}
             </div>
 
           </div>
