@@ -64,6 +64,10 @@ export const deriveTargets = (a: Assumptions, qIndex: number = 0): DerivedTarget
   const demoTarget  = Math.ceil(propTarget  / (a.demo_to_prop   / 100));
   const discTarget  = Math.ceil(demoTarget  / (a.disc_to_demo   / 100));
 
+ // Expansion — independent pipeline-to-close rate, no per-stage funnel
+  const expansionQCloses = Math.ceil(expansionQRevenueTarget / a.expansion_avg_deal_size);
+  const expansionQTarget = Math.ceil(expansionQCloses / (a.expansion_close_rate / 100));
+
   // Expansion — per-stage targets using same NB funnel rates
   const expansionLegalTarget = Math.ceil(expansionQCloses / (a.legal_to_close / 100));
   const expansionPropTarget  = Math.ceil(expansionLegalTarget / (a.prop_to_legal  / 100));
@@ -73,9 +77,6 @@ export const deriveTargets = (a: Assumptions, qIndex: number = 0): DerivedTarget
   const combinedLegalTarget = legalTarget + expansionLegalTarget;
   const combinedPropTarget  = propTarget  + expansionPropTarget;
   const combinedDemoTarget  = demoTarget  + expansionDemoTarget;
-  const expansionQCloses = Math.ceil(expansionQRevenueTarget / a.expansion_avg_deal_size);
-  const expansionQTarget = Math.ceil(expansionQCloses / (a.expansion_close_rate / 100));
-
   const nbChannels = ["Outbound", "Events", "Partnership", "Inbound"] as const;
 
   // NB annual closes per channel = (annual NB revenue × channel share%) / avg deal value
