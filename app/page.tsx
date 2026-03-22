@@ -18,6 +18,7 @@ import RecalculateModal from "@/components/RecalculateModal";
 // ── COUNT HELPER ──────────────────────────────────────────────────────────────
 
 export interface PipelineCounts {
+  // Quarter-to-date
   discNewW:    number;
   discNewQ:    number;
   demoNewW:    number;
@@ -27,12 +28,22 @@ export interface PipelineCounts {
   legalNewW:   number;
   legalNewQ:   number;
   qElapsedPct: number;
+  // Year-to-date
+  discNewY:    number;
+  demoNewY:    number;
+  propNewY:    number;
+  legalNewY:   number;
+  yElapsedPct: number;
 }
 
-function computeCounts(active: Deal[], weekAgo: Date, qStart: Date, now: Date): PipelineCounts {
+function computeCounts(active: Deal[], weekAgo: Date, qStart: Date, yearStart: Date, now: Date): PipelineCounts {
   const qEnd        = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3 + 3, 1);
   const qTotalDays  = (qEnd.getTime() - qStart.getTime()) / 86400000;
   const qElapsedPct = Math.min(1, (now.getTime() - qStart.getTime()) / 86400000 / qTotalDays);
+
+  const yearEnd     = new Date(now.getFullYear() + 1, 0, 1);
+  const yTotalDays  = (yearEnd.getTime() - yearStart.getTime()) / 86400000;
+  const yElapsedPct = Math.min(1, (now.getTime() - yearStart.getTime()) / 86400000 / yTotalDays);
 
   return {
     discNewW:  active.filter(d => d.createdate && new Date(d.createdate) >= weekAgo).length,
@@ -44,6 +55,11 @@ function computeCounts(active: Deal[], weekAgo: Date, qStart: Date, now: Date): 
     legalNewW: active.filter(d => d.entered_legal    && d.createdate && new Date(d.createdate) >= weekAgo).length,
     legalNewQ: active.filter(d => d.entered_legal    && d.createdate && new Date(d.createdate) >= qStart).length,
     qElapsedPct,
+    discNewY:  active.filter(d => d.createdate && new Date(d.createdate) >= yearStart).length,
+    demoNewY:  active.filter(d => d.entered_demo     && d.createdate && new Date(d.createdate) >= yearStart).length,
+    propNewY:  active.filter(d => d.entered_proposal && d.createdate && new Date(d.createdate) >= yearStart).length,
+    legalNewY: active.filter(d => d.entered_legal    && d.createdate && new Date(d.createdate) >= yearStart).length,
+    yElapsedPct,
   };
 }
 
@@ -55,27 +71,29 @@ export default function Page() {
   // Pipeline data
   const [active, setActive]             = useState<Deal[]>([]);
   const [closedWon, setClosedWon]       = useState<ClosedWonDeal[]>([]);
+  const [closedWonYTD, setClosedWonYTD] = useState<ClosedWonDeal[]>([]);
   const [emailSignals, setEmailSignals] = useState<EmailSignalMap>({});
   const [asOf, setAsOf]                 = useState<string | null>(null);
 
   // Persisted state
-  const [closePlans, setClosePlans]       = useState<ClosePlanMap>({});
-  const [assumptions, setAssumptions]     = useState<Assumptions>(DEFAULT_ASSUMPTIONS);
-  const [hubspotRates, setHubspotRates]   = useState<HubSpotRates | null>(null);
+  const [closePlans, setClosePlans]     = useState<ClosePlanMap>({});
+  const [assumptions, setAssumptions]   = useState<Assumptions>(DEFAULT_ASSUMPTIONS);
+  const [hubspotRates, setHubspotRates] = useState<HubSpotRates | null>(null);
 
   // Recalculate modal
   const [recalculating, setRecalculating] = useState(false);
-  const [recalcModal, setRecalcModal] = useState<{ rates: any; avg_deal_value: number | null; sample: any } | null>(null);
+  const [recalcModal, setRecalcModal]     = useState<{ rates: any; avg_deal_value: number | null; sample: any } | null>(null);
 
   // Date anchors
   const [now, setNow] = useState<Date>(new Date());
-  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  const qIndex  = Math.floor(now.getMonth() / 3);
-  const qStart  = new Date(now.getFullYear(), qIndex * 3, 1);
+  const weekAgo   = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const qIndex    = Math.floor(now.getMonth() / 3);
+  const qStart    = new Date(now.getFullYear(), qIndex * 3, 1);
+  const yearStart = new Date(now.getFullYear(), 0, 1);
 
-  const counts  = computeCounts(active, weekAgo, qStart, now);
+  const counts = computeCounts(active, weekAgo, qStart, yearStart, now);
 
-  // ── FETCH PIPELINE DATA ───────────────────────────────────────────────────
+  // ── FETCH ─────────────────────────────────────────────────────────────────
   const fetchPipeline = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -85,6 +103,7 @@ export default function Page() {
       const data = await res.json();
       setActive(data.active ?? []);
       setClosedWon(data.closedWon ?? []);
+      setClosedWonYTD(data.closedWonYTD ?? []);
       setEmailSignals(data.emailSignals ?? {});
       setAsOf(data.asOf ?? null);
       setNow(new Date(data.asOf ?? Date.now()));
@@ -188,6 +207,7 @@ export default function Page() {
       <Header
         asOf={asOf}
         loading={loading}
+        qIndex={qIndex}
         onRefresh={fetchPipeline}
         onRecalculate={handleRecalculate}
         recalculating={recalculating}
@@ -212,9 +232,10 @@ export default function Page() {
               <OverviewTab
                 active={active}
                 legal={legal} proposal={proposal} demo={demo} discovery={discovery}
-                closedWon={closedWon} emailSignals={emailSignals} closePlans={closePlans}
+                closedWon={closedWon} closedWonYTD={closedWonYTD}
+                emailSignals={emailSignals} closePlans={closePlans}
                 assumptions={assumptions} counts={counts} hubspotRates={hubspotRates}
-                now={now} weekAgo={weekAgo} qStart={qStart} qIndex={qIndex}
+                now={now} weekAgo={weekAgo} qStart={qStart} yearStart={yearStart} qIndex={qIndex}
                 onTabChange={setTab}
                 onAssumptionsSave={handleAssumptionsSave}
               />
