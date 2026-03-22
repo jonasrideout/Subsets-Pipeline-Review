@@ -49,6 +49,7 @@ export default function DemoTab({ deals, allActive, closePlans, now, weekAgo, qS
           qStart={qStart}
           weekAgo={weekAgo}
           enteredDateFn={d => d.entered_demo || d.entered_current}
+          hiddenColumns={["amount", "closeDate", "closePlan"]}
         />
       </TableCard>
     </div>
