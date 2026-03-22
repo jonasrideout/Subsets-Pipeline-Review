@@ -85,6 +85,8 @@ function EnteredStageBadge() {
 
 // ── TYPES ─────────────────────────────────────────────────────────────────────
 
+export type HiddenColumn = "channel" | "amount" | "closeDate" | "closePlan" | "enteredStage" | "lastContact" | "daysInStage";
+
 export type DealTableMode = "standard" | "sol" | "needs-action";
 
 interface DealTableProps {
@@ -93,11 +95,12 @@ interface DealTableProps {
   closePlans?: ClosePlanMap;
   onClosePlanSave?: (dealId: string, url: string) => Promise<void>;
   emailSignals?: EmailSignalMap;
-  alertsMap?: Record<string, string[]>; // dealId → alert strings (needs-action mode)
+  alertsMap?: Record<string, string[]>;
   now: Date;
   qStart: Date;
   weekAgo?: Date;
-  enteredDateFn?: (d: Deal) => string | null; // which stage entry date to show
+  enteredDateFn?: (d: Deal) => string | null;
+  hiddenColumns?: HiddenColumn[];
 }
 
 // ── COMPONENT ─────────────────────────────────────────────────────────────────
@@ -107,7 +110,9 @@ export default function DealTable({
   emailSignals = {}, alertsMap = {},
   now, qStart, weekAgo,
   enteredDateFn,
+  hiddenColumns = [],
 }: DealTableProps) {
+  const hide = (col: HiddenColumn) => hiddenColumns.includes(col);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [inputVal, setInputVal]   = useState("");
   const [saving, setSaving]       = useState(false);
@@ -128,10 +133,16 @@ export default function DealTable({
     <table style={{ width: "100%", borderCollapse: "collapse" }}>
       <thead>
         <tr>
-          {["Company", "Channel", "Amount", "Close Date", "Close Plan", "Owner",
-            "Entered Stage", "Last Contact", "Days in Stage", "Flags"].map(h => (
-            <TH key={h}>{h}</TH>
-          ))}
+          <TH>Company</TH>
+          {!hide("channel")     && <TH>Channel</TH>}
+          {!hide("amount")      && <TH>Amount</TH>}
+          {!hide("closeDate")   && <TH>Close Date</TH>}
+          {!hide("closePlan")   && <TH>Close Plan</TH>}
+          <TH>Owner</TH>
+          {!hide("enteredStage") && <TH>Entered Stage</TH>}
+          {!hide("lastContact")  && <TH>Last Contact</TH>}
+          {!hide("daysInStage")  && <TH>Days in Stage</TH>}
+          <TH>Flags</TH>
         </tr>
       </thead>
       <tbody>
@@ -162,48 +173,56 @@ export default function DealTable({
               <TD><DealLink id={d.id} name={d.name} /></TD>
 
               {/* Channel */}
-              <TD style={{ color: d.channel ? "#374151" : "#f59e0b" }}>
-                {d.channel ?? "⚠ missing"}
-              </TD>
+              {!hide("channel") && (
+                <TD style={{ color: d.channel ? "#374151" : "#f59e0b" }}>
+                  {d.channel ?? "⚠ missing"}
+                </TD>
+              )}
 
               {/* Amount */}
-              <TD style={{ fontWeight: 600, color: "#15803d" }}>{fmtCur(d.amount)}</TD>
+              {!hide("amount") && (
+                <TD style={{ fontWeight: 600, color: "#15803d" }}>{fmtCur(d.amount)}</TD>
+              )}
 
               {/* Close Date */}
-              <TD><CloseDateBadge dateStr={d.closedate} now={now} /></TD>
+              {!hide("closeDate") && (
+                <TD><CloseDateBadge dateStr={d.closedate} now={now} /></TD>
+              )}
 
               {/* Close Plan */}
-              <TD>
-                {editingId === d.id ? (
-                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                    <input value={inputVal} onChange={e => setInputVal(e.target.value)}
-                      placeholder="Paste URL…" autoFocus
-                      style={{ border: "1px solid #c7d2fe", borderRadius: 6, padding: "3px 8px", fontSize: 12, width: 160, outline: "none" }} />
-                    <button onClick={() => handleSave(d.id)} disabled={saving}
-                      style={{ background: "linear-gradient(135deg, #a0fad7, #82f6c6)", color: "#0a2e1f", border: "none", borderRadius: 5, padding: "3px 8px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
-                      {saving ? "…" : "Save"}
+              {!hide("closePlan") && (
+                <TD>
+                  {editingId === d.id ? (
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <input value={inputVal} onChange={e => setInputVal(e.target.value)}
+                        placeholder="Paste URL…" autoFocus
+                        style={{ border: "1px solid #c7d2fe", borderRadius: 6, padding: "3px 8px", fontSize: 12, width: 160, outline: "none" }} />
+                      <button onClick={() => handleSave(d.id)} disabled={saving}
+                        style={{ background: "linear-gradient(135deg, #a0fad7, #82f6c6)", color: "#0a2e1f", border: "none", borderRadius: 5, padding: "3px 8px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
+                        {saving ? "…" : "Save"}
+                      </button>
+                      <button onClick={() => { setEditingId(null); setInputVal(""); }}
+                        style={{ background: "#f1f5f9", border: "none", borderRadius: 5, padding: "3px 6px", cursor: "pointer", fontSize: 11 }}>✕</button>
+                    </div>
+                  ) : closePlans[d.id] ? (
+                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <a href={closePlans[d.id]} target="_blank" rel="noopener noreferrer"
+                        style={{ color: "#6366f1", fontSize: 12 }}>📄 View</a>
+                      {onClosePlanSave && (
+                        <button onClick={() => { setEditingId(d.id); setInputVal(closePlans[d.id]); }}
+                          style={{ background: "none", border: "none", color: "#b0b5c3", cursor: "pointer", fontSize: 11 }}>edit</button>
+                      )}
+                    </span>
+                  ) : onClosePlanSave ? (
+                    <button onClick={() => { setEditingId(d.id); setInputVal(""); }}
+                      style={{ background: "none", border: "1px dashed #c7d2fe", borderRadius: 5, color: "#b0b5c3", cursor: "pointer", fontSize: 12, padding: "2px 8px" }}>
+                      + add
                     </button>
-                    <button onClick={() => { setEditingId(null); setInputVal(""); }}
-                      style={{ background: "#f1f5f9", border: "none", borderRadius: 5, padding: "3px 6px", cursor: "pointer", fontSize: 11 }}>✕</button>
-                  </div>
-                ) : closePlans[d.id] ? (
-                  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <a href={closePlans[d.id]} target="_blank" rel="noopener noreferrer"
-                      style={{ color: "#6366f1", fontSize: 12 }}>📄 View</a>
-                    {onClosePlanSave && (
-                      <button onClick={() => { setEditingId(d.id); setInputVal(closePlans[d.id]); }}
-                        style={{ background: "none", border: "none", color: "#b0b5c3", cursor: "pointer", fontSize: 11 }}>edit</button>
-                    )}
-                  </span>
-                ) : onClosePlanSave ? (
-                  <button onClick={() => { setEditingId(d.id); setInputVal(""); }}
-                    style={{ background: "none", border: "1px dashed #c7d2fe", borderRadius: 5, color: "#b0b5c3", cursor: "pointer", fontSize: 12, padding: "2px 8px" }}>
-                    + add
-                  </button>
-                ) : (
-                  <span style={{ color: "#b0b5c3", fontSize: 12 }}>—</span>
-                )}
-              </TD>
+                  ) : (
+                    <span style={{ color: "#b0b5c3", fontSize: 12 }}>—</span>
+                  )}
+                </TD>
+              )}
 
               {/* Owner */}
               <TD style={{ color: "#374151" }}>
@@ -212,17 +231,23 @@ export default function DealTable({
               </TD>
 
               {/* Entered Stage */}
-              <TD style={{ color: "#8b90a0" }}>{fmtDate(enteredDate)}</TD>
+              {!hide("enteredStage") && (
+                <TD style={{ color: "#8b90a0" }}>{fmtDate(enteredDate)}</TD>
+              )}
 
               {/* Last Contact */}
-              <TD style={{ color: lc !== null && lc >= 14 ? "#c2410c" : "#8b90a0" }}>
-                {d.last_contacted ? `${fmtDate(d.last_contacted)} (${lc}d)` : "—"}
-              </TD>
+              {!hide("lastContact") && (
+                <TD style={{ color: lc !== null && lc >= 14 ? "#c2410c" : "#8b90a0" }}>
+                  {d.last_contacted ? `${fmtDate(d.last_contacted)} (${lc}d)` : "—"}
+                </TD>
+              )}
 
               {/* Days in Stage */}
-              <TD style={{ color: stale ? "#dc2626" : "#374151", fontWeight: stale ? 700 : 400 }}>
-                {daysIn != null ? `${daysIn}d` : "—"}
-              </TD>
+              {!hide("daysInStage") && (
+                <TD style={{ color: stale ? "#dc2626" : "#374151", fontWeight: stale ? 700 : 400 }}>
+                  {daysIn != null ? `${daysIn}d` : "—"}
+                </TD>
+              )}
 
               {/* Flags */}
               <TD>
