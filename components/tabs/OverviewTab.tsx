@@ -3,7 +3,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Deal, ClosedWonDeal, EmailSignalMap, ClosePlanMap, Assumptions } from "@/types/deals";
+import type { Deal, ClosedWonDeal, EmailSignalMap, ClosePlanMap, Assumptions, HubSpotRates } from "@/types/deals";
 import { ownerName, fmtCur, weightedPipeline, UNRESOLVED_OWNER_IDS } from "@/lib/deals";
 import { deriveTargets, QUARTERLY_TARGETS, NB_REVENUE_SHARE } from "@/lib/assumptions";
 import { getSignsOfLife, getNeedsActionAlerts } from "@/lib/flags";
@@ -29,6 +29,7 @@ interface OverviewTabProps {
   weekAgo: Date;
   qStart: Date;
   qIndex: number;
+  hubspotRates: HubSpotRates | null;
   onTabChange: (tab: TabId) => void;
   onAssumptionsSave: (a: Assumptions) => Promise<void>;
 }
@@ -36,7 +37,7 @@ interface OverviewTabProps {
 export default function OverviewTab({
   active, legal, proposal, demo, discovery, closedWon,
   emailSignals, closePlans, assumptions, counts,
-  now, weekAgo, qStart, qIndex, onTabChange, onAssumptionsSave,
+  now, weekAgo, qStart, qIndex, onTabChange, onAssumptionsSave, hubspotRates,
 }: OverviewTabProps) {
   const derived = deriveTargets(assumptions, qIndex);
   const { legalTarget, propTarget, demoTarget, channelQTargets, combinedLegalTarget, combinedPropTarget, combinedDemoTarget } = derived;
@@ -132,6 +133,7 @@ export default function OverviewTab({
             <AssumptionDrawer
               tileKey={t.key}
               assumptions={assumptions}
+              hubspotRates={hubspotRates}
               borderColor={t.color.border}
               onSave={onAssumptionsSave}
             />
@@ -182,7 +184,7 @@ export default function OverviewTab({
       {/* Signs of Life */}
       <TableCard>
         <TableCardHeader>
-          <span>🔥 Heating Up <span style={{ color: "#b0b5c3", fontWeight: 400, fontSize: 12 }}>— prospect-side activity in last 7 days</span></span>
+          <span>⚡ Signs of Life <span style={{ color: "#b0b5c3", fontWeight: 400, fontSize: 12 }}>— prospect-side activity in last 7 days</span></span>
         </TableCardHeader>
         {solRows.length === 0 ? (
           <div style={{ padding: "16px 18px", color: "#b0b5c3", fontSize: 13 }}>No signals this week.</div>
@@ -234,11 +236,12 @@ export default function OverviewTab({
 interface AssumptionDrawerProps {
   tileKey: TabId;
   assumptions: Assumptions;
+  hubspotRates: HubSpotRates | null;
   borderColor: string;
   onSave: (a: Assumptions) => Promise<void>;
 }
 
-function AssumptionDrawer({ tileKey, assumptions, borderColor, onSave }: AssumptionDrawerProps) {
+function AssumptionDrawer({ tileKey, assumptions, hubspotRates, borderColor, onSave }: AssumptionDrawerProps) {
   const [open, setOpen]       = useState(false);
   const [editing, setEditing] = useState(false);
   const [tmp, setTmp]         = useState<Assumptions | null>(null);
@@ -261,7 +264,7 @@ function AssumptionDrawer({ tileKey, assumptions, borderColor, onSave }: Assumpt
   const rows: { label: string; value: string | number; source: "historical" | "anecdotal" | "derived" }[] = (() => {
     switch (tileKey) {
       case "legal": return [
-        { label: "Deals to close this quarter", value: derived.qCloses + derived.expansionQCloses, source: "derived" },
+        { label: "Deals to close this quarter",                value: derived.qCloses,                  source: "derived"    },
         { label: "% of Legal deals that close",                value: `${assumptions.legal_to_close}%`, source: "historical" },
       ];
       case "proposal": return [
@@ -297,10 +300,12 @@ function AssumptionDrawer({ tileKey, assumptions, borderColor, onSave }: Assumpt
     disc_to_demo:   "% Discovery → Demo",
   } as Record<string, string>)[f as string] ?? String(f);
 
-  const sourceLabel = (s: "historical" | "anecdotal" | "derived") => {
-    if (s === "historical") return "Source: HubSpot historical data";
-    if (s === "anecdotal")  return "Source: Anecdotal data";
-    return null;
+  const sourceLabel = (field: keyof Assumptions) => {
+    if (!hubspotRates) return "Source: HubSpot historical data";
+    const hsVal = hubspotRates[field as keyof HubSpotRates];
+    const curVal = assumptions[field];
+    if (hsVal === null || hsVal === undefined) return "Source: HubSpot historical data";
+    return hsVal === curVal ? "Source: HubSpot historical data" : "Manually entered";
   };
 
   return (
@@ -335,14 +340,14 @@ function AssumptionDrawer({ tileKey, assumptions, borderColor, onSave }: Assumpt
             </div>
           ) : (
             <div>
-              {rows.map(({ label, value, source }) => (
+              {rows.map(({ label, value, field }) => (
                 <div key={label} style={{ marginBottom: 8 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", fontSize: 12, fontFamily: "'DM Sans', system-ui, sans-serif", fontWeight: 300, color: "#374151" }}>
                     <span style={{ flex: 1, paddingRight: 8 }}>{label}</span>
                     <span style={{ fontWeight: 500, color: "#0f1117", whiteSpace: "nowrap" }}>{value}</span>
                   </div>
-                  {sourceLabel(source) && (
-                    <div style={{ fontSize: 10, color: "#b0b5c3", marginTop: 2, fontFamily: "'DM Sans', system-ui, sans-serif" }}>{sourceLabel(source)}</div>
+                  {field && (
+                    <div style={{ fontSize: 10, color: "#b0b5c3", marginTop: 2, fontFamily: "'DM Sans', system-ui, sans-serif" }}>{sourceLabel(field)}</div>
                   )}
                 </div>
               ))}
@@ -434,7 +439,7 @@ function MethodologyPanel({ assumptions, derived, qIndex, onSave }: {
             )}
           </div>
 
-          <div style={{ display: "flex", gap: 64, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 32, flexWrap: "wrap" }}>
 
             {/* Quarterly Revenue Targets */}
             <div style={{ flex: 1, minWidth: 200 }}>
