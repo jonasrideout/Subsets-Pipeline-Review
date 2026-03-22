@@ -3,7 +3,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import type { Deal, ClosedWonDeal, EmailSignalMap, ClosePlanMap, Assumptions } from "@/types/deals";
+import type { Deal, ClosedWonDeal, EmailSignalMap, ClosePlanMap, Assumptions, HubSpotRates } from "@/types/deals";
 import { DEFAULT_ASSUMPTIONS, deriveTargets } from "@/lib/assumptions";
 import { filterByStage } from "@/lib/deals";
 import Header from "@/components/Header";
@@ -59,12 +59,13 @@ export default function Page() {
   const [asOf, setAsOf]                 = useState<string | null>(null);
 
   // Persisted state
-  const [closePlans, setClosePlans]     = useState<ClosePlanMap>({});
-  const [assumptions, setAssumptions]   = useState<Assumptions>(DEFAULT_ASSUMPTIONS);
+  const [closePlans, setClosePlans]       = useState<ClosePlanMap>({});
+  const [assumptions, setAssumptions]     = useState<Assumptions>(DEFAULT_ASSUMPTIONS);
+  const [hubspotRates, setHubspotRates]   = useState<HubSpotRates | null>(null);
 
   // Recalculate modal
   const [recalculating, setRecalculating] = useState(false);
-  const [recalcModal, setRecalcModal] = useState<{ rates: any; avg_deal_value: number | null; sample: any } | null>(null);
+  const [recalcModal, setRecalcModal]     = useState<{ rates: any; sample: any } | null>(null);
 
   // Date anchors
   const [now, setNow] = useState<Date>(new Date());
@@ -109,11 +110,22 @@ export default function Page() {
     } catch (e) { console.error("Failed to load assumptions:", e); }
   }, []);
 
+  const fetchHubspotRates = useCallback(async () => {
+    try {
+      const res = await fetch("/api/hubspot-rates");
+      if (res.ok) {
+        const data = await res.json();
+        setHubspotRates(data);
+      }
+    } catch (e) { console.error("Failed to load hubspot rates:", e); }
+  }, []);
+
   useEffect(() => {
     fetchPipeline();
     fetchClosePlans();
     fetchAssumptions();
-  }, [fetchPipeline, fetchClosePlans, fetchAssumptions]);
+    fetchHubspotRates();
+  }, [fetchPipeline, fetchClosePlans, fetchAssumptions, fetchHubspotRates]);
 
   // ── RECALCULATE ───────────────────────────────────────────────────────────
   const handleRecalculate = async () => {
@@ -201,7 +213,7 @@ export default function Page() {
                 active={active}
                 legal={legal} proposal={proposal} demo={demo} discovery={discovery}
                 closedWon={closedWon} emailSignals={emailSignals} closePlans={closePlans}
-                assumptions={assumptions} counts={counts}
+                assumptions={assumptions} counts={counts} hubspotRates={hubspotRates}
                 now={now} weekAgo={weekAgo} qStart={qStart} qIndex={qIndex}
                 onTabChange={setTab}
                 onAssumptionsSave={handleAssumptionsSave}
