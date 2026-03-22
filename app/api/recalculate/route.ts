@@ -48,7 +48,7 @@ export async function GET() {
             values: ["closedwon", "closedlost", "563428070", "582003949"],
           },
           {
-            propertyName: "hs_lastmodifieddate",
+            propertyName: "closedate",
             operator: "GTE",
             value: cutoff,
           },
