@@ -2,17 +2,17 @@
 
 "use client";
 
+import { QUARTERLY_TARGETS } from "@/lib/assumptions";
+
 interface HeaderProps {
-  asOf: string | null;
-  loading: boolean;
-  onRefresh: () => void;
+  asOf:          string | null;
+  loading:       boolean;
+  qIndex:        number;
+  onRefresh:     () => void;
   onRecalculate: () => void;
   recalculating: boolean;
 }
 
-// Returns true if we're in the first 7 days after a quarter end
-// Returns true if we're in the first 7 days after a quarter end,
-// OR if ?recalculate=true is in the URL
 function isRecalculateWindow(now: Date): boolean {
   const m = now.getMonth();
   const d = now.getDate();
@@ -25,7 +25,9 @@ function isRecalculateWindow(now: Date): boolean {
   return false;
 }
 
-export default function Header({ asOf, loading, onRefresh, onRecalculate, recalculating }: HeaderProps) {
+const fmtK = (n: number) => "$" + Math.round(n / 1000) + "K";
+
+export default function Header({ asOf, loading, qIndex, onRefresh, onRecalculate, recalculating }: HeaderProps) {
   const now       = asOf ? new Date(asOf) : new Date();
   const canRecalc = isRecalculateWindow(now);
 
@@ -34,6 +36,9 @@ export default function Header({ asOf, loading, onRefresh, onRecalculate, recalc
         hour: "numeric", minute: "2-digit", hour12: true,
       })
     : "—";
+
+  const qTarget = QUARTERLY_TARGETS[qIndex] ?? QUARTERLY_TARGETS[0];
+  const qLabel  = `Q${qIndex + 1}`;
 
   return (
     <header style={{
@@ -75,14 +80,13 @@ export default function Header({ asOf, loading, onRefresh, onRecalculate, recalc
               }}>SUBSETS</span>
             </div>
             <p style={{ margin: 0, fontSize: 11, color: "rgba(160, 250, 215, 0.6)", marginTop: 2 }}>
-              {loading ? "Refreshing…" : `Refreshed ${formatted} · Q1 target: $600K`}
+              {loading ? "Refreshing…" : `Refreshed ${formatted} · ${qLabel} target: ${fmtK(qTarget)}`}
             </p>
           </div>
         </div>
 
         {/* Right — buttons */}
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {/* Recalculate assumptions button */}
           <button
             onClick={canRecalc ? onRecalculate : undefined}
             disabled={recalculating}
@@ -107,7 +111,6 @@ export default function Header({ asOf, loading, onRefresh, onRecalculate, recalc
             {recalculating ? "Calculating…" : "Recalculate"}
           </button>
 
-          {/* Refresh button */}
           <button
             onClick={onRefresh}
             disabled={loading}
