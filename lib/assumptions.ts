@@ -30,18 +30,24 @@ export const DEFAULT_ASSUMPTIONS: Assumptions = {
 };
 
 export interface DerivedTargets {
-  qCloses:                 number;  // derived: ceil(nbQRevenueTarget / avg_deal_value)
-  legalTarget:             number;
-  propTarget:              number;
-  demoTarget:              number;
-  discTarget:              number;
-  expansionQCloses:        number;
-  expansionQTarget:        number;
-  nbQRevenueTarget:        number;  // derived from QUARTERLY_TARGETS × NB_REVENUE_SHARE
-  expansionQRevenueTarget: number;  // derived from QUARTERLY_TARGETS × (1 - NB_REVENUE_SHARE)
-  nbTargets:               Record<string, number>;
-  channelQTargets:         Record<string, number>;
-  annualClosesByChannel:   Record<string, number>;
+  qCloses:                  number;
+  legalTarget:              number;
+  propTarget:               number;
+  demoTarget:               number;
+  discTarget:               number;
+  expansionQCloses:         number;
+  expansionQTarget:         number;
+  expansionLegalTarget:     number;
+  expansionPropTarget:      number;
+  expansionDemoTarget:      number;
+  combinedLegalTarget:      number;
+  combinedPropTarget:       number;
+  combinedDemoTarget:       number;
+  nbQRevenueTarget:         number;
+  expansionQRevenueTarget:  number;
+  nbTargets:                Record<string, number>;
+  channelQTargets:          Record<string, number>;
+  annualClosesByChannel:    Record<string, number>;
 }
 
 export const deriveTargets = (a: Assumptions, qIndex: number = 0): DerivedTargets => {
@@ -58,7 +64,15 @@ export const deriveTargets = (a: Assumptions, qIndex: number = 0): DerivedTarget
   const demoTarget  = Math.ceil(propTarget  / (a.demo_to_prop   / 100));
   const discTarget  = Math.ceil(demoTarget  / (a.disc_to_demo   / 100));
 
-  // Expansion — independent pipeline-to-close rate, no per-stage funnel
+  // Expansion — per-stage targets using same NB funnel rates
+  const expansionLegalTarget = Math.ceil(expansionQCloses / (a.legal_to_close / 100));
+  const expansionPropTarget  = Math.ceil(expansionLegalTarget / (a.prop_to_legal  / 100));
+  const expansionDemoTarget  = Math.ceil(expansionPropTarget  / (a.demo_to_prop   / 100));
+
+  // Combined NB + Expansion per-stage targets
+  const combinedLegalTarget = legalTarget + expansionLegalTarget;
+  const combinedPropTarget  = propTarget  + expansionPropTarget;
+  const combinedDemoTarget  = demoTarget  + expansionDemoTarget;
   const expansionQCloses = Math.ceil(expansionQRevenueTarget / a.expansion_avg_deal_size);
   const expansionQTarget = Math.ceil(expansionQCloses / (a.expansion_close_rate / 100));
 
@@ -90,6 +104,8 @@ export const deriveTargets = (a: Assumptions, qIndex: number = 0): DerivedTarget
     qCloses,
     legalTarget, propTarget, demoTarget, discTarget,
     expansionQCloses, expansionQTarget,
+    expansionLegalTarget, expansionPropTarget, expansionDemoTarget,
+    combinedLegalTarget, combinedPropTarget, combinedDemoTarget,
     nbQRevenueTarget, expansionQRevenueTarget,
     nbTargets, channelQTargets, annualClosesByChannel,
   };
