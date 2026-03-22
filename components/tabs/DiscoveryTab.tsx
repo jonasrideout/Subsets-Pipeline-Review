@@ -24,13 +24,14 @@ interface DiscoveryTabProps {
   now: Date;
   weekAgo: Date;
   qStart: Date;
+  qIndex: number;
   counts: PipelineCounts;
 }
 
 export default function DiscoveryTab({
-  deals, allActive, assumptions, onAssumptionsSave, now, weekAgo, qStart, counts,
+  deals, allActive, assumptions, onAssumptionsSave, now, weekAgo, qStart, qIndex, counts,
 }: DiscoveryTabProps) {
-  const derived     = deriveTargets(assumptions);
+  const derived     = deriveTargets(assumptions, qIndex);
   const { expansionQTarget, nbTargets, channelQTargets } = derived;
   const discQTarget = Object.values(channelQTargets).reduce((s, v) => s + v, 0);
 
@@ -75,7 +76,7 @@ export default function DiscoveryTab({
 
       {/* New Business Pacing + attached assumptions drawer */}
       <PacingTable
-        title="New Business Pacing — Q1"
+        title={`New Business Pacing — Q${qIndex + 1}`}
         channels={[...NB]}
         targets={nbTargets}
         actuals={nbActuals}
@@ -90,7 +91,7 @@ export default function DiscoveryTab({
       {/* Upsell Pacing + attached assumptions drawer */}
       <div style={{ marginTop: 14 }}>
         <PacingTable
-          title="Upsell Pacing — Q1"
+          title={`Upsell Pacing — Q${qIndex + 1}`}
           channels={["Expansion"]}
           targets={{ Expansion: expansionQTarget }}
           actuals={{ Expansion: expansionActual }}
@@ -148,6 +149,20 @@ function DrawerShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+// ── SHARED TABLE CELL HELPERS ─────────────────────────────────────────────────
+
+const THc = ({ children }: { children: React.ReactNode }) => (
+  <th style={{ padding: "6px 12px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase" as const, letterSpacing: 0.4, borderBottom: "1px solid #f1f5f9", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+    {children}
+  </th>
+);
+
+const TDc = ({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) => (
+  <td style={{ padding: "7px 12px", fontSize: 12, color: "#374151", fontFamily: "'DM Sans', system-ui, sans-serif", ...style }}>
+    {children}
+  </td>
+);
+
 // ── NEW BUSINESS ASSUMPTIONS ──────────────────────────────────────────────────
 
 function NBAssumptionsDrawer({ assumptions, derived, onSave }: {
@@ -168,60 +183,49 @@ function NBAssumptionsDrawer({ assumptions, derived, onSave }: {
     setTmp(null);
   };
 
-  // Derive live annual closes per channel from tmp (for live preview in edit mode)
-  const annualCloses = (a: Assumptions) => {
-    const annualRevenue = QUARTERLY_REVENUE_TARGET * 4;
+  // Live derived annual closes for edit preview
+  const liveAnnualCloses = (a: Assumptions) => {
+    const annualNBRevenue = derived.nbQRevenueTarget * 4;
     const result: Record<string, number> = {};
     for (const ch of NB) {
-      result[ch] = (annualRevenue * (a.ch[ch] / 100)) / a.avg_deal_value;
+      result[ch] = (annualNBRevenue * (a.ch[ch] / 100)) / a.avg_deal_value;
     }
     return result;
   };
 
-  const THc = ({ children }: { children: React.ReactNode }) => (
-    <th style={{ padding: "6px 12px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.4, borderBottom: "1px solid #f1f5f9", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-      {children}
-    </th>
-  );
-  const TDc = ({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) => (
-    <td style={{ padding: "7px 12px", fontSize: 12, color: "#374151", fontFamily: "'DM Sans', system-ui, sans-serif", ...style }}>
-      {children}
-    </td>
-  );
-
   return (
     <DrawerShell>
-      {editing && tmp ? (() => {
-        const liveCloses = annualCloses(tmp);
-        return (
-          <div>
-            {/* Avg Deal Size — above table, single shared field */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-              <label style={{ fontSize: 12, color: "#374151", fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                Avg Deal Size
-              </label>
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <span style={{ fontSize: 12, color: "#64748b" }}>$</span>
-                <input
-                  type="number"
-                  value={tmp.avg_deal_value}
-                  onChange={e => setTmp({ ...tmp, avg_deal_value: +e.target.value })}
-                  style={{ width: 100, padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 6, fontSize: 13, fontFamily: "'DM Sans', system-ui, sans-serif" }}
-                />
-              </div>
+      {editing && tmp ? (
+        <div>
+          {/* Avg Deal Size — single shared field above table */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+            <label style={{ fontSize: 12, color: "#374151", fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+              Avg Deal Size
+            </label>
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ fontSize: 12, color: "#64748b" }}>$</span>
+              <input
+                type="number"
+                value={tmp.avg_deal_value}
+                onChange={e => setTmp({ ...tmp, avg_deal_value: +e.target.value })}
+                style={{ width: 100, padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 6, fontSize: 13, fontFamily: "'DM Sans', system-ui, sans-serif" }}
+              />
             </div>
-            {/* Table */}
-            <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 12 }}>
-              <thead>
-                <tr>
-                  <THc>Channel</THc>
-                  <THc>Revenue Share</THc>
-                  <THc>Avg Deal Size</THc>
-                  <THc>Derived Annual Deals</THc>
-                </tr>
-              </thead>
-              <tbody>
-                {NB.map(ch => (
+          </div>
+          {/* Table */}
+          <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 12 }}>
+            <thead>
+              <tr>
+                <THc>Channel</THc>
+                <THc>Revenue Share</THc>
+                <THc>Avg Deal Size</THc>
+                <THc>Derived Annual Deals</THc>
+              </tr>
+            </thead>
+            <tbody>
+              {NB.map(ch => {
+                const liveCloses = liveAnnualCloses(tmp);
+                return (
                   <tr key={ch} style={{ borderBottom: "1px solid #f8fafc" }}>
                     <TDc><span style={{ fontWeight: 500 }}>{ch}</span></TDc>
                     <TDc>
@@ -238,22 +242,22 @@ function NBAssumptionsDrawer({ assumptions, derived, onSave }: {
                     <TDc style={{ color: "#94a3b8" }}>{fmtK(tmp.avg_deal_value)}</TDc>
                     <TDc style={{ fontWeight: 700, color: "#0f172a" }}>{liveCloses[ch].toFixed(1)}</TDc>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            <div style={{ display: "flex", gap: 6 }}>
-              <button onClick={handleSave} disabled={saving}
-                style={{ background: "linear-gradient(135deg, #a0fad7, #82f6c6)", color: "#0a2e1f", border: "none", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontSize: 11, fontWeight: 700, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                {saving ? "Saving…" : "Save"}
-              </button>
-              <button onClick={() => { setEditing(false); setTmp(null); }}
-                style={{ background: "#f1f5f9", color: "#374151", border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                Cancel
-              </button>
-            </div>
+                );
+              })}
+            </tbody>
+          </table>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={handleSave} disabled={saving}
+              style={{ background: "linear-gradient(135deg, #a0fad7, #82f6c6)", color: "#0a2e1f", border: "none", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontSize: 11, fontWeight: 700, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+              {saving ? "Saving…" : "Save"}
+            </button>
+            <button onClick={() => { setEditing(false); setTmp(null); }}
+              style={{ background: "#f1f5f9", color: "#374151", border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+              Cancel
+            </button>
           </div>
-        );
-      })() : (
+        </div>
+      ) : (
         <div>
           <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 8, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
             Avg deal size: <strong style={{ color: "#374151" }}>{fmtK(assumptions.avg_deal_value)}</strong>
@@ -311,34 +315,15 @@ function UpsellAssumptionsDrawer({ assumptions, derived, onSave }: {
 
   // Live derived values for edit preview
   const liveQCloses = (a: Assumptions) =>
-    Math.ceil(a.expansion_q_revenue_target / a.expansion_avg_deal_size);
+    Math.ceil(derived.expansionQRevenueTarget / a.expansion_avg_deal_size);
   const liveQTarget = (a: Assumptions) =>
     Math.ceil(liveQCloses(a) / (a.expansion_close_rate / 100));
-
-  const THc = ({ children }: { children: React.ReactNode }) => (
-    <th style={{ padding: "6px 12px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.4, borderBottom: "1px solid #f1f5f9", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-      {children}
-    </th>
-  );
-  const TDc = ({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) => (
-    <td style={{ padding: "7px 12px", fontSize: 12, color: "#374151", fontFamily: "'DM Sans', system-ui, sans-serif", ...style }}>
-      {children}
-    </td>
-  );
 
   return (
     <DrawerShell>
       {editing && tmp ? (
         <div>
-          {/* Editable inputs above table */}
           <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 14, flexWrap: "wrap" }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#374151", fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-              Q Revenue Target
-              <span style={{ fontSize: 12, color: "#64748b" }}>$</span>
-              <input type="number" value={tmp.expansion_q_revenue_target}
-                onChange={e => setTmp({ ...tmp, expansion_q_revenue_target: +e.target.value })}
-                style={{ width: 100, padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 6, fontSize: 13, fontFamily: "'DM Sans', system-ui, sans-serif" }} />
-            </label>
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#374151", fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
               Avg Deal Size
               <span style={{ fontSize: 12, color: "#64748b" }}>$</span>
@@ -354,7 +339,6 @@ function UpsellAssumptionsDrawer({ assumptions, derived, onSave }: {
               <span style={{ fontSize: 12, color: "#64748b" }}>%</span>
             </label>
           </div>
-          {/* Table */}
           <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 12 }}>
             <thead>
               <tr>
@@ -368,7 +352,7 @@ function UpsellAssumptionsDrawer({ assumptions, derived, onSave }: {
             <tbody>
               <tr>
                 <TDc><span style={{ fontWeight: 500 }}>Expansion</span></TDc>
-                <TDc style={{ color: "#94a3b8" }}>{fmtK(tmp.expansion_q_revenue_target)}</TDc>
+                <TDc style={{ color: "#94a3b8" }}>{fmtK(derived.expansionQRevenueTarget)}</TDc>
                 <TDc style={{ color: "#94a3b8" }}>{fmtK(tmp.expansion_avg_deal_size)}</TDc>
                 <TDc>{liveQCloses(tmp)}</TDc>
                 <TDc style={{ fontWeight: 700, color: "#0f172a" }}>{liveQTarget(tmp)}</TDc>
@@ -389,7 +373,7 @@ function UpsellAssumptionsDrawer({ assumptions, derived, onSave }: {
       ) : (
         <div>
           <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 8, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-            Q target: <strong style={{ color: "#374151" }}>{fmtK(assumptions.expansion_q_revenue_target)}</strong>
+            Q target: <strong style={{ color: "#374151" }}>{fmtK(derived.expansionQRevenueTarget)}</strong>
             &nbsp;·&nbsp;Avg deal: <strong style={{ color: "#374151" }}>{fmtK(assumptions.expansion_avg_deal_size)}</strong>
             &nbsp;·&nbsp;Close rate: <strong style={{ color: "#374151" }}>{assumptions.expansion_close_rate}%</strong>
           </div>
@@ -406,7 +390,7 @@ function UpsellAssumptionsDrawer({ assumptions, derived, onSave }: {
             <tbody>
               <tr>
                 <TDc><span style={{ fontWeight: 500 }}>Expansion</span></TDc>
-                <TDc style={{ color: "#94a3b8" }}>{fmtK(assumptions.expansion_q_revenue_target)}</TDc>
+                <TDc style={{ color: "#94a3b8" }}>{fmtK(derived.expansionQRevenueTarget)}</TDc>
                 <TDc style={{ color: "#94a3b8" }}>{fmtK(assumptions.expansion_avg_deal_size)}</TDc>
                 <TDc>{derived.expansionQCloses}</TDc>
                 <TDc style={{ fontWeight: 700 }}>{derived.expansionQTarget}</TDc>
