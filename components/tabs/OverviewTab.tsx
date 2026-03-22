@@ -411,27 +411,33 @@ function MethodologyPanel({ assumptions, derived, qIndex, onSave }: {
           {/* Average Deal Value */}
           <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid #f1f5f9" }}>
             {editingAvg ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                <label style={{ fontSize: 12, color: "#374151", fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                  Avg Deal Value
-                </label>
-                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <span style={{ fontSize: 12, color: "#64748b" }}>$</span>
-                  <input
-                    type="number"
-                    value={tmpAvg}
-                    onChange={e => setTmpAvg(+e.target.value)}
-                    style={{ width: 110, padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 6, fontSize: 13, fontFamily: "'DM Sans', system-ui, sans-serif" }}
-                  />
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 6 }}>
+                  <label style={{ fontSize: 12, color: "#374151", fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                    Avg Deal Value
+                  </label>
+                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <span style={{ fontSize: 12, color: "#64748b" }}>$</span>
+                    <input
+                      type="number"
+                      value={tmpAvg}
+                      onChange={e => setTmpAvg(+e.target.value)}
+                      style={{ width: 110, padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 6, fontSize: 13, fontFamily: "'DM Sans', system-ui, sans-serif" }}
+                    />
+                  </div>
+                  <button onClick={handleSaveAvg} disabled={saving}
+                    style={{ background: "linear-gradient(135deg, #a0fad7, #82f6c6)", color: "#0a2e1f", border: "none", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontSize: 11, fontWeight: 700, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                    {saving ? "Saving…" : "Save"}
+                  </button>
+                  <button onClick={() => { setEditingAvg(false); setTmpAvg(assumptions.avg_deal_value); }}
+                    style={{ background: "#f1f5f9", color: "#374151", border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                    Cancel
+                  </button>
                 </div>
-                <button onClick={handleSaveAvg} disabled={saving}
-                  style={{ background: "linear-gradient(135deg, #a0fad7, #82f6c6)", color: "#0a2e1f", border: "none", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontSize: 11, fontWeight: 700, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                  {saving ? "Saving…" : "Save"}
-                </button>
-                <button onClick={() => { setEditingAvg(false); setTmpAvg(assumptions.avg_deal_value); }}
-                  style={{ background: "#f1f5f9", color: "#374151", border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                  Cancel
-                </button>
+                <div>
+                  <span style={{ fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif" }}>12-month rolling avg </span>
+                  <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif" }}>{fmtFull(HISTORICAL_AVG_DEAL_VALUE)}</span>
+                </div>
               </div>
             ) : (
               <div>
@@ -451,12 +457,7 @@ function MethodologyPanel({ assumptions, derived, qIndex, onSave }: {
             )}
           </div>
 
-          <div className="flex gap-3 flex-wrap">
-
-            {/* Quarterly Revenue Targets */}
-            <div style={{ flex: 1, minWidth: 200, paddingRight: 16, borderRight: "1px solid #f1f5f9" }}>
-              <div style={{ fontWeight: 700, fontSize: 12, color: "#374151", marginBottom: 6 }}>Quarterly Revenue Targets</div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#94a3b8", marginBottom: 4, paddingBottom: 4, borderBottom: "1px solid #f1f5f9" }}>
+ borderBottom: "1px solid #f1f5f9" }}>
                 <span style={{ width: 28 }}>Q</span>
                 <span style={{ flex: 1, textAlign: "right" }}>Total</span>
                 <span style={{ flex: 1, textAlign: "right" }}>NB (⅔)</span>
@@ -474,25 +475,6 @@ function MethodologyPanel({ assumptions, derived, qIndex, onSave }: {
                   </div>
                 );
               })}
-            </div>
-
-            {/* Q Stage Targets */}
-            <div style={{ flex: 1, minWidth: 200, paddingRight: 16, borderRight: "1px solid #f1f5f9" }}>
-              <div style={{ fontWeight: 700, fontSize: 12, color: "#374151", marginBottom: 6 }}>Q Stage Targets (Derived)</div>
-              {[
-                ["Legal needed",     legalTarget, `${qCloses} closes ÷ ${assumptions.legal_to_close}%`],
-                ["Proposal needed",  propTarget,  `${legalTarget} legal ÷ ${assumptions.prop_to_legal}%`],
-                ["Demo needed",      demoTarget,  `${propTarget} prop ÷ ${assumptions.demo_to_prop}%`],
-                ["Discovery needed", discTarget,  `${demoTarget} demo ÷ ${assumptions.disc_to_demo}%`],
-              ].map(([k, v, d]) => (
-                <div key={String(k)} style={{ marginBottom: 6 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
-                    <span style={{ color: "#374151" }}>{k}</span>
-                    <span style={{ fontWeight: 700 }}>{v}</span>
-                  </div>
-                  <div style={{ fontSize: 11, color: "#94a3b8" }}>{d}</div>
-                </div>
-              ))}
             </div>
 
             {/* Quarterly Close Targets */}
@@ -514,6 +496,17 @@ function MethodologyPanel({ assumptions, derived, qIndex, onSave }: {
                   </div>
                 );
               })}
+              {(() => {
+                const totalNB  = QUARTERLY_TARGETS.reduce((s, _, i) => s + deriveTargets(assumptions, i).qCloses, 0);
+                const totalExp = QUARTERLY_TARGETS.reduce((s, _, i) => s + deriveTargets(assumptions, i).expansionQCloses, 0);
+                return (
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginTop: 4, paddingTop: 4, borderTop: "1px solid #f1f5f9" }}>
+                    <span style={{ width: 28, color: "#374151", fontWeight: 700 }}>Total</span>
+                    <span style={{ flex: 1, textAlign: "right", color: "#374151", fontWeight: 700 }}>{totalNB}</span>
+                    <span style={{ flex: 1, textAlign: "right", color: "#374151", fontWeight: 700 }}>{totalExp}</span>
+                  </div>
+                );
+              })()}
             </div>
 
           </div>
