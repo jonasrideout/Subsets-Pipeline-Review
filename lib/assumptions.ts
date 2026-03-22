@@ -24,8 +24,9 @@ export const DEFAULT_ASSUMPTIONS: Assumptions = {
     Expansion:   20,
   },
   // Expansion-specific inputs
-  expansion_annual_deals: 12,
-  expansion_close_rate:   40,
+  expansion_q_revenue_target: 250_000, // $1M annual / 4
+  expansion_avg_deal_size:    75_000,  // editable — placeholder pending real data
+  expansion_close_rate:       40,
 };
 
 export interface DerivedTargets {
@@ -33,10 +34,11 @@ export interface DerivedTargets {
   propTarget:            number;
   demoTarget:            number;
   discTarget:            number;
+  expansionQCloses:      number;
   expansionQTarget:      number;
   nbTargets:             Record<string, number>;
   channelQTargets:       Record<string, number>;
-  annualClosesByChannel: Record<string, number>; // derived — for display in Methodology
+  annualClosesByChannel: Record<string, number>;
 }
 
 export const deriveTargets = (a: Assumptions): DerivedTargets => {
@@ -46,10 +48,9 @@ export const deriveTargets = (a: Assumptions): DerivedTargets => {
   const demoTarget  = Math.ceil(propTarget   / (a.demo_to_prop   / 100));
   const discTarget  = Math.ceil(demoTarget   / (a.disc_to_demo   / 100));
 
-  // Expansion Q target — independent of funnel math
-  const expansionQTarget = Math.ceil(
-    (a.expansion_annual_deals / 4) / (a.expansion_close_rate / 100)
-  );
+  // Expansion Q target — derived from quarterly revenue target and avg deal size
+  const expansionQCloses = Math.ceil(a.expansion_q_revenue_target / a.expansion_avg_deal_size);
+  const expansionQTarget = Math.ceil(expansionQCloses / (a.expansion_close_rate / 100));
 
   const nbChannels = ["Outbound", "Events", "Partnership", "Inbound"] as const;
 
@@ -77,7 +78,7 @@ export const deriveTargets = (a: Assumptions): DerivedTargets => {
 
   return {
     legalTarget, propTarget, demoTarget, discTarget,
-    expansionQTarget, nbTargets, channelQTargets, annualClosesByChannel,
+    expansionQCloses, expansionQTarget, nbTargets, channelQTargets, annualClosesByChannel,
   };
 };
 
