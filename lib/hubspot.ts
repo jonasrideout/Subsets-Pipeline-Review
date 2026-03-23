@@ -238,12 +238,23 @@ export const fetchAllEmailSignals = async (
          d.stage === "qualifiedtobuy"
   );
 
-  const entries = await Promise.all(
-    pool.map(async d => {
-      const sig = await fetchEmailSignalsForDeal(d.id, now);
-      return [d.id, sig] as const;
-    })
-  );
+  const results: Record<string, EmailSignal> = {};
+  const BATCH_SIZE  = 4;
+  const BATCH_DELAY = 300; // ms between batches
 
-  return Object.fromEntries(entries);
+  for (let i = 0; i < pool.length; i += BATCH_SIZE) {
+    const batch = pool.slice(i, i + BATCH_SIZE);
+    const entries = await Promise.all(
+      batch.map(async d => {
+        const sig = await fetchEmailSignalsForDeal(d.id, now);
+        return [d.id, sig] as const;
+      })
+    );
+    for (const [id, sig] of entries) results[id] = sig;
+    if (i + BATCH_SIZE < pool.length) {
+      await new Promise(r => setTimeout(r, BATCH_DELAY));
+    }
+  }
+
+  return results;
 };
