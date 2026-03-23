@@ -310,7 +310,7 @@ export default function OverviewTab({
       <TableCard>
         <TableCardHeader>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-            <span>🔥 Pour Gas on These <span style={{ color: "#b0b5c3", fontWeight: 400, fontSize: 12 }}>— prospect-side activity in last 7 days</span></span>
+            <span>🔥 Pour Gas on These <span style={{ color: "#b0b5c3", fontWeight: 400, fontSize: 12 }}>— deals with prospect-side activity in last 7 days</span></span>
             <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
               <span>Min opens:</span>
               <input
