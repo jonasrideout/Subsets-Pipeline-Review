@@ -84,7 +84,7 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
           </>)}
 
           {section("Conversion rates", <>
-            {bullet(<>Rates are calculated from 12 months of closed deals in HubSpot, tracking how many deals passed through each stage. Any rate can be manually overwritten.{" "}
+            {bullet(<>Rates are calculated from 12 months of closed deals in HubSpot, tracking how many deals passed through each stage. Any rate can be manually overwritten using the Assumptions drawers on the Overview tab.{" "}
               {manualRates.length > 0
                 ? <>Manually set: {manualRates.map(({ key, label }, i) => (
                     <span key={key}>{i > 0 ? ", " : ""}{val(`${label} (${assumptions[key]}%)`)}</span>
@@ -95,7 +95,7 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
           </>)}
 
           {section("Channel pacing", <>
-            {bullet(<>New Business pacing targets on the Discovery tab are derived from {val("Revenue Share by Channel")} and average deal value. Changing either recalculates the targets live.</>)}
+            {bullet(<>New Business pacing targets on the Discovery tab are derived from {val("Revenue Share by Channel")} and average deal value. Changing either recalculates the targets.</>)}
             {bullet(<>Expansion pacing uses a separate quarterly revenue target, average deal size, and close rate.</>)}
             {bullet(<>Actuals count all deals that entered the pipeline this quarter across any active stage — not just Discovery entry — so deals that skip Discovery are not missed.</>)}
           </>)}
@@ -175,7 +175,7 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#94a3b8", marginBottom: 4, paddingBottom: 4, borderBottom: "1px solid #f1f5f9" }}>
                 <span style={{ width: 28 }}>Q</span>
                 <span style={{ flex: 1, textAlign: "right" }}>Total</span>
-                <span style={{ flex: 1, textAlign: "right" }}>NB (⅔)</span>
+                <span style={{ flex: 1, textAlign: "right" }}>New Business (⅔)</span>
                 <span style={{ flex: 1, textAlign: "right" }}>Expansion (⅓)</span>
               </div>
               {QUARTERLY_TARGETS.map((total, i) => {
