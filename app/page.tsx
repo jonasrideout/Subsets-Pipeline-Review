@@ -13,6 +13,7 @@ import LegalTab from "@/components/tabs/LegalTab";
 import ProposalTab from "@/components/tabs/ProposalTab";
 import DemoTab from "@/components/tabs/DemoTab";
 import DiscoveryTab from "@/components/tabs/DiscoveryTab";
+import MethodologyTab from "@/components/tabs/MethodologyTab";
 import RecalculateModal from "@/components/RecalculateModal";
 
 // ── COUNT HELPER ──────────────────────────────────────────────────────────────
@@ -251,6 +252,9 @@ export default function Page() {
             )}
             {tab === "discovery" && (
               <DiscoveryTab deals={discovery} allActive={active} assumptions={assumptions} onAssumptionsSave={handleAssumptionsSave} now={now} weekAgo={weekAgo} qStart={qStart} qIndex={qIndex} counts={counts} />
+            )}
+            {tab === "methodology" && (
+              <MethodologyTab assumptions={assumptions} qIndex={qIndex} onAssumptionsSave={handleAssumptionsSave} />
             )}
           </>
         )}
