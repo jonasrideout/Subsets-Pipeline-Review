@@ -46,7 +46,8 @@ export default function OverviewTab({
   emailSignals, closePlans, assumptions, counts,
   now, weekAgo, qStart, yearStart, qIndex, hubspotRates, onTabChange, onAssumptionsSave,
 }: OverviewTabProps) {
-  const [ytdMode, setYtdMode] = useState(false);
+  const [ytdMode, setYtdMode]   = useState(false);
+  const [minOpens, setMinOpens] = useState(3);
 
   const derived = deriveTargets(assumptions, qIndex);
   const { channelQTargets, combinedLegalTarget, combinedPropTarget, combinedDemoTarget } = derived;
@@ -116,7 +117,7 @@ export default function OverviewTab({
     tooltip: tileTooltip(t.actual, t.target, paceRatio(t.actual, t.target), t.label),
   }));
 
-  const solRows  = useMemo(() => getSignsOfLife(active, emailSignals, now), [active, emailSignals, now]);
+  const solRows  = useMemo(() => getSignsOfLife(active, emailSignals, now, minOpens), [active, emailSignals, now, minOpens]);
   const naAlerts = useMemo(() => getNeedsActionAlerts([...legal, ...proposal, ...demo], closePlans, now), [legal, proposal, demo, closePlans, now]);
 
   const progressWon      = ytdMode ? closedWonYTDTotal : closedWonTotal;
@@ -236,8 +237,9 @@ export default function OverviewTab({
               {/* Row 2: Weighted Pipeline */}
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <div style={{ flex: 1, position: "relative", height: 20, background: "#f1f5f9", borderRadius: 999, overflow: "hidden" }}>
+                  <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${closedPct}%`, background: "rgba(22,163,74,0.15)", borderRadius: "999px 0 0 999px" }} />
                   {wpPct > 0 && (
-                    <div style={{ position: "absolute", left: `${closedPct}%`, top: 0, height: "100%", width: `${wpPct}%`, background: "#bfdbfe", borderRadius: 999 }} />
+                    <div style={{ position: "absolute", top: 0, height: "100%", left: `${closedPct}%`, width: `${wpPct}%`, background: "#bfdbfe" }} />
                   )}
                 </div>
                 <div style={{
@@ -304,7 +306,19 @@ export default function OverviewTab({
       {/* Pour Gas on These */}
       <TableCard>
         <TableCardHeader>
-          <span>🔥 Pour Gas on These <span style={{ color: "#b0b5c3", fontWeight: 400, fontSize: 12 }}>— prospect-side activity in last 7 days</span></span>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+            <span>🔥 Pour Gas on These <span style={{ color: "#b0b5c3", fontWeight: 400, fontSize: 12 }}>— prospect-side activity in last 7 days</span></span>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+              <span>Min opens:</span>
+              <input
+                type="number"
+                min={1}
+                value={minOpens}
+                onChange={e => setMinOpens(Math.max(1, +e.target.value))}
+                style={{ width: 44, padding: "2px 6px", border: "1px solid #e2e4ed", borderRadius: 6, fontSize: 12, fontFamily: "'DM Sans', system-ui, sans-serif", textAlign: "center" }}
+              />
+            </div>
+          </div>
         </TableCardHeader>
         {solRows.length === 0 ? (
           <div style={{ padding: "16px 18px", color: "#b0b5c3", fontSize: 13 }}>No signals this week.</div>
