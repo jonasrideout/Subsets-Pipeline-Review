@@ -195,6 +195,7 @@ export const fetchEmailSignalsForDeal = async (
 
   let opens7d     = 0;
   let clicks7d    = 0;
+  let inbound7d   = 0;
   let lastInbound: string | null = null;
   let lastSubject: string | null = null;
   let latestModTs = 0;
@@ -205,25 +206,23 @@ export const fetchEmailSignalsForDeal = async (
     const modTs  = p.hs_lastmodifieddate ? new Date(p.hs_lastmodifieddate).getTime() : 0;
     const dir    = p.hs_email_direction ?? "";
 
-    // Opens/clicks counted for any email modified in the window
     opens7d  += Number(p.hs_email_open_count  ?? 0);
     clicks7d += Number(p.hs_email_click_count ?? 0);
 
-    // Inbound: use hs_timestamp to confirm it was received recently
     if (dir === "INCOMING_EMAIL" && ts >= sevenDaysAgo.getTime()) {
+      inbound7d++;
       if (!lastInbound || ts > new Date(lastInbound).getTime()) {
         lastInbound = p.hs_timestamp;
       }
     }
 
-    // Subject: from most recently modified email
     if (modTs > latestModTs) {
       latestModTs = modTs;
       lastSubject = p.hs_email_subject ?? null;
     }
   }
 
-  return { opens7d, clicks7d, lastInbound, lastSubject };
+  return { opens7d, clicks7d, inbound7d, lastInbound, lastSubject };
 };
 
 // ── BATCH EMAIL SIGNALS ───────────────────────────────────────────────────────
