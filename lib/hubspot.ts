@@ -190,7 +190,7 @@ export const fetchEmailSignalsForDeal = async (
       properties: EMAIL_PROPS,
     });
   } catch {
-    return { opens7d: 0, clicks7d: 0, inbound7d: 0, lastInbound: null, lastSubject: null };
+    return { opens7d: 0, clicks7d: 0, lastInbound: null, lastSubject: null };
   }
 
   let opens7d     = 0;
@@ -238,8 +238,11 @@ export const fetchAllEmailSignals = async (
   );
 
   const results: Record<string, EmailSignal> = {};
-  const BATCH_SIZE  = 4;
-  const BATCH_DELAY = 300; // ms between batches
+  const BATCH_SIZE  = 3;
+  const BATCH_DELAY = 400; // ms between batches
+
+  // Brief initial pause so deal fetches complete before email queries start
+  await new Promise(r => setTimeout(r, 500));
 
   for (let i = 0; i < pool.length; i += BATCH_SIZE) {
     const batch = pool.slice(i, i + BATCH_SIZE);
