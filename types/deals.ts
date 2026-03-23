@@ -38,8 +38,9 @@ export interface ClosedWonDeal {
 }
 
 export interface EmailSignal {
-  opens7d: number;
-  clicks7d: number;
+  opens7d:    number;
+  clicks7d:   number;
+  inbound7d:  number;
   lastInbound: string | null;
   lastSubject: string | null;
 }
@@ -53,7 +54,8 @@ export interface Assumptions {
   demo_to_prop:   number;  // % Demo → Proposal      (HubSpot historical)
   prop_to_legal:  number;  // % Proposal → Legal     (HubSpot historical)
   legal_to_close: number;  // % Legal → Close        (HubSpot historical)
-
+  // Quarterly close target
+  q_closes: number;
   // Average deal value — used to derive annual closes per channel from revenue share
   avg_deal_value: number;
   // Channel revenue share %
