@@ -362,8 +362,7 @@ export default function OverviewTab({
         </table>
       </TableCard>
 
-      {/* Methodology */}
-      <MethodologyPanel assumptions={assumptions} derived={derived} qIndex={qIndex} onSave={onAssumptionsSave} />
+
     </div>
   );
 }
