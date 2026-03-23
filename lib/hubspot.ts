@@ -46,6 +46,7 @@ const EMAIL_PROPS = [
   "hs_email_open_count",
   "hs_email_click_count",
   "hs_timestamp",
+  "hs_lastmodifieddate",
   "hs_email_subject",
 ];
 
@@ -99,7 +100,7 @@ const mapClosedWon = (raw: any): ClosedWonDeal => {
   };
 };
 
-// ── QUARTER HELPER ────────────────────────────────────────────────────────────
+// ── QUARTER / YEAR HELPERS ────────────────────────────────────────────────────
 
 const getQStart = (now: Date): Date =>
   new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
@@ -174,7 +175,7 @@ export const fetchEmailSignalsForDeal = async (
   dealId: string,
   now: Date
 ): Promise<EmailSignal> => {
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const sevenDaysAgo    = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const sevenDaysAgoISO = sevenDaysAgo.toISOString();
 
   let raw: any[] = [];
@@ -192,31 +193,32 @@ export const fetchEmailSignalsForDeal = async (
     return { opens7d: 0, clicks7d: 0, lastInbound: null, lastSubject: null };
   }
 
-  let opens7d    = 0;
-  let clicks7d   = 0;
+  let opens7d     = 0;
+  let clicks7d    = 0;
   let lastInbound: string | null = null;
   let lastSubject: string | null = null;
-  let latestTs   = 0;
+  let latestModTs = 0;
 
   for (const e of raw) {
     const p      = e.properties ?? {};
-    const ts     = p.hs_timestamp ? new Date(p.hs_timestamp).getTime() : 0;
+    const ts     = p.hs_timestamp       ? new Date(p.hs_timestamp).getTime()       : 0;
     const modTs  = p.hs_lastmodifieddate ? new Date(p.hs_lastmodifieddate).getTime() : 0;
     const dir    = p.hs_email_direction ?? "";
 
-    // Count opens/clicks only if the email was modified (opened/clicked) in the 7-day window
-    if (modTs >= sevenDaysAgo.getTime()) {
-      opens7d  += Number(p.hs_email_open_count  ?? 0);
-      clicks7d += Number(p.hs_email_click_count ?? 0);
-    }
+    // Opens/clicks counted for any email modified in the window
+    opens7d  += Number(p.hs_email_open_count  ?? 0);
+    clicks7d += Number(p.hs_email_click_count ?? 0);
 
-    if (dir === "INCOMING_EMAIL" && ts > 0 && ts >= sevenDaysAgo.getTime()) {
+    // Inbound: use hs_timestamp to confirm it was received recently
+    if (dir === "INCOMING_EMAIL" && ts >= sevenDaysAgo.getTime()) {
       if (!lastInbound || ts > new Date(lastInbound).getTime()) {
         lastInbound = p.hs_timestamp;
       }
     }
-    if (modTs > latestTs) {
-      latestTs    = modTs;
+
+    // Subject: from most recently modified email
+    if (modTs > latestModTs) {
+      latestModTs = modTs;
       lastSubject = p.hs_email_subject ?? null;
     }
   }
