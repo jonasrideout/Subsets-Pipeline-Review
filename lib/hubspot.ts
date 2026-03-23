@@ -174,15 +174,16 @@ export const fetchEmailSignalsForDeal = async (
   dealId: string,
   now: Date
 ): Promise<EmailSignal> => {
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const sevenDaysAgoISO = sevenDaysAgo.toISOString();
 
   let raw: any[] = [];
   try {
     raw = await searchAll("/crm/v3/objects/emails/search", {
       filterGroups: [{
         filters: [
-          { propertyName: "associations.deal", operator: "EQ",  value: dealId },
-          { propertyName: "hs_timestamp",       operator: "GTE", value: sevenDaysAgo },
+          { propertyName: "associations.deal",   operator: "EQ",  value: dealId },
+          { propertyName: "hs_lastmodifieddate", operator: "GTE", value: sevenDaysAgoISO },
         ],
       }],
       properties: EMAIL_PROPS,
@@ -198,20 +199,24 @@ export const fetchEmailSignalsForDeal = async (
   let latestTs   = 0;
 
   for (const e of raw) {
-    const p   = e.properties ?? {};
-    const ts  = p.hs_timestamp ? new Date(p.hs_timestamp).getTime() : 0;
-    const dir = p.hs_email_direction ?? "";
+    const p      = e.properties ?? {};
+    const ts     = p.hs_timestamp ? new Date(p.hs_timestamp).getTime() : 0;
+    const modTs  = p.hs_lastmodifieddate ? new Date(p.hs_lastmodifieddate).getTime() : 0;
+    const dir    = p.hs_email_direction ?? "";
 
-    opens7d  += Number(p.hs_email_open_count  ?? 0);
-    clicks7d += Number(p.hs_email_click_count ?? 0);
+    // Count opens/clicks only if the email was modified (opened/clicked) in the 7-day window
+    if (modTs >= sevenDaysAgo.getTime()) {
+      opens7d  += Number(p.hs_email_open_count  ?? 0);
+      clicks7d += Number(p.hs_email_click_count ?? 0);
+    }
 
-    if (dir === "INCOMING_EMAIL" && ts > 0) {
+    if (dir === "INCOMING_EMAIL" && ts > 0 && ts >= sevenDaysAgo.getTime()) {
       if (!lastInbound || ts > new Date(lastInbound).getTime()) {
         lastInbound = p.hs_timestamp;
       }
     }
-    if (ts > latestTs) {
-      latestTs    = ts;
+    if (modTs > latestTs) {
+      latestTs    = modTs;
       lastSubject = p.hs_email_subject ?? null;
     }
   }
