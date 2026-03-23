@@ -170,7 +170,7 @@ export default function DealTable({
           const lastInbound = sig.lastInbound ?? null;
           const enteredNew  = weekAgo ? !!enteredDate && new Date(enteredDate) >= weekAgo : false;
 
-          const rowBg = mode === "sol" && lastInbound ? "#f0fdf4" : "white";
+          const rowBg = "white";
 
           return (
             <tr key={d.id} className="table-row-hover"
