@@ -190,7 +190,7 @@ export const fetchEmailSignalsForDeal = async (
       properties: EMAIL_PROPS,
     });
   } catch {
-    return { opens7d: 0, clicks7d: 0, lastInbound: null, lastSubject: null };
+    return { opens7d: 0, clicks7d: 0, inbound7d: 0, lastInbound: null, lastSubject: null };
   }
 
   let opens7d     = 0;
