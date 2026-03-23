@@ -17,27 +17,15 @@ export const isStale = (deal: Deal, now: Date): boolean => {
   return new Date(deal.entered_current) <= sixtyDaysAgo;
 };
 
-// new_genuine = created this quarter (set in hubspot.ts based on createdate)
-export const isNewGenuine = (deal: Deal): boolean => !!deal.new_genuine;
+export const isNewGenuine      = (deal: Deal): boolean => !!deal.new_genuine;
+export const isNewThisWeek     = (deal: Deal, weekAgo: Date): boolean => !!deal.createdate && new Date(deal.createdate) >= weekAgo;
+export const isNewThisQuarter  = (deal: Deal, qStart: Date): boolean => !!deal.createdate && new Date(deal.createdate) >= qStart;
 
-// Created within the last 7 days
-export const isNewThisWeek = (deal: Deal, weekAgo: Date): boolean => {
-  if (!deal.createdate) return false;
-  return new Date(deal.createdate) >= weekAgo;
-};
-
-// Created this quarter
-export const isNewThisQuarter = (deal: Deal, qStart: Date): boolean => {
-  if (!deal.createdate) return false;
-  return new Date(deal.createdate) >= qStart;
-};
-
-// Derive quarter label from createdate e.g. "Q1 · 25"
 export const quarterLabel = (createdate: string | null): string => {
   if (!createdate) return "";
-  const d   = new Date(createdate);
-  const q   = Math.floor(d.getMonth() / 3) + 1;
-  const yr  = String(d.getFullYear()).slice(2);
+  const d  = new Date(createdate);
+  const q  = Math.floor(d.getMonth() / 3) + 1;
+  const yr = String(d.getFullYear()).slice(2);
   return `Q${q} · ${yr}`;
 };
 
@@ -110,7 +98,8 @@ export interface SignsOfLifeRow {
 export const getSignsOfLife = (
   deals: Deal[],
   emailSignals: EmailSignalMap,
-  now: Date
+  now: Date,
+  minOpens: number = 3
 ): SignsOfLifeRow[] => {
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
@@ -128,7 +117,8 @@ export const getSignsOfLife = (
     const lastSubject = sig.lastSubject ?? null;
     const enteredNew  = isEnteredInWindow(d, weekAgo, now);
 
-    if (!lastInbound && opens7d === 0 && clicks7d === 0 && !enteredNew) continue;
+    // Qualify: inbound reply, clicks, enough opens, or new stage entry
+    if (!lastInbound && opens7d < minOpens && clicks7d === 0 && !enteredNew) continue;
 
     rows.push({ deal: d, opens7d, clicks7d, lastInbound, lastSubject, enteredNew });
   }
