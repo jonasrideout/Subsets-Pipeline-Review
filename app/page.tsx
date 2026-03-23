@@ -254,7 +254,7 @@ export default function Page() {
               <DiscoveryTab deals={discovery} allActive={active} assumptions={assumptions} onAssumptionsSave={handleAssumptionsSave} now={now} weekAgo={weekAgo} qStart={qStart} qIndex={qIndex} counts={counts} />
             )}
             {tab === "methodology" && (
-              <MethodologyTab assumptions={assumptions} qIndex={qIndex} onAssumptionsSave={handleAssumptionsSave} />
+              <MethodologyTab assumptions={assumptions} qIndex={qIndex} hubspotRates={hubspotRates} onAssumptionsSave={handleAssumptionsSave} />
             )}
           </>
         )}
