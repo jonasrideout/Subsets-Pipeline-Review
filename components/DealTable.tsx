@@ -26,11 +26,12 @@ function InboundBadge({ count }: { count: number }) {
       background: "rgba(34,197,94,0.1)", color: "#15803d",
       border: "1px solid rgba(34,197,94,0.25)", marginRight: 4, whiteSpace: "nowrap",
     }}>
-      {/* arrow into envelope */}
+      {/* right-pointing arrow → */}
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="5,12 12,5 19,12" />
-        <line x1="12" y1="5" x2="12" y2="19" />
+        <line x1="4" y1="12" x2="18" y2="12"/>
+        <polyline points="12,6 18,12 12,18"/>
       </svg>
+      {/* envelope */}
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
         <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
         <polyline points="22,6 12,13 2,6"/>
