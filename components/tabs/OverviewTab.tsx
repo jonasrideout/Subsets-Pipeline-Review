@@ -219,7 +219,7 @@ export default function OverviewTab({
               {/* Row 1: Closed Won */}
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
                 <div style={{ flex: 1, position: "relative", height: 20, background: "#f1f5f9", borderRadius: 999, overflow: "hidden" }}>
-                  <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${closedPct}%`, background: "#16a34a", borderRadius: 999 }} />
+                  <div style={{ position: "absolute", left: 0, top: "15%", height: "70%", width: `${closedPct}%`, background: "#16a34a", borderRadius: 999 }} />
                 </div>
                 <div style={{
                   flexShrink: 0, fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 999,
