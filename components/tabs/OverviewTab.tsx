@@ -53,7 +53,6 @@ export default function OverviewTab({
   const { channelQTargets, combinedLegalTarget, combinedPropTarget, combinedDemoTarget } = derived;
   const discTarget = Object.values(channelQTargets).reduce((s, v) => s + v, 0);
 
-  // Annual targets — sum deriveTargets across all 4 quarters
   const annualDerived     = QUARTERLY_TARGETS.map((_, i) => deriveTargets(assumptions, i));
   const annualLegalTarget = annualDerived.reduce((s, d) => s + d.combinedLegalTarget, 0);
   const annualPropTarget  = annualDerived.reduce((s, d) => s + d.combinedPropTarget, 0);
@@ -88,7 +87,7 @@ export default function OverviewTab({
   };
 
   const tileTooltip = (actual: number, target: number, ratio: number, label: string) => {
-    const pct    = Math.round(elapsedPct * 100);
+    const pct     = Math.round(elapsedPct * 100);
     const goalPct = target > 0 ? Math.round((actual / target) * 100) : 0;
     const period  = ytdMode ? "the year" : `Q${qIndex + 1}`;
     if (ratio >= 0.90) return `You're ${pct}% through ${period} and have reached ${goalPct}% of your ${label} target — on track.`;
@@ -125,7 +124,6 @@ export default function OverviewTab({
   const progressWonDeals = ytdMode ? closedWonYTD : closedWon;
   const progressLabel    = ytdMode ? `${now.getFullYear()} YTD` : `Q${qIndex + 1}`;
 
-  // Quarterly cumulative milestones for YTD bar
   const qMilestones = QUARTERLY_TARGETS.slice(0, -1).map((_, i) => ({
     label: `Q${i + 1}`,
     value: QUARTERLY_TARGETS.slice(0, i + 1).reduce((s, v) => s + v, 0),
@@ -209,11 +207,9 @@ export default function OverviewTab({
 
         return (
           <div style={{ background: "#fff", border: "1px solid #e2e4ed", borderRadius: 12, padding: "18px 20px", marginBottom: 20, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-
-            {/* Bars container — both rows share the same width so the day marker aligns */}
             <div style={{ position: "relative", marginBottom: ytdMode ? 24 : 14 }}>
 
-              {/* Dashed day marker — spans both bars */}
+              {/* Dashed day marker */}
               <div style={{
                 position: "absolute", left: `${dayPct}%`, top: 0, bottom: 0,
                 width: 1, borderLeft: "2px dashed #94a3b8", zIndex: 10,
@@ -234,12 +230,19 @@ export default function OverviewTab({
                 </div>
               </div>
 
-              {/* Row 2: Weighted Pipeline */}
+              {/* Row 2: Weighted Pipeline — bar floats inside track so rounded ends are visible */}
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <div style={{ flex: 1, position: "relative", height: 20, background: "#f1f5f9", borderRadius: 999, overflow: "hidden" }}>
-                  <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${closedPct}%`, background: "rgba(22,163,74,0.15)", borderRadius: "999px 0 0 999px" }} />
                   {wpPct > 0 && (
-                    <div style={{ position: "absolute", top: 0, height: "100%", left: `${closedPct}%`, width: `${wpPct}%`, background: "#bfdbfe" }} />
+                    <div style={{
+                      position: "absolute",
+                      left: `${closedPct}%`,
+                      top: "15%",
+                      height: "70%",
+                      width: `${wpPct}%`,
+                      background: "#bfdbfe",
+                      borderRadius: 999,
+                    }} />
                   )}
                 </div>
                 <div style={{
