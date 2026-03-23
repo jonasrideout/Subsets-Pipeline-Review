@@ -2,14 +2,15 @@
 
 "use client";
 
-export type TabId = "overview" | "legal" | "proposal" | "demo" | "discovery";
+export type TabId = "overview" | "legal" | "proposal" | "demo" | "discovery" | "methodology";
 
 const TABS: { id: TabId; label: string }[] = [
-  { id: "overview",  label: "Overview" },
-  { id: "legal",     label: "Legal / Procurement" },
-  { id: "proposal",  label: "Proposal / Negotiation" },
-  { id: "demo",      label: "Meeting / Demo" },
-  { id: "discovery", label: "Discovery" },
+  { id: "overview",    label: "Overview" },
+  { id: "legal",       label: "Legal / Procurement" },
+  { id: "proposal",    label: "Proposal / Negotiation" },
+  { id: "demo",        label: "Meeting / Demo" },
+  { id: "discovery",   label: "Discovery" },
+  { id: "methodology", label: "Methodology" },
 ];
 
 interface TabNavProps {
