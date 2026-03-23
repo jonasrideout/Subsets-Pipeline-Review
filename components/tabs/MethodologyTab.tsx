@@ -3,13 +3,14 @@
 "use client";
 
 import { useState } from "react";
-import type { Assumptions } from "@/types/deals";
+import type { Assumptions, HubSpotRates } from "@/types/deals";
 import { deriveTargets, QUARTERLY_TARGETS, NB_REVENUE_SHARE } from "@/lib/assumptions";
 import { TableCard } from "@/components/Table";
 
 interface MethodologyTabProps {
   assumptions:       Assumptions;
   qIndex:            number;
+  hubspotRates:      HubSpotRates | null;
   onAssumptionsSave: (a: Assumptions) => Promise<void>;
 }
 
@@ -18,8 +19,21 @@ const fmtFull = (n: number) => "$" + n.toLocaleString();
 
 const HISTORICAL_AVG_DEAL_VALUE = 62137;
 
-export default function MethodologyTab({ assumptions, qIndex, onAssumptionsSave }: MethodologyTabProps) {
+export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAssumptionsSave }: MethodologyTabProps) {
   const derived = deriveTargets(assumptions, qIndex);
+
+  // Build list of manually overridden rates
+  const RATE_KEYS: { key: keyof Assumptions; label: string }[] = [
+    { key: "disc_to_demo",   label: "Discovery→Demo" },
+    { key: "demo_to_prop",   label: "Demo→Proposal" },
+    { key: "prop_to_legal",  label: "Proposal→Legal" },
+    { key: "legal_to_close", label: "Legal→Close" },
+  ];
+  const manualRates = RATE_KEYS.filter(({ key }) => {
+    if (!hubspotRates) return false;
+    const hsVal = hubspotRates[key as keyof HubSpotRates];
+    return hsVal !== null && hsVal !== undefined && hsVal !== assumptions[key];
+  });
 
   const [editingAvg, setEditingAvg] = useState(false);
   const [tmpAvg, setTmpAvg]         = useState<number>(assumptions.avg_deal_value);
@@ -63,17 +77,21 @@ export default function MethodologyTab({ assumptions, qIndex, onAssumptionsSave 
           </div>
 
           {section("Setting quarterly targets", <>
-            {bullet(<>Each quarter has a combined revenue target split {val("⅔ New Business")} and {val("⅓ Expansion")}. The current quarter's NB target is {val(fmtK(derived.nbQRevenueTarget))}.</>)}
+            {bullet(<>Each quarter has a revenue target derived from the {val("$3M annual goal")}, divided seasonally. The current quarter's target is {val(fmtK(QUARTERLY_TARGETS[qIndex]))}, split {val("⅔ New Business")} ({val(fmtK(derived.nbQRevenueTarget))}) and {val("⅓ Expansion")} ({val(fmtK(derived.expansionQRevenueTarget))}). That's {val(derived.qCloses)} New Business deals and {val(derived.expansionQCloses)} Expansion deals this quarter.</>)}
             {bullet(<>Average deal value converts the NB revenue target into a deal count. At {val(fmtFull(assumptions.avg_deal_value))} average deal value, that's {val(derived.qCloses)} NB closes needed this quarter.</>)}
             {bullet(<>Working backwards through four historical conversion rates, the dashboard derives how many deals need to enter each stage to produce those closes — Legal, Proposal, Demo, and Discovery.</>)}
             {bullet(<>Expansion uses its own close rate and average deal size, independent of the NB funnel. The current Expansion target is {val(derived.expansionQCloses)} closes this quarter.</>)}
           </>)}
 
           {section("Conversion rates", <>
-            {bullet(<>Rates are calculated from 12 months of closed deals in HubSpot, tracking how many deals passed through each stage.</>)}
-            {bullet(<>The Discovery→Demo rate ({val(assumptions.disc_to_demo + "%")}) is a manual estimate — historical data overstates it due to selection bias (only deals that eventually close or lose are counted).</>)}
-            {bullet(<>Rates can be updated using the {val("Recalculate")} button, available in the first week after each quarter ends. A preview shows before any changes are applied.</>)}
-            {bullet(<>Individual rates can also be edited manually using the Assumptions drawer under each stage tile on the Overview tab.</>)}
+            {bullet(<>Rates are calculated from 12 months of closed deals in HubSpot, tracking how many deals passed through each stage. Any rate can be manually overwritten.{" "}
+              {manualRates.length > 0
+                ? <>Manually set: {manualRates.map(({ key, label }, i) => (
+                    <span key={key}>{i > 0 ? ", " : ""}{val(`${label} (${assumptions[key]}%)`)}</span>
+                  ))}.</>
+                : <>No rates are currently manually overridden — all values match HubSpot historical data.</>
+              }
+            </>)}
           </>)}
 
           {section("Channel pacing", <>
@@ -85,7 +103,6 @@ export default function MethodologyTab({ assumptions, qIndex, onAssumptionsSave 
           {section("Pour Gas on These", <>
             {bullet(<>Surfaces deals in Legal, Proposal, or Demo with prospect-side activity in the last 7 days.</>)}
             {bullet(<>Signals tracked: inbound email replies, email opens above the minimum threshold, link clicks, and recent stage entry.</>)}
-            {bullet(<>Email data is fetched per deal on each Refresh. The first page load may take a few extra seconds as email signals are gathered in batches to avoid rate limits.</>)}
           </>)}
 
           {section("Needs Action", <>
@@ -94,10 +111,7 @@ export default function MethodologyTab({ assumptions, qIndex, onAssumptionsSave 
             {bullet(<>Discovery deals are never flagged — they are not expected to have close dates or amounts set.</>)}
           </>)}
 
-          {section("Q / YTD toggle", <>
-            {bullet(<>The toggle on the Overview tab switches between a quarterly view (default) and a full-year view.</>)}
-            {bullet(<>In YTD mode, stage tile targets are the sum of all four quarterly targets. The revenue progress bar shows Closed Won YTD against the annual target, with quarterly milestone markers.</>)}
-          </>)}
+
         </div>
       </TableCard>
 
@@ -196,7 +210,7 @@ export default function MethodologyTab({ assumptions, qIndex, onAssumptionsSave 
               <div style={{ fontWeight: 600, fontSize: 12, color: "#64748b", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "'DM Sans', system-ui, sans-serif" }}>Closes</div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#94a3b8", marginBottom: 4, paddingBottom: 4, borderBottom: "1px solid #f1f5f9" }}>
                 <span style={{ width: 28 }}>Q</span>
-                <span style={{ flex: 1, textAlign: "right" }}>NB</span>
+                <span style={{ flex: 1, textAlign: "right" }}>New Business</span>
                 <span style={{ flex: 1, textAlign: "right" }}>Expansion</span>
               </div>
               {QUARTERLY_TARGETS.map((_, i) => {
