@@ -50,6 +50,8 @@ export const getNeedsActionAlerts = (
     const isProp        = d.stage === "contractsent";
     const isDemo        = d.stage === "qualifiedtobuy";
 
+    const isDisc        = d.stage === "appointmentscheduled";
+
     if (isLegalOrProp) {
       if (!d.closedate) alerts.push("🔴 No close date");
       if (!d.amount)    alerts.push("🟠 Missing amount");
@@ -68,6 +70,12 @@ export const getNeedsActionAlerts = (
     if (isDemo) {
       const lc = daysSince(d.last_contacted, now);
       if (lc === null || lc >= 14) alerts.push("🟠 No contact 14+ days");
+    }
+
+    if (isDisc) {
+      const lc = daysSince(d.last_contacted, now);
+      if (lc === null || lc >= 14) alerts.push("🟠 No contact 14+ days");
+      if (isStale(d, now)) alerts.push("🔴 Stale 60+ days");
     }
 
     if (alerts.length) {
