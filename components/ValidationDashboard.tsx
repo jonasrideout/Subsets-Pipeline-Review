@@ -206,6 +206,12 @@ export default function ValidationDashboard({ rates, sample, validation }: Valid
         {/* Rate tiles */}
         <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
           <RateSummaryTile
+            label="Discovery → Demo"
+            rate={rates.disc_to_demo}
+            n={sample.enteredDisc}
+            anomalies={sample.anomaliesExcluded.disc}
+          />
+          <RateSummaryTile
             label="Demo → Proposal"
             rate={rates.demo_to_prop}
             n={sample.enteredDemo}
@@ -221,12 +227,6 @@ export default function ValidationDashboard({ rates, sample, validation }: Valid
             label="Legal → Close"
             rate={rates.legal_to_close}
             n={sample.enteredLegal}
-          />
-          <RateSummaryTile
-            label="Discovery → Demo"
-            rate={rates.disc_to_demo}
-            n={sample.enteredDisc}
-            anomalies={sample.anomaliesExcluded.disc}
           />
         </div>
       </div>
