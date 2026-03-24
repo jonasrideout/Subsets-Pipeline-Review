@@ -58,8 +58,9 @@ interface ValidationData {
 }
 
 interface SampleData {
-  enteredDemo: number;
-  enteredProposal: number;
+  enteredDisc:      number;
+  enteredDemo:      number;
+  enteredProposal:  number;
   enteredLegal: number;
   closedWon: number;
   nbDealsForAvg: number;
