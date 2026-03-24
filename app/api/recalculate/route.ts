@@ -104,16 +104,11 @@ export async function GET() {
     const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
     const sixtyDaysAgoMs = String(sixtyDaysAgo.getTime());
 
-    // ── Cohort queries (exited stage) + stalled queries (still in stage 60+ days) ──
-    const [
-      discExited,   discStalled,
-      demoExited,   demoStalled,
-      propExited,   propStalled,
-      legalExited,  legalStalled,
-      closedWonDeals,
-    ] = await Promise.all([
+    const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-      // Discovery: exited
+    // Run in two batches to avoid HubSpot's per-second rate limit.
+    // Batch 1: exited cohorts + closed won (5 queries)
+    const [discExited, demoExited, propExited, legalExited, closedWonDeals] = await Promise.all([
       searchAll({
         filterGroups: [{ filters: [
           { propertyName: "hs_v2_date_entered_appointmentscheduled", operator: "GTE", value: cutoffMs },
@@ -121,7 +116,42 @@ export async function GET() {
         ]}],
         properties: PROPS,
       }),
-      // Discovery: stalled 60+ days, still in stage
+      searchAll({
+        filterGroups: [{ filters: [
+          { propertyName: "hs_v2_date_entered_qualifiedtobuy", operator: "GTE", value: cutoffMs },
+          { propertyName: "dealstage", operator: "NOT_IN", values: ["qualifiedtobuy"] },
+        ]}],
+        properties: PROPS,
+      }),
+      searchAll({
+        filterGroups: [{ filters: [
+          { propertyName: "hs_v2_date_entered_contractsent", operator: "GTE", value: cutoffMs },
+          { propertyName: "dealstage", operator: "NOT_IN", values: ["contractsent"] },
+        ]}],
+        properties: PROPS,
+      }),
+      searchAll({
+        filterGroups: [{ filters: [
+          { propertyName: "hs_v2_date_entered_1446534336", operator: "GTE", value: cutoffMs },
+          { propertyName: "dealstage", operator: "NOT_IN", values: ["1446534336"] },
+        ]}],
+        properties: PROPS,
+      }),
+      searchAll({
+        filterGroups: [{ filters: [
+          { propertyName: "dealstage", operator: "EQ",  value: "closedwon" },
+          { propertyName: "closedate", operator: "GTE", value: cutoffMs },
+          { propertyName: "amount",    operator: "HAS_PROPERTY" },
+        ]}],
+        properties: ["dealname", "deal_attribution", "amount"],
+      }),
+    ]);
+
+    // Brief pause between batches
+    await sleep(1100);
+
+    // Batch 2: stalled cohorts (4 queries)
+    const [discStalled, demoStalled, propStalled, legalStalled] = await Promise.all([
       searchAll({
         filterGroups: [{ filters: [
           { propertyName: "hs_v2_date_entered_appointmentscheduled", operator: "GTE", value: cutoffMs },
@@ -130,16 +160,6 @@ export async function GET() {
         ]}],
         properties: PROPS,
       }),
-
-      // Demo: exited
-      searchAll({
-        filterGroups: [{ filters: [
-          { propertyName: "hs_v2_date_entered_qualifiedtobuy", operator: "GTE", value: cutoffMs },
-          { propertyName: "dealstage", operator: "NOT_IN", values: ["qualifiedtobuy"] },
-        ]}],
-        properties: PROPS,
-      }),
-      // Demo: stalled 60+ days, still in stage
       searchAll({
         filterGroups: [{ filters: [
           { propertyName: "hs_v2_date_entered_qualifiedtobuy", operator: "GTE", value: cutoffMs },
@@ -148,16 +168,6 @@ export async function GET() {
         ]}],
         properties: PROPS,
       }),
-
-      // Proposal: exited
-      searchAll({
-        filterGroups: [{ filters: [
-          { propertyName: "hs_v2_date_entered_contractsent", operator: "GTE", value: cutoffMs },
-          { propertyName: "dealstage", operator: "NOT_IN", values: ["contractsent"] },
-        ]}],
-        properties: PROPS,
-      }),
-      // Proposal: stalled 60+ days, still in stage
       searchAll({
         filterGroups: [{ filters: [
           { propertyName: "hs_v2_date_entered_contractsent", operator: "GTE", value: cutoffMs },
@@ -166,16 +176,6 @@ export async function GET() {
         ]}],
         properties: PROPS,
       }),
-
-      // Legal: exited
-      searchAll({
-        filterGroups: [{ filters: [
-          { propertyName: "hs_v2_date_entered_1446534336", operator: "GTE", value: cutoffMs },
-          { propertyName: "dealstage", operator: "NOT_IN", values: ["1446534336"] },
-        ]}],
-        properties: PROPS,
-      }),
-      // Legal: stalled 60+ days, still in stage
       searchAll({
         filterGroups: [{ filters: [
           { propertyName: "hs_v2_date_entered_1446534336", operator: "GTE", value: cutoffMs },
@@ -183,16 +183,6 @@ export async function GET() {
           { propertyName: "dealstage", operator: "EQ", value: "1446534336" },
         ]}],
         properties: PROPS,
-      }),
-
-      // Avg NB deal value
-      searchAll({
-        filterGroups: [{ filters: [
-          { propertyName: "dealstage", operator: "EQ",  value: "closedwon" },
-          { propertyName: "closedate", operator: "GTE", value: cutoffMs },
-          { propertyName: "amount",    operator: "HAS_PROPERTY" },
-        ]}],
-        properties: ["dealname", "deal_attribution", "amount"],
       }),
     ]);
 
