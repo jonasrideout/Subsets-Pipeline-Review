@@ -121,7 +121,6 @@ export default function RecalculateModal({
               ["Entered Proposal",  sample.enteredProposal,  sample.anomaliesExcluded.prop],
               ["Entered Legal",     sample.enteredLegal,     0],
               ["Closed Won",        sample.closedWon,        0],
-              ["NB Deals (avg)",    sample.nbDealsForAvg,    0],
             ].map(([label, val, excl]) => (
               <div key={String(label)} style={{
                 flex: 1, minWidth: 80,
