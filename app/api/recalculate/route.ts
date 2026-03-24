@@ -44,10 +44,6 @@ const PROPS = [
   "hs_v2_date_entered_1446534336",
 ];
 
-// A deal is an anomaly if any downstream timestamp predates the stage entry
-// timestamp being measured — indicating a stage regression in HubSpot.
-// Anomalies are excluded from both numerator and denominator.
-
 const ts = (iso: string | null | undefined): number =>
   iso ? new Date(iso).getTime() : Infinity;
 
@@ -73,20 +69,17 @@ const isPropAnomaly = (p: any): boolean => {
   return ts(p["hs_v2_date_entered_1446534336"]) < propTs;
 };
 
-// Did a deal pass through Demo?
 const passedDemo = (p: any): boolean =>
   !!p.hs_v2_date_entered_qualifiedtobuy    ||
   !!p.hs_v2_date_entered_contractsent      ||
   !!p["hs_v2_date_entered_1446534336"]     ||
   p.dealstage === "closedwon";
 
-// Did a deal pass through Proposal?
 const passedProposal = (p: any): boolean =>
   !!p.hs_v2_date_entered_contractsent ||
   !!p["hs_v2_date_entered_1446534336"] ||
   p.dealstage === "closedwon";
 
-// Did a deal pass through Legal?
 const passedLegal = (p: any): boolean =>
   !!p["hs_v2_date_entered_1446534336"] ||
   p.dealstage === "closedwon";
@@ -102,11 +95,9 @@ export async function GET() {
     const cutoffMs = String(cutoff.getTime());
 
     const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
-    const sixtyDaysAgoMs = String(sixtyDaysAgo.getTime());
 
     const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-    // Run in two batches to avoid HubSpot's per-second rate limit.
     // Batch 1: exited cohorts + closed won (5 queries)
     const [discExited, demoExited, propExited, legalExited, closedWonDeals] = await Promise.all([
       searchAll({
@@ -147,50 +138,53 @@ export async function GET() {
       }),
     ]);
 
-    // Brief pause between batches
     await sleep(1100);
 
-    // Batch 2: stalled cohorts (4 queries)
-    const [discStalled, demoStalled, propStalled, legalStalled] = await Promise.all([
+    // Batch 2: all active deals per stage — stalled filtering done in JS
+    // (hs_v2_date_entered_* properties don't support multiple filters reliably)
+    const [discActive, demoActive, propActive, legalActive] = await Promise.all([
       searchAll({
         filterGroups: [{ filters: [
-          { propertyName: "hs_v2_date_entered_appointmentscheduled", operator: "GTE", value: cutoffMs },
-          { propertyName: "hs_v2_date_entered_appointmentscheduled", operator: "LTE", value: sixtyDaysAgoMs },
           { propertyName: "dealstage", operator: "EQ", value: "appointmentscheduled" },
         ]}],
         properties: PROPS,
       }),
       searchAll({
         filterGroups: [{ filters: [
-          { propertyName: "hs_v2_date_entered_qualifiedtobuy", operator: "GTE", value: cutoffMs },
-          { propertyName: "hs_v2_date_entered_qualifiedtobuy", operator: "LTE", value: sixtyDaysAgoMs },
           { propertyName: "dealstage", operator: "EQ", value: "qualifiedtobuy" },
         ]}],
         properties: PROPS,
       }),
       searchAll({
         filterGroups: [{ filters: [
-          { propertyName: "hs_v2_date_entered_contractsent", operator: "GTE", value: cutoffMs },
-          { propertyName: "hs_v2_date_entered_contractsent", operator: "LTE", value: sixtyDaysAgoMs },
           { propertyName: "dealstage", operator: "EQ", value: "contractsent" },
         ]}],
         properties: PROPS,
       }),
       searchAll({
         filterGroups: [{ filters: [
-          { propertyName: "hs_v2_date_entered_1446534336", operator: "GTE", value: cutoffMs },
-          { propertyName: "hs_v2_date_entered_1446534336", operator: "LTE", value: sixtyDaysAgoMs },
           { propertyName: "dealstage", operator: "EQ", value: "1446534336" },
         ]}],
         properties: PROPS,
       }),
     ]);
 
+    // Stalled = entered stage within 12-month window AND has been there 60+ days
+    const isStalled = (enteredIso: string | null | undefined): boolean => {
+      if (!enteredIso) return false;
+      const entered = new Date(enteredIso).getTime();
+      return entered >= cutoff.getTime() && entered <= sixtyDaysAgo.getTime();
+    };
+
+    const discStalled  = discActive.filter(d => isStalled(d.properties?.hs_v2_date_entered_appointmentscheduled));
+    const demoStalled  = demoActive.filter(d => isStalled(d.properties?.hs_v2_date_entered_qualifiedtobuy));
+    const propStalled  = propActive.filter(d => isStalled(d.properties?.hs_v2_date_entered_contractsent));
+    const legalStalled = legalActive.filter(d => isStalled(d.properties?.["hs_v2_date_entered_1446534336"]));
+
     // ── disc_to_demo ──────────────────────────────────────────────────────────
     const discClean     = discExited.filter(d => !isDiscAnomaly(d.properties ?? {}));
     const discConverted = discClean.filter(d => passedDemo(d.properties ?? {}));
     const discAnomalies = discExited.filter(d => isDiscAnomaly(d.properties ?? {}));
-    // Stalled deals: no anomaly check needed — they haven't exited so no downstream timestamps
     const discTotal     = discClean.length + discStalled.length;
 
     // ── demo_to_prop ──────────────────────────────────────────────────────────
@@ -237,7 +231,7 @@ export async function GET() {
       return `${flags.join(" and ")} timestamp${flags.length > 1 ? "s" : ""} predate Discovery entry`;
     };
 
-    const stalledNote = (days: number) => `Stalled ${days}+ days in stage`;
+    const stalledNote = (days: number) => `Stalled ${days} days in stage`;
 
     const daysSince = (iso: string | null | undefined): number =>
       iso ? Math.floor((now.getTime() - new Date(iso).getTime()) / 86400000) : 0;
@@ -325,21 +319,21 @@ export async function GET() {
 
     const legalCohort = [
       ...legalExited.map(d => ({
-        id:      String(d.id),
-        name:    d.properties?.dealname ?? "Unknown",
-        stage:   d.properties?.dealstage ?? "",
-        legal:   d.properties?.["hs_v2_date_entered_1446534336"] ?? null,
-        won:     (d.properties ?? {}).dealstage === "closedwon",
-        stalled: false,
+        id:          String(d.id),
+        name:        d.properties?.dealname ?? "Unknown",
+        stage:       d.properties?.dealstage ?? "",
+        legal:       d.properties?.["hs_v2_date_entered_1446534336"] ?? null,
+        won:         (d.properties ?? {}).dealstage === "closedwon",
+        stalled:     false,
         stalledNote: null,
       })),
       ...legalStalled.map(d => ({
-        id:      String(d.id),
-        name:    d.properties?.dealname ?? "Unknown",
-        stage:   d.properties?.dealstage ?? "",
-        legal:   d.properties?.["hs_v2_date_entered_1446534336"] ?? null,
-        won:     false,
-        stalled: true,
+        id:          String(d.id),
+        name:        d.properties?.dealname ?? "Unknown",
+        stage:       d.properties?.dealstage ?? "",
+        legal:       d.properties?.["hs_v2_date_entered_1446534336"] ?? null,
+        won:         false,
+        stalled:     true,
         stalledNote: stalledNote(daysSince(d.properties?.["hs_v2_date_entered_1446534336"])),
       })),
     ];
