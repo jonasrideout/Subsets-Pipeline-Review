@@ -168,12 +168,10 @@ export async function GET() {
 
     const round = (n: number) => Math.round(n * 1000) / 10; // 0.4375 → 43.8
 
+    const disc_to_demo   = discClean.length  > 0 ? round(discConverted.length  / discClean.length)  : null;
     const demo_to_prop   = demoClean.length  > 0 ? round(demoConverted.length  / demoClean.length)  : null;
     const prop_to_legal  = propClean.length  > 0 ? round(propConverted.length  / propClean.length)  : null;
     const legal_to_close = legalExited.length > 0 ? round(legalConverted.length / legalExited.length) : null;
-
-    // disc_to_demo is always null — manually set, not derived from data
-    const disc_to_demo: null = null;
 
     // --- avg NB deal value ---
     const nbAmounts = closedWonDeals
@@ -197,38 +195,38 @@ export async function GET() {
 
     const discCohort = [
       ...discClean.map(d => ({
-        id:        String(d.id),
-        name:      d.properties?.dealname ?? "Unknown",
-        stage:     d.properties?.dealstage ?? "",
-        disc:      d.properties?.hs_v2_date_entered_appointmentscheduled ?? null,
-        demo:      d.properties?.hs_v2_date_entered_qualifiedtobuy        ?? null,
-        prop:      d.properties?.hs_v2_date_entered_contractsent           ?? null,
-        legal:     d.properties?.["hs_v2_date_entered_1446534336"]        ?? null,
-        anomaly:   false,
-        converted: passedDemo(d.properties ?? {}),
+        id:          String(d.id),
+        name:        d.properties?.dealname ?? "Unknown",
+        stage:       d.properties?.dealstage ?? "",
+        disc:        d.properties?.hs_v2_date_entered_appointmentscheduled ?? null,
+        demo:        d.properties?.hs_v2_date_entered_qualifiedtobuy       ?? null,
+        prop:        d.properties?.hs_v2_date_entered_contractsent          ?? null,
+        legal:       d.properties?.["hs_v2_date_entered_1446534336"]       ?? null,
+        anomaly:     false,
+        converted:   passedDemo(d.properties ?? {}),
         anomalyNote: null,
       })),
       ...discAnomalies.map(d => ({
-        id:        String(d.id),
-        name:      d.properties?.dealname ?? "Unknown",
-        stage:     d.properties?.dealstage ?? "",
-        disc:      d.properties?.hs_v2_date_entered_appointmentscheduled ?? null,
-        demo:      d.properties?.hs_v2_date_entered_qualifiedtobuy        ?? null,
-        prop:      d.properties?.hs_v2_date_entered_contractsent           ?? null,
-        legal:     d.properties?.["hs_v2_date_entered_1446534336"]        ?? null,
-        anomaly:   true,
-        converted: false,
+        id:          String(d.id),
+        name:        d.properties?.dealname ?? "Unknown",
+        stage:       d.properties?.dealstage ?? "",
+        disc:        d.properties?.hs_v2_date_entered_appointmentscheduled ?? null,
+        demo:        d.properties?.hs_v2_date_entered_qualifiedtobuy       ?? null,
+        prop:        d.properties?.hs_v2_date_entered_contractsent          ?? null,
+        legal:       d.properties?.["hs_v2_date_entered_1446534336"]       ?? null,
+        anomaly:     true,
+        converted:   false,
         anomalyNote: buildDiscNote(d.properties ?? {}),
       })),
     ];
 
     const mapDeal = (d: any, anomaly: boolean, converted: boolean, anomalyNote?: string) => ({
-      id:       String(d.id),
-      name:     d.properties?.dealname ?? "Unknown",
-      stage:    d.properties?.dealstage ?? "",
-      demo:     d.properties?.hs_v2_date_entered_qualifiedtobuy   ?? null,
-      prop:     d.properties?.hs_v2_date_entered_contractsent      ?? null,
-      legal:    d.properties?.["hs_v2_date_entered_1446534336"]   ?? null,
+      id:          String(d.id),
+      name:        d.properties?.dealname ?? "Unknown",
+      stage:       d.properties?.dealstage ?? "",
+      demo:        d.properties?.hs_v2_date_entered_qualifiedtobuy  ?? null,
+      prop:        d.properties?.hs_v2_date_entered_contractsent     ?? null,
+      legal:       d.properties?.["hs_v2_date_entered_1446534336"]  ?? null,
       anomaly,
       converted,
       anomalyNote: anomalyNote ?? null,
@@ -258,11 +256,11 @@ export async function GET() {
     ];
 
     const legalCohort = legalExited.map(d => ({
-      id:      String(d.id),
-      name:    d.properties?.dealname ?? "Unknown",
-      stage:   d.properties?.dealstage ?? "",
-      legal:   d.properties?.["hs_v2_date_entered_1446534336"] ?? null,
-      won:     (d.properties ?? {}).dealstage === "closedwon",
+      id:    String(d.id),
+      name:  d.properties?.dealname ?? "Unknown",
+      stage: d.properties?.dealstage ?? "",
+      legal: d.properties?.["hs_v2_date_entered_1446534336"] ?? null,
+      won:   (d.properties ?? {}).dealstage === "closedwon",
     }));
 
     // Persist rates to Redis
@@ -284,7 +282,7 @@ export async function GET() {
       avg_deal_value,
       sample: {
         enteredDisc:      discClean.length,
-      enteredDemo:      demoClean.length,
+        enteredDemo:      demoClean.length,
         enteredProposal:  propClean.length,
         enteredLegal:     legalExited.length,
         closedWon:        legalConverted.length,
