@@ -38,6 +38,7 @@ const PROPS = [
   "dealstage",
   "deal_attribution",
   "amount",
+  "hs_v2_date_entered_appointmentscheduled",
   "hs_v2_date_entered_qualifiedtobuy",
   "hs_v2_date_entered_contractsent",
   "hs_v2_date_entered_1446534336",
@@ -49,6 +50,15 @@ const PROPS = [
 
 const ts = (iso: string | null | undefined): number =>
   iso ? new Date(iso).getTime() : Infinity;
+
+const isDiscAnomaly = (p: any): boolean => {
+  const discTs = ts(p.hs_v2_date_entered_appointmentscheduled);
+  return (
+    ts(p.hs_v2_date_entered_qualifiedtobuy)  < discTs ||
+    ts(p.hs_v2_date_entered_contractsent)    < discTs ||
+    ts(p["hs_v2_date_entered_1446534336"])   < discTs
+  );
+};
 
 const isDemoAnomaly = (p: any): boolean => {
   const demoTs = ts(p.hs_v2_date_entered_qualifiedtobuy);
@@ -62,6 +72,14 @@ const isPropAnomaly = (p: any): boolean => {
   const propTs = ts(p.hs_v2_date_entered_contractsent);
   return ts(p["hs_v2_date_entered_1446534336"]) < propTs;
 };
+
+// Did a deal pass through Demo?
+// True if has qualifiedtobuy, contractsent, or legal timestamp, OR is closedwon.
+const passedDemo = (p: any): boolean =>
+  !!p.hs_v2_date_entered_qualifiedtobuy    ||
+  !!p.hs_v2_date_entered_contractsent      ||
+  !!p["hs_v2_date_entered_1446534336"]     ||
+  p.dealstage === "closedwon";
 
 // Did a deal pass through Proposal?
 // True if has contractsent OR legal timestamp, OR is closedwon.
@@ -85,8 +103,16 @@ export async function GET() {
     cutoff.setFullYear(now.getFullYear() - 1);
     const cutoffMs = String(cutoff.getTime());
 
-    // Run all three cohort queries + closed won in parallel
-    const [demoExited, propExited, legalExited, closedWonDeals] = await Promise.all([
+    // Run all four cohort queries + closed won in parallel
+    const [discExited, demoExited, propExited, legalExited, closedWonDeals] = await Promise.all([
+      // disc_to_demo: entered Discovery in last 12 months, no longer in Discovery
+      searchAll({
+        filterGroups: [{ filters: [
+          { propertyName: "hs_v2_date_entered_appointmentscheduled", operator: "GTE", value: cutoffMs },
+          { propertyName: "dealstage", operator: "NOT_IN", values: ["appointmentscheduled"] },
+        ]}],
+        properties: PROPS,
+      }),
       // demo_to_prop: entered Demo in last 12 months, no longer in Demo
       searchAll({
         filterGroups: [{ filters: [
@@ -122,6 +148,11 @@ export async function GET() {
       }),
     ]);
 
+    // --- disc_to_demo ---
+    const discClean     = discExited.filter(d => !isDiscAnomaly(d.properties ?? {}));
+    const discConverted = discClean.filter(d => passedDemo(d.properties ?? {}));
+    const discAnomalies = discExited.filter(d => isDiscAnomaly(d.properties ?? {}));
+
     // --- demo_to_prop ---
     const demoClean     = demoExited.filter(d => !isDemoAnomaly(d.properties ?? {}));
     const demoConverted = demoClean.filter(d => passedProposal(d.properties ?? {}));
@@ -155,6 +186,42 @@ export async function GET() {
       : null;
 
     // --- Build per-deal cohort data for validation dashboard ---
+    const buildDiscNote = (p: any): string => {
+      const discTs = ts(p.hs_v2_date_entered_appointmentscheduled);
+      const flags = [];
+      if (ts(p.hs_v2_date_entered_qualifiedtobuy) < discTs) flags.push("Demo");
+      if (ts(p.hs_v2_date_entered_contractsent)   < discTs) flags.push("Proposal");
+      if (ts(p["hs_v2_date_entered_1446534336"])  < discTs) flags.push("Legal");
+      return `${flags.join(" and ")} timestamp${flags.length > 1 ? "s" : ""} predate Discovery entry`;
+    };
+
+    const discCohort = [
+      ...discClean.map(d => ({
+        id:        String(d.id),
+        name:      d.properties?.dealname ?? "Unknown",
+        stage:     d.properties?.dealstage ?? "",
+        disc:      d.properties?.hs_v2_date_entered_appointmentscheduled ?? null,
+        demo:      d.properties?.hs_v2_date_entered_qualifiedtobuy        ?? null,
+        prop:      d.properties?.hs_v2_date_entered_contractsent           ?? null,
+        legal:     d.properties?.["hs_v2_date_entered_1446534336"]        ?? null,
+        anomaly:   false,
+        converted: passedDemo(d.properties ?? {}),
+        anomalyNote: null,
+      })),
+      ...discAnomalies.map(d => ({
+        id:        String(d.id),
+        name:      d.properties?.dealname ?? "Unknown",
+        stage:     d.properties?.dealstage ?? "",
+        disc:      d.properties?.hs_v2_date_entered_appointmentscheduled ?? null,
+        demo:      d.properties?.hs_v2_date_entered_qualifiedtobuy        ?? null,
+        prop:      d.properties?.hs_v2_date_entered_contractsent           ?? null,
+        legal:     d.properties?.["hs_v2_date_entered_1446534336"]        ?? null,
+        anomaly:   true,
+        converted: false,
+        anomalyNote: buildDiscNote(d.properties ?? {}),
+      })),
+    ];
+
     const mapDeal = (d: any, anomaly: boolean, converted: boolean, anomalyNote?: string) => ({
       id:       String(d.id),
       name:     d.properties?.dealname ?? "Unknown",
@@ -216,7 +283,8 @@ export async function GET() {
       rates: { disc_to_demo, demo_to_prop, prop_to_legal, legal_to_close },
       avg_deal_value,
       sample: {
-        enteredDemo:      demoClean.length,
+        enteredDisc:      discClean.length,
+      enteredDemo:      demoClean.length,
         enteredProposal:  propClean.length,
         enteredLegal:     legalExited.length,
         closedWon:        legalConverted.length,
@@ -224,11 +292,13 @@ export async function GET() {
         totalDeals:       demoClean.length,
         periodMonths:     12,
         anomaliesExcluded: {
+          disc: discAnomalies.length,
           demo: demoAnomalies.length,
           prop: propAnomalies.length,
         },
       },
       validation: {
+        discCohort,
         demoCohort,
         propCohort,
         legalCohort,
