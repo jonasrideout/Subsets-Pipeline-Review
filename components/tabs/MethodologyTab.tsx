@@ -179,7 +179,7 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
                       return (
                         <tr key={key} style={{ borderBottom: "1px solid #f4f5f8" }}>
                           <td style={{ padding: "9px 14px", color: "#374151", fontWeight: 500 }}>{label}</td>
-                          <td style={{ padding: "9px 14px", color: "#0f1117", fontWeight: 700 }}>{current}%</td>
+                          <td style={{ padding: "9px 14px", color: "#0f1117", fontWeight: 700 }}>{current as number}%</td>
                           <td style={{ padding: "9px 14px", color: "#64748b" }}>
                             {hsVal !== null && hsVal !== undefined ? `${hsVal}%` : "—"}
                           </td>
