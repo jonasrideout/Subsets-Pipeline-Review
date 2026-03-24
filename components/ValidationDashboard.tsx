@@ -6,6 +6,19 @@ import { useState } from "react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
+interface DiscDeal {
+  id: string;
+  name: string;
+  stage: string;
+  disc: string | null;
+  demo: string | null;
+  prop: string | null;
+  legal: string | null;
+  anomaly: boolean;
+  converted: boolean;
+  anomalyNote: string | null;
+}
+
 interface DemoDeal {
   id: string;
   name: string;
@@ -38,6 +51,7 @@ interface LegalDeal {
 }
 
 interface ValidationData {
+  discCohort: DiscDeal[];
   demoCohort: DemoDeal[];
   propCohort: PropDeal[];
   legalCohort: LegalDeal[];
@@ -51,7 +65,7 @@ interface SampleData {
   nbDealsForAvg: number;
   totalDeals: number;
   periodMonths: number;
-  anomaliesExcluded: { demo: number; prop: number };
+  anomaliesExcluded: { disc: number; demo: number; prop: number };
 }
 
 interface Rates {
@@ -157,12 +171,13 @@ const TD = ({ children, muted }: { children: React.ReactNode; muted?: boolean })
 // ── Main component ───────────────────────────────────────────────────────────
 
 export default function ValidationDashboard({ rates, sample, validation }: ValidationDashboardProps) {
-  const [tab, setTab] = useState<"demo" | "prop" | "legal">("demo");
+  const [tab, setTab] = useState<"disc" | "demo" | "prop" | "legal">("disc");
 
-  const tabs: { id: "demo" | "prop" | "legal"; label: string; count: number }[] = [
+  const tabs: { id: "disc" | "demo" | "prop" | "legal"; label: string; count: number }[] = [
+    { id: "disc",  label: "Discovery → Demo",  count: validation.discCohort.length  },
     { id: "demo",  label: "Demo → Proposal",   count: validation.demoCohort.length  },
-    { id: "prop",  label: "Proposal → Legal",   count: validation.propCohort.length  },
-    { id: "legal", label: "Legal → Close",      count: validation.legalCohort.length },
+    { id: "prop",  label: "Proposal → Legal",  count: validation.propCohort.length  },
+    { id: "legal", label: "Legal → Close",     count: validation.legalCohort.length },
   ];
 
   return (
@@ -204,7 +219,8 @@ export default function ValidationDashboard({ rates, sample, validation }: Valid
           <RateSummaryTile
             label="Discovery → Demo"
             rate={rates.disc_to_demo}
-            n={0}
+            n={sample.enteredDisc}
+            anomalies={sample.anomaliesExcluded.disc}
           />
         </div>
       </div>
