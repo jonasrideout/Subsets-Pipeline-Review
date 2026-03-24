@@ -26,7 +26,10 @@ function isRecalculateWindow(now: Date): boolean {
   return false;
 }
 
-const fmtK = (n: number) => "$" + Math.round(n / 1000) + "K";
+const fmtK = (n: number) =>
+  n >= 1_000_000
+    ? "$" + (n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1) + "M"
+    : "$" + Math.round(n / 1000) + "K";
 
 export default function Header({ asOf, loading, qIndex, ytdMode, onRefresh, onRecalculate, recalculating }: HeaderProps) {
   const now       = asOf ? new Date(asOf) : new Date();
