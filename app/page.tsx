@@ -84,6 +84,7 @@ export default function Page() {
   // Recalculate modal
   const [recalculating, setRecalculating] = useState(false);
   const [recalcModal, setRecalcModal]     = useState<{ rates: any; avg_deal_value: number | null; sample: any } | null>(null);
+  const [ytdMode, setYtdMode]             = useState(false);
 
   // Date anchors
   const [now, setNow] = useState<Date>(new Date());
@@ -209,6 +210,7 @@ export default function Page() {
         asOf={asOf}
         loading={loading}
         qIndex={qIndex}
+        ytdMode={ytdMode}
         onRefresh={fetchPipeline}
         onRecalculate={handleRecalculate}
         recalculating={recalculating}
@@ -237,6 +239,7 @@ export default function Page() {
                 emailSignals={emailSignals} closePlans={closePlans}
                 assumptions={assumptions} counts={counts} hubspotRates={hubspotRates}
                 now={now} weekAgo={weekAgo} qStart={qStart} yearStart={yearStart} qIndex={qIndex}
+                ytdMode={ytdMode} onYtdModeChange={setYtdMode}
                 onTabChange={setTab}
                 onAssumptionsSave={handleAssumptionsSave}
               />
