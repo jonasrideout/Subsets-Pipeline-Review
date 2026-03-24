@@ -78,16 +78,16 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
 
           {section("Setting quarterly targets", <>
             {bullet(<>Each quarter has a revenue target derived from the {val("$3M annual goal")}, divided seasonally. The current quarter's target is {val(fmtK(QUARTERLY_TARGETS[qIndex]))}, split {val("⅔ New Business")} ({val(fmtK(derived.nbQRevenueTarget))}) and {val("⅓ Expansion")} ({val(fmtK(derived.expansionQRevenueTarget))}). That's {val(derived.qCloses)} New Business deals and {val(derived.expansionQCloses)} Expansion deals this quarter.</>)}
-            {bullet(<>Average deal value converts the NB revenue target into a deal count. At {val(fmtFull(assumptions.avg_deal_value))} average deal value, that's {val(derived.qCloses)} NB closes needed this quarter.</>)}
+            {bullet(<>Average deal value converts the New Business revenue target into a deal count. At {val(fmtFull(assumptions.avg_deal_value))} average deal value, that's {val(derived.qCloses)} New Business closes needed this quarter.</>)}
             {bullet(<>Working backwards through four historical conversion rates, the dashboard derives how many deals need to enter each stage to produce those closes — Legal, Proposal, Demo, and Discovery.</>)}
-            {bullet(<>Expansion uses its own close rate and average deal size, independent of the NB funnel. The current Expansion target is {val(derived.expansionQCloses)} closes this quarter.</>)}
+            {bullet(<>Expansion uses its own close rate and average deal size, independent of the New Business funnel. The current Expansion target is {val(derived.expansionQCloses)} closes this quarter.</>)}
           </>)}
 
           {section("Conversion rates", <>
             {bullet(<>Rates are calculated from 12 months of closed deals in HubSpot, tracking how many deals passed through each stage. Any rate can be manually overwritten using the Assumptions drawers on the Overview tab.{" "}
               {manualRates.length > 0
-                ? <>Manually set: {manualRates.map(({ key, label }, i) => (
-                    <span key={key}>{i > 0 ? ", " : ""}{val(`${label} (${assumptions[key]}%)`)}</span>
+                ? <>Currently set manually: {manualRates.map(({ key, label }, i) => (
+                    <span key={key}>{i > 0 ? ", " : ""}{val(`${label} (historically ${hubspotRates?.[key as keyof HubSpotRates]}%, set at ${assumptions[key]}%)`)}</span>
                   ))}.</>
                 : <>No rates are currently manually overridden — all values match HubSpot historical data.</>
               }
@@ -102,13 +102,13 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
 
           {section("Pour Gas on These", <>
             {bullet(<>Surfaces deals in Legal, Proposal, or Demo with prospect-side activity in the last 7 days.</>)}
-            {bullet(<>Signals tracked: inbound email replies, email opens above the minimum threshold, link clicks, and recent stage entry.</>)}
+            {bullet(<>Signals tracked: inbound email replies, emails opened more than {val("3")} times (adjustable on the Overview tab), link clicks, and recent stage entry.</>)}
           </>)}
 
           {section("Needs Action", <>
             {bullet(<>Flags deals that are missing close dates, amounts, or close plans, are overdue or due within 21 days, or have had no activity in 60+ days.</>)}
             {bullet(<>Demo deals are flagged if there has been no contact in 14+ days.</>)}
-            {bullet(<>Discovery deals are never flagged — they are not expected to have close dates or amounts set.</>)}
+            {bullet(<>Discovery deals are flagged if there has been no contact in 14+ days, or if the deal has been in Discovery for 60+ days with no movement.</>)}
           </>)}
 
 
@@ -124,7 +124,7 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
           {editingAvg ? (
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
-                <label style={{ fontSize: 13, color: "#374151", fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif" }}>Avg NB Deal Value</label>
+                <label style={{ fontSize: 13, color: "#374151", fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif" }}>Avg New Business Deal Value</label>
                 <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   <span style={{ fontSize: 12, color: "#64748b" }}>$</span>
                   <input type="number" value={tmpAvg} onChange={e => setTmpAvg(+e.target.value)}
@@ -146,7 +146,7 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
           ) : (
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 6 }}>
-                <span style={{ fontSize: 13, color: "#374151", fontFamily: "'DM Sans', system-ui, sans-serif" }}>Avg NB Deal Value</span>
+                <span style={{ fontSize: 13, color: "#374151", fontFamily: "'DM Sans', system-ui, sans-serif" }}>Avg New Business Deal Value</span>
                 <span style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", fontFamily: "'DM Sans', system-ui, sans-serif" }}>{fmtFull(assumptions.avg_deal_value)}</span>
                 <button onClick={() => { setEditingAvg(true); setTmpAvg(assumptions.avg_deal_value); }}
                   style={{ background: "#f8fafc", color: "#64748b", border: "1px solid #e2e4ed", borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontSize: 12, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
