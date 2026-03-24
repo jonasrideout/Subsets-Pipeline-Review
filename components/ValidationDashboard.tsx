@@ -130,6 +130,11 @@ function ResultBadge({ converted, anomaly, tab }: { converted: boolean; anomaly:
       }}>⚠ Anomaly</span>
     );
   }
+  if (tab === "disc") {
+    return converted
+      ? <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: "rgba(99,102,241,0.12)", color: "#6366f1" }}>Reached Demo</span>
+      : <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: "rgba(239,68,68,0.08)", color: "#ef4444" }}>Did not reach Demo</span>;
+  }
   if (tab === "demo") {
     return converted
       ? <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: "rgba(99,102,241,0.12)", color: "#6366f1" }}>Reached Proposal</span>
@@ -255,6 +260,40 @@ export default function ValidationDashboard({ rates, sample, validation }: Valid
       {/* Tables */}
       <div style={{ background: "#fff", borderRadius: "0 0 12px 12px", overflow: "hidden" }}>
 
+        {/* Discovery → Demo */}
+        {tab === "disc" && (
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+            <thead>
+              <tr>
+                <TH>Deal</TH>
+                <TH>Current Stage</TH>
+                <TH>Entered Discovery</TH>
+                <TH>Entered Demo</TH>
+                <TH>Result</TH>
+              </tr>
+            </thead>
+            <tbody>
+              {validation.discCohort.map(d => (
+                <tr key={d.id} style={{
+                  background: d.anomaly
+                    ? "rgba(245,158,11,0.03)"
+                    : d.converted
+                      ? "rgba(99,102,241,0.02)"
+                      : "white",
+                }}>
+                  <TD><span style={{ fontWeight: 600, color: "#0f1117" }}>{d.name}</span></TD>
+                  <TD muted>{stageLabel(d.stage)}</TD>
+                  <TD muted>{fmtDate(d.disc)}</TD>
+                  <TD muted>{fmtDate(d.demo)}</TD>
+                  <td style={{ padding: "9px 14px", borderBottom: "1px solid #f4f5f8", verticalAlign: "middle" }}>
+                    <ResultBadge converted={d.converted} anomaly={d.anomaly} tab="disc" />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
         {/* Demo → Proposal */}
         {tab === "demo" && (
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
@@ -356,7 +395,7 @@ export default function ValidationDashboard({ rates, sample, validation }: Valid
         {/* Footer note */}
         <div style={{ padding: "12px 24px", borderTop: "1px solid #f0f2f7" }}>
           <span style={{ fontSize: 11, color: "#94a3b8" }}>
-            ⚠ Anomaly = a downstream stage timestamp predates the stage entry being measured, indicating a stage regression in HubSpot. Excluded from both numerator and denominator. · Discovery → Demo is manually set at 40% and not derived from historical data.
+            ⚠ Anomaly = a downstream stage timestamp predates the stage entry being measured, indicating a stage regression in HubSpot. Excluded from both numerator and denominator. · Discovery → Demo is currently manually set at 40% and not applied from HubSpot data.
           </span>
         </div>
       </div>
