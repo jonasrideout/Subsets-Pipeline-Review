@@ -83,7 +83,12 @@ export default function Page() {
 
   // Recalculate modal
   const [recalculating, setRecalculating] = useState(false);
-  const [recalcModal, setRecalcModal]     = useState<{ rates: any; avg_deal_value: number | null; sample: any } | null>(null);
+  const [recalcModal, setRecalcModal]     = useState<{
+    rates:          any;
+    avg_deal_value: number | null;
+    sample:         any;
+    validation:     any;
+  } | null>(null);
   const [ytdMode, setYtdMode]             = useState(false);
 
   // Date anchors
@@ -155,7 +160,12 @@ export default function Page() {
       const res  = await fetch("/api/recalculate");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      setRecalcModal({ rates: data.rates, avg_deal_value: data.avg_deal_value ?? null, sample: data.sample });
+      setRecalcModal({
+        rates:          data.rates,
+        avg_deal_value: data.avg_deal_value ?? null,
+        sample:         data.sample,
+        validation:     data.validation,
+      });
     } catch (e) {
       console.error("Recalculate failed:", e);
     } finally {
@@ -268,6 +278,7 @@ export default function Page() {
           rates={recalcModal.rates}
           avg_deal_value={recalcModal.avg_deal_value}
           sample={recalcModal.sample}
+          validation={recalcModal.validation}
           current={assumptions}
           onConfirm={handleRecalcConfirm}
           onDismiss={() => setRecalcModal(null)}
