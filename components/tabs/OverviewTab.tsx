@@ -117,7 +117,7 @@ export default function OverviewTab({
   }));
 
   const solRows  = useMemo(() => getSignsOfLife(active, emailSignals, now, minOpens), [active, emailSignals, now, minOpens]);
-  const naAlerts = useMemo(() => getNeedsActionAlerts([...legal, ...proposal, ...demo], closePlans, now), [legal, proposal, demo, closePlans, now]);
+  const naAlerts = useMemo(() => getNeedsActionAlerts([...legal, ...proposal, ...demo, ...discovery], closePlans, now), [legal, proposal, demo, discovery, closePlans, now]);
 
   const progressWon      = ytdMode ? closedWonYTDTotal : closedWonTotal;
   const progressTarget   = ytdMode ? ANNUAL_REVENUE_TARGET : QUARTERLY_TARGET;
