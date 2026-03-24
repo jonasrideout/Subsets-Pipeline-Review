@@ -2,12 +2,13 @@
 
 "use client";
 
-import { QUARTERLY_TARGETS } from "@/lib/assumptions";
+import { QUARTERLY_TARGETS, ANNUAL_REVENUE_TARGET } from "@/lib/assumptions";
 
 interface HeaderProps {
   asOf:          string | null;
   loading:       boolean;
   qIndex:        number;
+  ytdMode:       boolean;
   onRefresh:     () => void;
   onRecalculate: () => void;
   recalculating: boolean;
@@ -27,18 +28,17 @@ function isRecalculateWindow(now: Date): boolean {
 
 const fmtK = (n: number) => "$" + Math.round(n / 1000) + "K";
 
-export default function Header({ asOf, loading, qIndex, onRefresh, onRecalculate, recalculating }: HeaderProps) {
+export default function Header({ asOf, loading, qIndex, ytdMode, onRefresh, onRecalculate, recalculating }: HeaderProps) {
   const now       = asOf ? new Date(asOf) : new Date();
   const canRecalc = isRecalculateWindow(now);
 
   const formatted = asOf
-    ? new Date(asOf).toLocaleString("en-US", {
-        hour: "numeric", minute: "2-digit", hour12: true,
-      })
+    ? new Date(asOf).toLocaleString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })
     : "—";
 
-  const qTarget = QUARTERLY_TARGETS[qIndex] ?? QUARTERLY_TARGETS[0];
-  const qLabel  = `Q${qIndex + 1}`;
+  const targetLabel = ytdMode
+    ? `${now.getFullYear()} target: ${fmtK(ANNUAL_REVENUE_TARGET)}`
+    : `Q${qIndex + 1} target: ${fmtK(QUARTERLY_TARGETS[qIndex] ?? QUARTERLY_TARGETS[0])}`;
 
   return (
     <header style={{
@@ -80,7 +80,7 @@ export default function Header({ asOf, loading, qIndex, onRefresh, onRecalculate
               }}>SUBSETS</span>
             </div>
             <p style={{ margin: 0, fontSize: 11, color: "rgba(160, 250, 215, 0.6)", marginTop: 2 }}>
-              {loading ? "Refreshing…" : `Refreshed ${formatted} · ${qLabel} target: ${fmtK(qTarget)}`}
+              {loading ? "Refreshing…" : `Refreshed ${formatted} · ${targetLabel}`}
             </p>
           </div>
         </div>
