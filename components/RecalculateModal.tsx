@@ -17,6 +17,7 @@ interface Rates {
 }
 
 interface Sample {
+  enteredDisc:      number;
   enteredDemo:      number;
   enteredProposal:  number;
   enteredLegal:     number;
@@ -24,10 +25,11 @@ interface Sample {
   nbDealsForAvg:    number;
   totalDeals:       number;
   periodMonths:     number;
-  anomaliesExcluded: { demo: number; prop: number };
+  anomaliesExcluded: { disc: number; demo: number; prop: number };
 }
 
 interface ValidationData {
+  discCohort: any[];
   demoCohort: any[];
   propCohort: any[];
   legalCohort: any[];
@@ -114,11 +116,12 @@ export default function RecalculateModal({
           {/* Sample tiles */}
           <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
             {[
-              ["Entered Demo",     sample.enteredDemo,     sample.anomaliesExcluded.demo],
-              ["Entered Proposal", sample.enteredProposal, sample.anomaliesExcluded.prop],
-              ["Entered Legal",    sample.enteredLegal,    0],
-              ["Closed Won",       sample.closedWon,       0],
-              ["NB Deals (avg)",   sample.nbDealsForAvg,   0],
+              ["Entered Discovery", sample.enteredDisc,      sample.anomaliesExcluded.disc],
+              ["Entered Demo",      sample.enteredDemo,      sample.anomaliesExcluded.demo],
+              ["Entered Proposal",  sample.enteredProposal,  sample.anomaliesExcluded.prop],
+              ["Entered Legal",     sample.enteredLegal,     0],
+              ["Closed Won",        sample.closedWon,        0],
+              ["NB Deals (avg)",    sample.nbDealsForAvg,    0],
             ].map(([label, val, excl]) => (
               <div key={String(label)} style={{
                 flex: 1, minWidth: 80,
