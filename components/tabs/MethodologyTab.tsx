@@ -66,6 +66,13 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
     <span style={{ fontWeight: 600, color: "#0f172a" }}>{v}</span>
   );
 
+  const COLOR_TIERS: { bg: string; border: string; label: string; desc: string }[] = [
+    { bg: "#f0fdf4", border: "#86efac", label: "Green",  desc: "≥ 90% of pace — on track" },
+    { bg: "#fefce8", border: "#fde68a", label: "Yellow", desc: "75–89% of pace — slightly behind" },
+    { bg: "#fff7ed", border: "#fed7aa", label: "Orange", desc: "50–74% of pace — behind pace" },
+    { bg: "#fef2f2", border: "#fecaca", label: "Red",    desc: "< 50% of pace — significantly behind, needs attention" },
+  ];
+
   return (
     <div style={{ maxWidth: 860, margin: "0 auto" }}>
 
@@ -81,6 +88,21 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
             {bullet(<>Average deal value converts the New Business revenue target into a deal count. At {val(fmtFull(assumptions.avg_deal_value))} average deal value, that's {val(derived.qCloses)} New Business closes needed this quarter.</>)}
             {bullet(<>Working backwards through four historical conversion rates, the dashboard derives how many deals need to enter each stage to produce those closes — Legal, Proposal, Demo, and Discovery.</>)}
             {bullet(<>Expansion uses its own close rate and average deal size, independent of the New Business funnel. The current Expansion target is {val(derived.expansionQCloses)} closes this quarter.</>)}
+          </>)}
+
+          {section("Stage tile color coding", <>
+            {bullet(<>Each stage tile on the Overview tab is color-coded by {val("pace ratio")}: how far you are toward the stage's quarterly target relative to how far through the quarter (or year) you are. Specifically: {val("(deals entered ÷ Q target) ÷ % of period elapsed")}.</>)}
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginLeft: 20, marginBottom: 8 }}>
+              {COLOR_TIERS.map(t => (
+                <div key={t.label} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ width: 28, height: 18, borderRadius: 5, background: t.bg, border: `1.5px solid ${t.border}`, flexShrink: 0 }} />
+                  <span style={{ fontSize: 13, color: "#374151", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                    <span style={{ fontWeight: 600 }}>{t.label}</span> — {t.desc}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {bullet(<>The ℹ️ icon on each tile shows the exact percentage of goal reached and a plain-English interpretation. Color updates live when assumptions are edited.</>)}
           </>)}
 
           {section("Conversion rates", <>
@@ -110,7 +132,6 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
             {bullet(<>Demo deals are flagged if there has been no contact in 14+ days.</>)}
             {bullet(<>Discovery deals are flagged if there has been no contact in 14+ days, or if the deal has been in Discovery for 60+ days with no movement.</>)}
           </>)}
-
 
         </div>
       </TableCard>
