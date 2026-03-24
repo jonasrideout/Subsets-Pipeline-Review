@@ -22,17 +22,28 @@ const HISTORICAL_AVG_DEAL_VALUE = 62137;
 export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAssumptionsSave }: MethodologyTabProps) {
   const derived = deriveTargets(assumptions, qIndex);
 
-  // Build list of manually overridden rates
+  // Classify each rate as HubSpot-derived or manually set.
+  // disc_to_demo is always manual — the recalculate route never returns a value for it.
+  // For the other three: manual if hubspotRates has a value that differs from assumptions.
   const RATE_KEYS: { key: keyof Assumptions; label: string }[] = [
     { key: "disc_to_demo",   label: "Discovery→Demo" },
     { key: "demo_to_prop",   label: "Demo→Proposal" },
     { key: "prop_to_legal",  label: "Proposal→Legal" },
     { key: "legal_to_close", label: "Legal→Close" },
   ];
+
   const manualRates = RATE_KEYS.filter(({ key }) => {
+    if (key === "disc_to_demo") return true; // always manual
+    if (!hubspotRates) return true;          // no data yet — treat as manual
+    const hsVal = hubspotRates[key as keyof HubSpotRates];
+    return hsVal === null || hsVal === undefined || hsVal !== assumptions[key];
+  });
+
+  const hubspotDerivedRates = RATE_KEYS.filter(({ key }) => {
+    if (key === "disc_to_demo") return false;
     if (!hubspotRates) return false;
     const hsVal = hubspotRates[key as keyof HubSpotRates];
-    return hsVal !== null && hsVal !== undefined && hsVal !== assumptions[key];
+    return hsVal !== null && hsVal !== undefined && hsVal === assumptions[key];
   });
 
   const [editingAvg, setEditingAvg] = useState(false);
@@ -106,13 +117,36 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
           </>)}
 
           {section("Conversion rates", <>
-            {bullet(<>Rates are calculated from 12 months of closed deals in HubSpot, tracking how many deals passed through each stage. Any rate can be manually overwritten using the Assumptions drawers on the Overview tab.{" "}
-              {manualRates.length > 0
-                ? <>Currently set manually: {manualRates.map(({ key, label }, i) => (
-                    <span key={key}>{i > 0 ? ", " : ""}{val(`${label} (historically ${hubspotRates?.[key as keyof HubSpotRates]}%, set at ${assumptions[key]}%)`)}</span>
-                  ))}.</>
-                : <>No rates are currently manually overridden — all values match HubSpot historical data.</>
-              }
+            {bullet(<>
+              Rates are calculated from 12 months of resolved deals in HubSpot, tracking how many deals
+              passed through each stage. Anomalous deals — where a downstream stage timestamp predates
+              the stage entry being measured — are excluded from both numerator and denominator.
+              Any rate can be manually overwritten using the Assumptions drawers on the Overview tab.
+            </>)}
+            {hubspotDerivedRates.length > 0 && bullet(<>
+              <span style={{ color: "#16a34a", fontWeight: 600 }}>HubSpot historical (12-month rolling):</span>{" "}
+              {hubspotDerivedRates.map(({ key, label }, i) => (
+                <span key={key}>{i > 0 ? ", " : ""}{val(`${label} (${assumptions[key]}%)`)}</span>
+              ))}.
+            </>)}
+            {manualRates.length > 0 && bullet(<>
+              <span style={{ color: "#d97706", fontWeight: 600 }}>Manually set:</span>{" "}
+              {manualRates.map(({ key, label }, i) => {
+                const hsVal = key !== "disc_to_demo" && hubspotRates
+                  ? hubspotRates[key as keyof HubSpotRates]
+                  : null;
+                return (
+                  <span key={key}>
+                    {i > 0 ? ", " : ""}
+                    {label}{" ("}
+                    {hsVal !== null && hsVal !== undefined
+                      ? <>historically {val(`${hsVal}%`)}, set at {val(`${assumptions[key]}%`)}</>
+                      : val(`${assumptions[key]}%`)
+                    }
+                    {")"}
+                  </span>
+                );
+              })}.
             </>)}
           </>)}
 
