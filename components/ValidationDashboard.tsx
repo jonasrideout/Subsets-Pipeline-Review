@@ -17,6 +17,7 @@ interface DiscDeal {
   anomaly: boolean;
   converted: boolean;
   anomalyNote: string | null;
+  stalled: boolean;
 }
 
 interface DemoDeal {
@@ -29,6 +30,7 @@ interface DemoDeal {
   anomaly: boolean;
   converted: boolean;
   anomalyNote: string | null;
+  stalled: boolean;
 }
 
 interface PropDeal {
@@ -40,6 +42,7 @@ interface PropDeal {
   anomaly: boolean;
   converted: boolean;
   anomalyNote: string | null;
+  stalled: boolean;
 }
 
 interface LegalDeal {
@@ -48,6 +51,8 @@ interface LegalDeal {
   stage: string;
   legal: string | null;
   won: boolean;
+  stalled: boolean;
+  stalledNote: string | null;
 }
 
 interface ValidationData {
@@ -122,7 +127,7 @@ function RateSummaryTile({
   );
 }
 
-function ResultBadge({ converted, anomaly, tab }: { converted: boolean; anomaly: boolean; tab: string }) {
+function ResultBadge({ converted, anomaly, tab, stalledNote }: { converted: boolean; anomaly: boolean; tab: string; stalledNote?: string | null }) {
   if (anomaly) {
     return (
       <span style={{
@@ -131,28 +136,33 @@ function ResultBadge({ converted, anomaly, tab }: { converted: boolean; anomaly:
       }}>⚠ Anomaly</span>
     );
   }
-  if (tab === "disc") {
-    return converted
-      ? <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: "rgba(99,102,241,0.12)", color: "#6366f1" }}>Reached Demo</span>
-      : <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: "rgba(239,68,68,0.08)", color: "#ef4444" }}>Did not reach Demo</span>;
+  const notReachedLabel =
+    tab === "disc" ? "Did not reach Demo" :
+    tab === "demo" ? "Did not reach Proposal" :
+    tab === "prop" ? "Did not reach Legal" : "Did not progress";
+  const reachedLabel =
+    tab === "disc" ? "Reached Demo" :
+    tab === "demo" ? "Reached Proposal" :
+    "Reached Legal";
+  if (converted) {
+    return <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: "rgba(99,102,241,0.12)", color: "#6366f1" }}>{reachedLabel}</span>;
   }
-  if (tab === "demo") {
-    return converted
-      ? <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: "rgba(99,102,241,0.12)", color: "#6366f1" }}>Reached Proposal</span>
-      : <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: "rgba(239,68,68,0.08)", color: "#ef4444" }}>Did not reach Proposal</span>;
-  }
-  if (tab === "prop") {
-    return converted
-      ? <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: "rgba(99,102,241,0.12)", color: "#6366f1" }}>Reached Legal</span>
-      : <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: "rgba(239,68,68,0.08)", color: "#ef4444" }}>Did not reach Legal</span>;
-  }
-  return null;
+  return (
+    <div>
+      <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: "rgba(239,68,68,0.08)", color: "#ef4444" }}>{notReachedLabel}</span>
+      {stalledNote && <div style={{ fontSize: 10, color: "#d97706", marginTop: 3 }}>⏱ {stalledNote}</div>}
+    </div>
+  );
 }
 
-function WonBadge({ won }: { won: boolean }) {
-  return won
-    ? <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: "rgba(34,197,94,0.12)", color: "#22c55e" }}>Closed Won</span>
-    : <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: "rgba(239,68,68,0.08)", color: "#ef4444" }}>Did not close</span>;
+function WonBadge({ won, stalledNote }: { won: boolean; stalledNote?: string | null }) {
+  if (won) return <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: "rgba(34,197,94,0.12)", color: "#22c55e" }}>Closed Won</span>;
+  return (
+    <div>
+      <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: "rgba(239,68,68,0.08)", color: "#ef4444" }}>Did not close</span>
+      {stalledNote && <div style={{ fontSize: 10, color: "#d97706", marginTop: 3 }}>⏱ {stalledNote}</div>}
+    </div>
+  );
 }
 
 const TH = ({ children }: { children: React.ReactNode }) => (
@@ -287,7 +297,7 @@ export default function ValidationDashboard({ rates, sample, validation }: Valid
                   <TD muted>{fmtDate(d.disc)}</TD>
                   <TD muted>{fmtDate(d.demo)}</TD>
                   <td style={{ padding: "9px 14px", borderBottom: "1px solid #f4f5f8", verticalAlign: "middle" }}>
-                    <ResultBadge converted={d.converted} anomaly={d.anomaly} tab="disc" />
+                    <ResultBadge converted={d.converted} anomaly={d.anomaly} tab="disc" stalledNote={d.stalled ? d.anomalyNote : null} />
                   </td>
                 </tr>
               ))}
@@ -323,7 +333,7 @@ export default function ValidationDashboard({ rates, sample, validation }: Valid
                   <TD muted>{fmtDate(d.prop)}</TD>
                   <TD muted>{fmtDate(d.legal)}</TD>
                   <td style={{ padding: "9px 14px", borderBottom: "1px solid #f4f5f8", verticalAlign: "middle" }}>
-                    <ResultBadge converted={d.converted} anomaly={d.anomaly} tab="demo" />
+                    <ResultBadge converted={d.converted} anomaly={d.anomaly} tab="demo" stalledNote={d.stalled ? d.anomalyNote : null} />
                   </td>
                 </tr>
               ))}
@@ -357,7 +367,7 @@ export default function ValidationDashboard({ rates, sample, validation }: Valid
                   <TD muted>{fmtDate(d.prop)}</TD>
                   <TD muted>{fmtDate(d.legal)}</TD>
                   <td style={{ padding: "9px 14px", borderBottom: "1px solid #f4f5f8", verticalAlign: "middle" }}>
-                    <ResultBadge converted={d.converted} anomaly={d.anomaly} tab="prop" />
+                    <ResultBadge converted={d.converted} anomaly={d.anomaly} tab="prop" stalledNote={d.stalled ? d.anomalyNote : null} />
                   </td>
                 </tr>
               ))}
@@ -385,7 +395,7 @@ export default function ValidationDashboard({ rates, sample, validation }: Valid
                   <TD muted>{stageLabel(d.stage)}</TD>
                   <TD muted>{fmtDate(d.legal)}</TD>
                   <td style={{ padding: "9px 14px", borderBottom: "1px solid #f4f5f8", verticalAlign: "middle" }}>
-                    <WonBadge won={d.won} />
+                    <WonBadge won={d.won} stalledNote={d.stalledNote} />
                   </td>
                 </tr>
               ))}
@@ -396,7 +406,7 @@ export default function ValidationDashboard({ rates, sample, validation }: Valid
         {/* Footer note */}
         <div style={{ padding: "12px 24px", borderTop: "1px solid #f0f2f7" }}>
           <span style={{ fontSize: 11, color: "#94a3b8" }}>
-            ⚠ Anomaly = a downstream stage timestamp predates the stage entry being measured, indicating a stage regression in HubSpot. Excluded from both numerator and denominator. · Discovery → Demo is currently manually set at 40% and not applied from HubSpot data.
+            ⚠ Anomaly = a downstream stage timestamp predates the stage entry being measured, indicating a stage regression in HubSpot. Excluded from both numerator and denominator. · ⏱ Stalled = deal has been in the same stage for 60+ days and is counted as not progressing.
           </span>
         </div>
       </div>
