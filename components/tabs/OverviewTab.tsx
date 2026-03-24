@@ -31,6 +31,8 @@ interface OverviewTabProps {
   qStart: Date;
   yearStart: Date;
   qIndex: number;
+  ytdMode: boolean;
+  onYtdModeChange: (v: boolean) => void;
   hubspotRates: HubSpotRates | null;
   onTabChange: (tab: TabId) => void;
   onAssumptionsSave: (a: Assumptions) => Promise<void>;
@@ -44,9 +46,8 @@ const fmtProgress = (n: number) => {
 export default function OverviewTab({
   active, legal, proposal, demo, discovery, closedWon, closedWonYTD,
   emailSignals, closePlans, assumptions, counts,
-  now, weekAgo, qStart, yearStart, qIndex, hubspotRates, onTabChange, onAssumptionsSave,
+  now, weekAgo, qStart, yearStart, qIndex, hubspotRates, ytdMode, onYtdModeChange, onTabChange, onAssumptionsSave,
 }: OverviewTabProps) {
-  const [ytdMode, setYtdMode]   = useState(false);
   const [minOpens, setMinOpens] = useState(3);
 
   const derived = deriveTargets(assumptions, qIndex);
