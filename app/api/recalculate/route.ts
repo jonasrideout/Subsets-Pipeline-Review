@@ -33,79 +33,131 @@ const searchAll = async (body: object): Promise<any[]> => {
   return results;
 };
 
+const PROPS = [
+  "dealname",
+  "dealstage",
+  "deal_attribution",
+  "amount",
+  "hs_v2_date_entered_qualifiedtobuy",
+  "hs_v2_date_entered_contractsent",
+  "hs_v2_date_entered_1446534336",
+];
+
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
     const now = new Date();
-    const twelveMonthsAgo = new Date(now);
-    twelveMonthsAgo.setFullYear(now.getFullYear() - 1);
-    const cutoff = twelveMonthsAgo.toISOString();
+    const cutoff = new Date(now);
+    cutoff.setFullYear(now.getFullYear() - 1);
+    const cutoffMs = String(cutoff.getTime());
 
-    // Pull all closed/lost deals from last 12 months (for conversion rates)
-    const raw = await searchAll({
+    // --- demo_to_prop ---
+    // Deals that entered Demo in the last 12 months and have since exited Demo.
+    // Exclude deals currently sitting in Demo — they haven't resolved yet.
+    const demoExited = await searchAll({
       filterGroups: [{
         filters: [
-          { propertyName: "dealstage", operator: "IN", values: ["closedwon", "closedlost", "563428070", "582003949"] },
-          { propertyName: "closedate", operator: "GTE", value: cutoff },
+          { propertyName: "hs_v2_date_entered_qualifiedtobuy", operator: "GTE", value: cutoffMs },
+          { propertyName: "dealstage", operator: "NOT_IN", values: ["qualifiedtobuy"] },
         ],
       }],
-      properties: [
-        "dealname",
-        "dealstage",
-        "deal_attribution",
-        "amount",
-        "hs_v2_date_entered_appointmentscheduled",
-        "hs_v2_date_entered_qualifiedtobuy",
-        "hs_v2_date_entered_contractsent",
-        "hs_v2_date_entered_1446534336",
-      ],
+      properties: PROPS,
     });
 
-    // Count deals at each stage transition
-    let enteredDiscovery = 0;
-    let enteredDemo      = 0;
-    let enteredProposal  = 0;
-    let enteredLegal     = 0;
-    let closedWon        = 0;
+    // --- prop_to_legal ---
+    // Deals that entered Proposal in the last 12 months and have since exited Proposal.
+    const propExited = await searchAll({
+      filterGroups: [{
+        filters: [
+          { propertyName: "hs_v2_date_entered_contractsent", operator: "GTE", value: cutoffMs },
+          { propertyName: "dealstage", operator: "NOT_IN", values: ["contractsent"] },
+        ],
+      }],
+      properties: PROPS,
+    });
 
-    // For avg NB deal value — closed won, non-Expansion only
-    const nbClosedWonAmounts: number[] = [];
+    // --- legal_to_close ---
+    // Deals that entered Legal in the last 12 months and have since exited Legal.
+    const legalExited = await searchAll({
+      filterGroups: [{
+        filters: [
+          { propertyName: "hs_v2_date_entered_1446534336", operator: "GTE", value: cutoffMs },
+          { propertyName: "dealstage", operator: "NOT_IN", values: ["1446534336"] },
+        ],
+      }],
+      properties: PROPS,
+    });
 
-    for (const d of raw) {
-      const p = d.properties ?? {};
-      const hasDisc  = !!p.hs_v2_date_entered_appointmentscheduled;
-      const hasDemo  = !!p.hs_v2_date_entered_qualifiedtobuy;
-      const hasProp  = !!p.hs_v2_date_entered_contractsent;
-      const hasLegal = !!p["hs_v2_date_entered_1446534336"];
-      const isWon    = p.dealstage === "closedwon";
+    // --- avg NB deal value ---
+    // Closed Won, non-Expansion, with amount, in last 12 months.
+    const closedWonDeals = await searchAll({
+      filterGroups: [{
+        filters: [
+          { propertyName: "dealstage",  operator: "EQ",  value: "closedwon" },
+          { propertyName: "closedate",  operator: "GTE", value: cutoffMs },
+          { propertyName: "amount",     operator: "HAS_PROPERTY" },
+        ],
+      }],
+      properties: ["dealname", "deal_attribution", "amount"],
+    });
 
-      if (hasDisc)  enteredDiscovery++;
-      if (hasDemo)  enteredDemo++;
-      if (hasProp)  enteredProposal++;
-      if (hasLegal) enteredLegal++;
-      if (isWon)    closedWon++;
+    // Helper: did a deal pass through Proposal?
+    // True if has contractsent timestamp, OR legal timestamp, OR is closedwon.
+    const passedProposal = (p: any) =>
+      !!p.hs_v2_date_entered_contractsent ||
+      !!p["hs_v2_date_entered_1446534336"] ||
+      p.dealstage === "closedwon";
 
-      // Avg NB deal value: closed won, not Expansion, has amount
-      if (isWon && p.deal_attribution !== "Expansion" && p.amount) {
-        const amt = parseFloat(p.amount);
-        if (!isNaN(amt) && amt > 0) nbClosedWonAmounts.push(amt);
-      }
-    }
+    // Helper: did a deal pass through Legal?
+    // True if has legal timestamp, OR is closedwon.
+    const passedLegal = (p: any) =>
+      !!p["hs_v2_date_entered_1446534336"] ||
+      p.dealstage === "closedwon";
 
-    // Conversion rates (as percentages, rounded to 1dp)
-    const round = (n: number) => Math.round(n * 1000) / 10;
-    const disc_to_demo   = enteredDiscovery > 0 ? round(enteredDemo     / enteredDiscovery) : null;
-    const demo_to_prop   = enteredDemo      > 0 ? round(enteredProposal / enteredDemo)      : null;
-    const prop_to_legal  = enteredProposal  > 0 ? round(enteredLegal    / enteredProposal)  : null;
-    const legal_to_close = enteredLegal     > 0 ? round(closedWon       / enteredLegal)     : null;
+    // demo_to_prop: of deals that exited Demo, how many passed through Proposal?
+    const demoTotal    = demoExited.length;
+    const demoConverted = demoExited.filter(d => passedProposal(d.properties ?? {})).length;
+
+    // prop_to_legal: of deals that exited Proposal, how many passed through Legal?
+    const propTotal    = propExited.length;
+    const propConverted = propExited.filter(d => passedLegal(d.properties ?? {})).length;
+
+    // legal_to_close: of deals that exited Legal, how many are Closed Won?
+    const legalTotal    = legalExited.length;
+    const legalConverted = legalExited.filter(d => (d.properties ?? {}).dealstage === "closedwon").length;
+
+    const round = (n: number) => Math.round(n * 1000) / 10; // e.g. 0.6388 → 63.9
+
+    const demo_to_prop   = demoTotal  > 0 ? round(demoConverted  / demoTotal)  : null;
+    const prop_to_legal  = propTotal  > 0 ? round(propConverted  / propTotal)  : null;
+    const legal_to_close = legalTotal > 0 ? round(legalConverted / legalTotal) : null;
+
+    // disc_to_demo is always null — manually set, not derived from HubSpot data.
+    const disc_to_demo: null = null;
 
     // Avg NB deal value
-    const avg_deal_value = nbClosedWonAmounts.length > 0
-      ? Math.round(nbClosedWonAmounts.reduce((s, v) => s + v, 0) / nbClosedWonAmounts.length)
+    const nbAmounts = closedWonDeals
+      .filter(d => (d.properties ?? {}).deal_attribution !== "Expansion")
+      .map(d => parseFloat((d.properties ?? {}).amount))
+      .filter(n => !isNaN(n) && n > 0);
+
+    const avg_deal_value = nbAmounts.length > 0
+      ? Math.round(nbAmounts.reduce((s, v) => s + v, 0) / nbAmounts.length)
       : null;
 
-    // Persist HubSpot-derived rates to Redis for source labeling in UI
+    // Sample counts for modal display
+    const sample = {
+      enteredDemo:      demoTotal,
+      enteredProposal:  propTotal,
+      enteredLegal:     legalTotal,
+      closedWon:        legalConverted, // resolved from legal — most meaningful closed count
+      nbDealsForAvg:    nbAmounts.length,
+      totalDeals:       demoTotal, // largest resolved cohort
+      periodMonths:     12,
+    };
+
+    // Persist to Redis
     const hubspotRates = {
       disc_to_demo, demo_to_prop, prop_to_legal, legal_to_close,
       avg_deal_value,
@@ -118,22 +170,12 @@ export async function GET() {
       await redis.disconnect();
     } catch (redisErr) {
       console.error("Failed to persist hubspot rates:", redisErr);
-      // Non-fatal — still return the response
     }
 
     return NextResponse.json({
       rates: { disc_to_demo, demo_to_prop, prop_to_legal, legal_to_close },
       avg_deal_value,
-      sample: {
-        enteredDiscovery,
-        enteredDemo,
-        enteredProposal,
-        enteredLegal,
-        closedWon,
-        nbDealsForAvg: nbClosedWonAmounts.length,
-        totalDeals: raw.length,
-        periodMonths: 12,
-      },
+      sample,
     });
   } catch (err) {
     console.error("Recalculate error:", err);
