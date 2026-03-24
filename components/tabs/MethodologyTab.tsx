@@ -102,7 +102,7 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
                 </div>
               ))}
             </div>
-            {bullet(<>The ℹ️ icon on each tile shows the exact percentage of goal reached and a plain-English interpretation. Color updates live when assumptions are edited.</>)}
+            {bullet(<>The ℹ️ icon on each tile shows the exact percentage of goal reached and a plain-English interpretation.</>)}
           </>)}
 
           {section("Conversion rates", <>
