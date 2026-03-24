@@ -6,6 +6,7 @@ import { useState } from "react";
 import type { Assumptions, HubSpotRates } from "@/types/deals";
 import { deriveTargets, QUARTERLY_TARGETS, NB_REVENUE_SHARE } from "@/lib/assumptions";
 import { TableCard } from "@/components/Table";
+import ValidationDashboard from "@/components/ValidationDashboard";
 
 interface MethodologyTabProps {
   assumptions:       Assumptions;
@@ -46,7 +47,30 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
     return hsVal !== null && hsVal !== undefined && hsVal === assumptions[key];
   });
 
-  const [showAssumptions, setShowAssumptions] = useState(false);
+  const [showAssumptions, setShowAssumptions]   = useState(false);
+  const [validationData, setValidationData]     = useState<any | null>(null);
+  const [validationRates, setValidationRates]   = useState<any | null>(null);
+  const [validationSample, setValidationSample] = useState<any | null>(null);
+  const [loadingValidation, setLoadingValidation] = useState(false);
+
+  const handleViewAssumptions = async () => {
+    if (showAssumptions) { setShowAssumptions(false); return; }
+    if (!validationData) {
+      setLoadingValidation(true);
+      try {
+        const res  = await fetch("/api/recalculate");
+        if (res.ok) {
+          const data = await res.json();
+          setValidationData(data.validation);
+          setValidationRates(data.rates);
+          setValidationSample(data.sample);
+        }
+      } catch (e) { console.error("Failed to load validation data:", e); }
+      finally { setLoadingValidation(false); }
+    }
+    setShowAssumptions(true);
+  };
+
   const [editingAvg, setEditingAvg] = useState(false);
   const [tmpAvg, setTmpAvg]         = useState<number>(assumptions.avg_deal_value);
   const [savingAvg, setSavingAvg]   = useState(false);
@@ -152,48 +176,21 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
             {/* View Assumptions button */}
             <div style={{ marginTop: 10, marginLeft: 20 }}>
               <button
-                onClick={() => setShowAssumptions(v => !v)}
+                onClick={handleViewAssumptions}
+                disabled={loadingValidation}
                 style={{ background: "#f8fafc", color: "#64748b", border: "1px solid #e2e4ed", borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontSize: 12, fontFamily: "'DM Sans', system-ui, sans-serif" }}
               >
-                {showAssumptions ? "Hide Assumptions" : "View Assumptions"}
+                {loadingValidation ? "Loading…" : showAssumptions ? "Hide Assumptions" : "View Assumptions"}
               </button>
             </div>
-            {/* Inline assumptions panel */}
-            {showAssumptions && (
-              <div style={{ marginTop: 12, marginLeft: 20, border: "1px solid #e2e4ed", borderRadius: 8, overflow: "hidden" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                  <thead>
-                    <tr style={{ background: "#fafbfc", borderBottom: "1px solid #e2e4ed" }}>
-                      {["Conversion Rate", "Current", "HubSpot Historical", "Source"].map(h => (
-                        <th key={h} style={{ padding: "8px 14px", textAlign: "left", fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {RATE_KEYS.map(({ key, label }) => {
-                      const current = assumptions[key];
-                      const hsVal   = key !== "disc_to_demo" && hubspotRates
-                        ? hubspotRates[key as keyof HubSpotRates]
-                        : null;
-                      const isManual = key === "disc_to_demo" || hsVal === null || hsVal === undefined || hsVal !== current;
-                      return (
-                        <tr key={key} style={{ borderBottom: "1px solid #f4f5f8" }}>
-                          <td style={{ padding: "9px 14px", color: "#374151", fontWeight: 500 }}>{label}</td>
-                          <td style={{ padding: "9px 14px", color: "#0f1117", fontWeight: 700 }}>{current as number}%</td>
-                          <td style={{ padding: "9px 14px", color: "#64748b" }}>
-                            {hsVal !== null && hsVal !== undefined ? `${hsVal}%` : "—"}
-                          </td>
-                          <td style={{ padding: "9px 14px" }}>
-                            {isManual
-                              ? <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 4, background: "rgba(245,158,11,0.12)", color: "#d97706" }}>Manual</span>
-                              : <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 4, background: "rgba(34,197,94,0.1)", color: "#16a34a" }}>HubSpot</span>
-                            }
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+            {/* Inline validation dashboard */}
+            {showAssumptions && validationData && validationRates && validationSample && (
+              <div style={{ marginTop: 16, border: "1px solid #e2e8f0", borderRadius: 12, overflow: "hidden" }}>
+                <ValidationDashboard
+                  rates={validationRates}
+                  sample={validationSample}
+                  validation={validationData}
+                />
               </div>
             )}
           </>)}
