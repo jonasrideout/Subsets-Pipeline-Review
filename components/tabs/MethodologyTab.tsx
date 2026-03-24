@@ -91,7 +91,7 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
           </>)}
 
           {section("Stage tile color coding", <>
-            {bullet(<>Each stage tile on the Overview tab is color-coded by {val("pace ratio")}: how far you are toward the stage's quarterly target relative to how far through the quarter (or year) you are. Specifically: {val("(deals entered ÷ Q target) ÷ % of period elapsed")}.</>)}
+            {bullet(<>Each stage tile on the Overview tab is color-coded by {val("pace ratio")}: how far we are toward the stage's quarterly target relative to how far through the quarter (or year) we are. Specifically: {val("(deals entered ÷ Q target) ÷ % of period elapsed")}.</>)}
             <div style={{ display: "flex", flexDirection: "column", gap: 6, marginLeft: 20, marginBottom: 8 }}>
               {COLOR_TIERS.map(t => (
                 <div key={t.label} style={{ display: "flex", alignItems: "center", gap: 10 }}>
