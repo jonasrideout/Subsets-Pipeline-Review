@@ -46,7 +46,8 @@ const fmtProgress = (n: number) => {
 export default function OverviewTab({
   active, legal, proposal, demo, discovery, closedWon, closedWonYTD,
   emailSignals, closePlans, assumptions, counts,
-  now, weekAgo, qStart, yearStart, qIndex, hubspotRates, ytdMode, onYtdModeChange, onTabChange, onAssumptionsSave,
+  now, weekAgo, qStart, yearStart, qIndex, hubspotRates,
+  ytdMode, onYtdModeChange, onTabChange, onAssumptionsSave,
 }: OverviewTabProps) {
   const [minOpens, setMinOpens] = useState(3);
 
@@ -137,7 +138,7 @@ export default function OverviewTab({
         <div style={{ display: "flex", background: "#f1f5f9", borderRadius: 8, padding: 3, gap: 2 }}>
           {(["Q", "YTD"] as const).map(mode => (
             <button key={mode}
-              onClick={() => setYtdMode(mode === "YTD")}
+              onClick={() => onYtdModeChange(mode === "YTD")}
               style={{
                 padding: "5px 16px", borderRadius: 6, border: "none", cursor: "pointer",
                 fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif",
@@ -231,7 +232,7 @@ export default function OverviewTab({
                 </div>
               </div>
 
-              {/* Row 2: Weighted Pipeline — bar floats inside track so rounded ends are visible */}
+              {/* Row 2: Weighted Pipeline */}
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <div style={{ flex: 1, position: "relative", height: 20, background: "#f1f5f9", borderRadius: 999, overflow: "hidden" }}>
                   {wpPct > 0 && (
@@ -362,8 +363,6 @@ export default function OverviewTab({
           </tbody>
         </table>
       </TableCard>
-
-
     </div>
   );
 }
@@ -497,158 +496,5 @@ function AssumptionDrawer({ tileKey, assumptions, hubspotRates, borderColor, onS
         </div>
       )}
     </div>
-  );
-}
-
-// ── METHODOLOGY PANEL ─────────────────────────────────────────────────────────
-
-const HISTORICAL_AVG_DEAL_VALUE = 62137;
-
-function MethodologyPanel({ assumptions, derived, qIndex, onSave }: {
-  assumptions: Assumptions;
-  derived:     ReturnType<typeof deriveTargets>;
-  qIndex:      number;
-  onSave:      (a: Assumptions) => Promise<void>;
-}) {
-  const fmtK    = (n: number) => "$" + Math.round(n / 1000) + "K";
-  const fmtFull = (n: number) => "$" + n.toLocaleString();
-
-  const [editingAvg, setEditingAvg] = useState(false);
-  const [tmpAvg, setTmpAvg]         = useState<number>(assumptions.avg_deal_value);
-  const [saving, setSaving]         = useState(false);
-
-  const handleSaveAvg = async () => {
-    setSaving(true);
-    await onSave({ ...assumptions, avg_deal_value: tmpAvg });
-    setSaving(false);
-    setEditingAvg(false);
-  };
-
-  return (
-    <TableCard>
-      <details>
-        <summary style={{ padding: "12px 18px", cursor: "pointer", fontWeight: 700, fontSize: 14, listStyle: "none", display: "flex", justifyContent: "space-between" }}>
-          <span>📊 Methodology</span>
-          <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 400 }}>expand ▼</span>
-        </summary>
-        <div style={{ padding: "0 18px 18px" }}>
-
-          {/* Average Deal Value */}
-          <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid #f1f5f9" }}>
-            {editingAvg ? (
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 6 }}>
-                  <label style={{ fontSize: 12, color: "#374151", fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif" }}>Avg Deal Value</label>
-                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    <span style={{ fontSize: 12, color: "#64748b" }}>$</span>
-                    <input type="number" value={tmpAvg} onChange={e => setTmpAvg(+e.target.value)}
-                      style={{ width: 110, padding: "4px 6px", border: "1px solid #cbd5e1", borderRadius: 6, fontSize: 13, fontFamily: "'DM Sans', system-ui, sans-serif" }} />
-                  </div>
-                  <button onClick={handleSaveAvg} disabled={saving}
-                    style={{ background: "linear-gradient(135deg, #a0fad7, #82f6c6)", color: "#0a2e1f", border: "none", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontSize: 11, fontWeight: 700, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                    {saving ? "Saving…" : "Save"}
-                  </button>
-                  <button onClick={() => { setEditingAvg(false); setTmpAvg(assumptions.avg_deal_value); }}
-                    style={{ background: "#f1f5f9", color: "#374151", border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                    Cancel
-                  </button>
-                </div>
-                <div>
-                  <span style={{ fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif" }}>12-month rolling avg </span>
-                  <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif" }}>{fmtFull(HISTORICAL_AVG_DEAL_VALUE)}</span>
-                </div>
-              </div>
-            ) : (
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 4 }}>
-                  <span style={{ fontSize: 12, color: "#374151", fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif" }}>Avg Deal Value</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", fontFamily: "'DM Sans', system-ui, sans-serif" }}>{fmtFull(assumptions.avg_deal_value)}</span>
-                  <button onClick={() => { setEditingAvg(true); setTmpAvg(assumptions.avg_deal_value); }}
-                    style={{ background: "#f8fafc", color: "#64748b", border: "1px solid #e2e4ed", borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                    Edit
-                  </button>
-                </div>
-                <div>
-                  <span style={{ fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif" }}>12-month rolling avg </span>
-                  <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif" }}>{fmtFull(HISTORICAL_AVG_DEAL_VALUE)}</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div style={{ display: "flex", gap: 128, flexWrap: "wrap" }}>
-
-            {/* Quarterly Revenue Targets */}
-            <div style={{ flex: 1, minWidth: 200 }}>
-              <div style={{ fontWeight: 700, fontSize: 12, color: "#374151", marginBottom: 6 }}>Quarterly Revenue Targets</div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#94a3b8", marginBottom: 4, paddingBottom: 4, borderBottom: "1px solid #f1f5f9" }}>
-                <span style={{ width: 28 }}>Q</span>
-                <span style={{ flex: 1, textAlign: "right" }}>Total</span>
-                <span style={{ flex: 1, textAlign: "right" }}>NB (⅔)</span>
-                <span style={{ flex: 1, textAlign: "right" }}>Expansion (⅓)</span>
-              </div>
-              {QUARTERLY_TARGETS.map((total, i) => {
-                const nb  = Math.round(total * NB_REVENUE_SHARE);
-                const exp = total - nb;
-                return (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3 }}>
-                    <span style={{ width: 28, color: "#374151", fontWeight: i === qIndex ? 700 : 400 }}>Q{i + 1}</span>
-                    <span style={{ flex: 1, textAlign: "right", color: "#374151", fontWeight: i === qIndex ? 700 : 400 }}>{fmtK(total)}</span>
-                    <span style={{ flex: 1, textAlign: "right", color: "#374151", fontWeight: i === qIndex ? 700 : 400 }}>{fmtK(nb)}</span>
-                    <span style={{ flex: 1, textAlign: "right", color: "#374151", fontWeight: i === qIndex ? 700 : 400 }}>{fmtK(exp)}</span>
-                  </div>
-                );
-              })}
-              {(() => {
-                const totalAll = QUARTERLY_TARGETS.reduce((s, v) => s + v, 0);
-                const totalNB  = QUARTERLY_TARGETS.reduce((s, v) => s + Math.round(v * NB_REVENUE_SHARE), 0);
-                const totalExp = totalAll - totalNB;
-                return (
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginTop: 4, paddingTop: 4, borderTop: "1px solid #f1f5f9" }}>
-                    <span style={{ width: 28, color: "#374151", fontWeight: 700 }}>Total</span>
-                    <span style={{ flex: 1, textAlign: "right", color: "#374151", fontWeight: 700 }}>{fmtK(totalAll)}</span>
-                    <span style={{ flex: 1, textAlign: "right", color: "#374151", fontWeight: 700 }}>{fmtK(totalNB)}</span>
-                    <span style={{ flex: 1, textAlign: "right", color: "#374151", fontWeight: 700 }}>{fmtK(totalExp)}</span>
-                  </div>
-                );
-              })()}
-            </div>
-
-            {/* Quarterly Close Targets */}
-            <div style={{ flex: 1, minWidth: 200 }}>
-              <div style={{ fontWeight: 700, fontSize: 12, color: "#374151", marginBottom: 6 }}>Quarterly Close Targets</div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#94a3b8", marginBottom: 4, paddingBottom: 4, borderBottom: "1px solid #f1f5f9" }}>
-                <span style={{ width: 28 }}>Q</span>
-                <span style={{ flex: 1, textAlign: "right" }}>NB Closes</span>
-                <span style={{ flex: 1, textAlign: "right" }}>Exp Closes</span>
-              </div>
-              {QUARTERLY_TARGETS.map((_, i) => {
-                const qd = deriveTargets(assumptions, i);
-                const isCurrent = i === qIndex;
-                return (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3 }}>
-                    <span style={{ width: 28, color: "#374151", fontWeight: isCurrent ? 700 : 400 }}>Q{i + 1}</span>
-                    <span style={{ flex: 1, textAlign: "right", color: "#374151", fontWeight: isCurrent ? 700 : 400 }}>{qd.qCloses}</span>
-                    <span style={{ flex: 1, textAlign: "right", color: "#374151", fontWeight: isCurrent ? 700 : 400 }}>{qd.expansionQCloses}</span>
-                  </div>
-                );
-              })}
-              {(() => {
-                const totalNB  = QUARTERLY_TARGETS.reduce((s, _, i) => s + deriveTargets(assumptions, i).qCloses, 0);
-                const totalExp = QUARTERLY_TARGETS.reduce((s, _, i) => s + deriveTargets(assumptions, i).expansionQCloses, 0);
-                return (
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginTop: 4, paddingTop: 4, borderTop: "1px solid #f1f5f9" }}>
-                    <span style={{ width: 28, color: "#374151", fontWeight: 700 }}>Total</span>
-                    <span style={{ flex: 1, textAlign: "right", color: "#374151", fontWeight: 700 }}>{totalNB}</span>
-                    <span style={{ flex: 1, textAlign: "right", color: "#374151", fontWeight: 700 }}>{totalExp}</span>
-                  </div>
-                );
-              })()}
-            </div>
-
-          </div>
-        </div>
-      </details>
-    </TableCard>
   );
 }
