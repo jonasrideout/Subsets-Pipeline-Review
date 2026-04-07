@@ -227,7 +227,8 @@ export const fetchEmailSignalsForDeal = async (
 
 export const fetchAllEmailSignals = async (
   deals: Deal[],
-  now: Date
+  now: Date,
+  onProgress?: (fetched: number, total: number) => void
 ): Promise<Record<string, EmailSignal>> => {
   const pool = deals.filter(
     d => d.stage === "1446534336" ||
@@ -238,9 +239,9 @@ export const fetchAllEmailSignals = async (
 
   const results: Record<string, EmailSignal> = {};
   const BATCH_SIZE  = 3;
-  const BATCH_DELAY = 400; // ms between batches
+  const BATCH_DELAY = 400;
+  let fetched = 0;
 
-  // Brief initial pause so deal fetches complete before email queries start
   await new Promise(r => setTimeout(r, 500));
 
   for (let i = 0; i < pool.length; i += BATCH_SIZE) {
@@ -252,6 +253,8 @@ export const fetchAllEmailSignals = async (
       })
     );
     for (const [id, sig] of entries) results[id] = sig;
+    fetched += batch.length;
+    onProgress?.(fetched, pool.length);
     if (i + BATCH_SIZE < pool.length) {
       await new Promise(r => setTimeout(r, BATCH_DELAY));
     }
