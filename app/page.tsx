@@ -1,5 +1,3 @@
-// app/page.tsx
-
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -19,7 +17,6 @@ import RecalculateModal from "@/components/RecalculateModal";
 // ── COUNT HELPER ──────────────────────────────────────────────────────────────
 
 export interface PipelineCounts {
-  // Quarter-to-date
   discNewW:    number;
   discNewQ:    number;
   demoNewW:    number;
@@ -29,7 +26,6 @@ export interface PipelineCounts {
   legalNewW:   number;
   legalNewQ:   number;
   qElapsedPct: number;
-  // Year-to-date
   discNewY:    number;
   demoNewY:    number;
   propNewY:    number;
@@ -41,7 +37,6 @@ function computeCounts(active: Deal[], weekAgo: Date, qStart: Date, yearStart: D
   const qEnd        = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3 + 3, 1);
   const qTotalDays  = (qEnd.getTime() - qStart.getTime()) / 86400000;
   const qElapsedPct = Math.min(1, (now.getTime() - qStart.getTime()) / 86400000 / qTotalDays);
-
   const yearEnd     = new Date(now.getFullYear() + 1, 0, 1);
   const yTotalDays  = (yearEnd.getTime() - yearStart.getTime()) / 86400000;
   const yElapsedPct = Math.min(1, (now.getTime() - yearStart.getTime()) / 86400000 / yTotalDays);
@@ -64,62 +59,142 @@ function computeCounts(active: Deal[], weekAgo: Date, qStart: Date, yearStart: D
   };
 }
 
+// ── PROGRESS UI ───────────────────────────────────────────────────────────────
+
+interface ProgressStep {
+  message: string;
+  done:    boolean;
+}
+
+function LoadingScreen({ steps }: { steps: ProgressStep[] }) {
+  return (
+    <div style={{
+      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+      minHeight: "60vh", gap: 8,
+    }}>
+      <div style={{
+        background: "#fff", border: "1px solid #e2e4ed", borderRadius: 14,
+        padding: "28px 36px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
+        minWidth: 320,
+      }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#0f1117", marginBottom: 16, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+          Loading pipeline data…
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {steps.map((s, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 18, flexShrink: 0, textAlign: "center" }}>
+                {s.done
+                  ? <span style={{ color: "#16a34a", fontSize: 14 }}>✓</span>
+                  : <span style={{
+                      display: "inline-block", width: 12, height: 12, borderRadius: "50%",
+                      border: "2px solid #94a3b8", borderTopColor: "#0f172a",
+                      animation: "spin 0.7s linear infinite",
+                    }} />
+                }
+              </div>
+              <span style={{
+                fontSize: 13, fontFamily: "'DM Sans', system-ui, sans-serif",
+                color: s.done ? "#64748b" : "#0f1117",
+                fontWeight: s.done ? 400 : 500,
+              }}>
+                {s.message}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
+// ── PAGE ──────────────────────────────────────────────────────────────────────
+
 export default function Page() {
   const [tab, setTab]                   = useState<TabId>("overview");
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState<string | null>(null);
+  const [progressSteps, setProgressSteps] = useState<ProgressStep[]>([]);
 
-  // Pipeline data
   const [active, setActive]             = useState<Deal[]>([]);
   const [closedWon, setClosedWon]       = useState<ClosedWonDeal[]>([]);
   const [closedWonYTD, setClosedWonYTD] = useState<ClosedWonDeal[]>([]);
   const [emailSignals, setEmailSignals] = useState<EmailSignalMap>({});
   const [asOf, setAsOf]                 = useState<string | null>(null);
 
-  // Persisted state
   const [closePlans, setClosePlans]     = useState<ClosePlanMap>({});
   const [assumptions, setAssumptions]   = useState<Assumptions>(DEFAULT_ASSUMPTIONS);
   const [hubspotRates, setHubspotRates] = useState<HubSpotRates | null>(null);
 
-  // Recalculate modal
   const [recalculating, setRecalculating] = useState(false);
   const [recalcModal, setRecalcModal]     = useState<{
-    rates:          any;
-    avg_deal_value: number | null;
-    sample:         any;
-    validation:     any;
+    rates: any; avg_deal_value: number | null; sample: any; validation: any;
   } | null>(null);
-  const [ytdMode, setYtdMode]             = useState(false);
+  const [ytdMode, setYtdMode] = useState(false);
 
-  // Date anchors
   const [now, setNow] = useState<Date>(new Date());
   const weekAgo   = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const qIndex    = Math.floor(now.getMonth() / 3);
   const qStart    = new Date(now.getFullYear(), qIndex * 3, 1);
   const yearStart = new Date(now.getFullYear(), 0, 1);
+  const counts    = computeCounts(active, weekAgo, qStart, yearStart, now);
 
-  const counts = computeCounts(active, weekAgo, qStart, yearStart, now);
-
-  // ── FETCH ─────────────────────────────────────────────────────────────────
-  const fetchPipeline = useCallback(async () => {
+  // ── FETCH via SSE ─────────────────────────────────────────────────────────
+  const fetchPipeline = useCallback(() => {
     setLoading(true);
     setError(null);
-    try {
-      const res  = await fetch("/api/deals");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+    setProgressSteps([]);
+
+    const es = new EventSource("/api/deals");
+
+    es.addEventListener("progress", (e: MessageEvent) => {
+      const data = JSON.parse(e.data);
+      setProgressSteps(prev => {
+        // signals_progress updates the last signals line in place
+        if (data.step === "signals_progress") {
+          const next = [...prev];
+          const idx  = next.findLastIndex(s => s.message.startsWith("Fetching email signals"));
+          const line = { message: data.message, done: false };
+          if (idx >= 0) { next[idx] = line; return next; }
+          return [...next, line];
+        }
+        // _done steps mark the previous matching line as done and add the new one
+        if (data.step === "deals_done" || data.step === "signals_done") {
+          return [...prev.map(s => ({ ...s, done: true })), { message: data.message, done: true }];
+        }
+        return [...prev, { message: data.message, done: false }];
+      });
+    });
+
+    es.addEventListener("result", (e: MessageEvent) => {
+      const data = JSON.parse(e.data);
       setActive(data.active ?? []);
       setClosedWon(data.closedWon ?? []);
       setClosedWonYTD(data.closedWonYTD ?? []);
       setEmailSignals(data.emailSignals ?? {});
       setAsOf(data.asOf ?? null);
       setNow(new Date(data.asOf ?? Date.now()));
-    } catch (e) {
-      setError("Failed to load pipeline data. Check your HubSpot token and try again.");
-      console.error(e);
-    } finally {
       setLoading(false);
-    }
+      es.close();
+    });
+
+    es.addEventListener("error", (e: MessageEvent) => {
+      try {
+        const data = JSON.parse((e as any).data);
+        setError(data.message ?? "Failed to load pipeline data.");
+      } catch {
+        setError("Failed to load pipeline data. Check your HubSpot token and try again.");
+      }
+      setLoading(false);
+      es.close();
+    });
+
+    es.onerror = () => {
+      setError("Connection lost. Please refresh.");
+      setLoading(false);
+      es.close();
+    };
   }, []);
 
   const fetchClosePlans = useCallback(async () => {
@@ -139,10 +214,7 @@ export default function Page() {
   const fetchHubspotRates = useCallback(async () => {
     try {
       const res = await fetch("/api/hubspot-rates");
-      if (res.ok) {
-        const data = await res.json();
-        setHubspotRates(data);
-      }
+      if (res.ok) setHubspotRates(await res.json());
     } catch (e) { console.error("Failed to load hubspot rates:", e); }
   }, []);
 
@@ -160,17 +232,9 @@ export default function Page() {
       const res  = await fetch("/api/recalculate");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      setRecalcModal({
-        rates:          data.rates,
-        avg_deal_value: data.avg_deal_value ?? null,
-        sample:         data.sample,
-        validation:     data.validation,
-      });
-    } catch (e) {
-      console.error("Recalculate failed:", e);
-    } finally {
-      setRecalculating(false);
-    }
+      setRecalcModal({ rates: data.rates, avg_deal_value: data.avg_deal_value ?? null, sample: data.sample, validation: data.validation });
+    } catch (e) { console.error("Recalculate failed:", e); }
+    finally { setRecalculating(false); }
   };
 
   const handleRecalcConfirm = async (updated: Assumptions) => {
@@ -182,14 +246,12 @@ export default function Page() {
   const handleClosePlanSave = async (dealId: string, url: string) => {
     try {
       await fetch("/api/closeplans", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ dealId, url }),
       });
       setClosePlans(prev => {
         const next = { ...prev };
-        if (url) next[dealId] = url;
-        else delete next[dealId];
+        if (url) next[dealId] = url; else delete next[dealId];
         return next;
       });
     } catch (e) { console.error("Failed to save close plan:", e); }
@@ -198,15 +260,14 @@ export default function Page() {
   const handleAssumptionsSave = async (a: Assumptions) => {
     try {
       await fetch("/api/assumptions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(a),
       });
       setAssumptions(a);
     } catch (e) { console.error("Failed to save assumptions:", e); }
   };
 
-  // ── SPLIT DEALS BY STAGE ──────────────────────────────────────────────────
+  // ── SPLIT DEALS ───────────────────────────────────────────────────────────
   const legal     = filterByStage(active, "1446534336");
   const proposal  = filterByStage(active, "contractsent");
   const demo      = filterByStage(active, "qualifiedtobuy");
@@ -217,13 +278,8 @@ export default function Page() {
   return (
     <div style={{ minHeight: "100vh", background: "#f5f6fa" }}>
       <Header
-        asOf={asOf}
-        loading={loading}
-        qIndex={qIndex}
-        ytdMode={ytdMode}
-        onRefresh={fetchPipeline}
-        onRecalculate={handleRecalculate}
-        recalculating={recalculating}
+        asOf={asOf} loading={loading} qIndex={qIndex} ytdMode={ytdMode}
+        onRefresh={fetchPipeline} onRecalculate={handleRecalculate} recalculating={recalculating}
       />
 
       {error && (
@@ -235,23 +291,19 @@ export default function Page() {
       <TabNav active={tab} onChange={setTab} />
 
       <div className="px-6 py-6 max-w-[1600px] mx-auto">
-        {loading && !active.length ? (
-          <div style={{ textAlign: "center", padding: "80px 0", color: "#94a3b8", fontSize: 14 }}>
-            Loading pipeline data…
-          </div>
+        {loading ? (
+          <LoadingScreen steps={progressSteps} />
         ) : (
           <>
             {tab === "overview" && (
               <OverviewTab
-                active={active}
-                legal={legal} proposal={proposal} demo={demo} discovery={discovery}
+                active={active} legal={legal} proposal={proposal} demo={demo} discovery={discovery}
                 closedWon={closedWon} closedWonYTD={closedWonYTD}
                 emailSignals={emailSignals} closePlans={closePlans}
                 assumptions={assumptions} counts={counts} hubspotRates={hubspotRates}
                 now={now} weekAgo={weekAgo} qStart={qStart} yearStart={yearStart} qIndex={qIndex}
                 ytdMode={ytdMode} onYtdModeChange={setYtdMode}
-                onTabChange={setTab}
-                onAssumptionsSave={handleAssumptionsSave}
+                onTabChange={setTab} onAssumptionsSave={handleAssumptionsSave}
               />
             )}
             {tab === "legal" && (
@@ -275,13 +327,9 @@ export default function Page() {
 
       {recalcModal && (
         <RecalculateModal
-          rates={recalcModal.rates}
-          avg_deal_value={recalcModal.avg_deal_value}
-          sample={recalcModal.sample}
-          validation={recalcModal.validation}
-          current={assumptions}
-          onConfirm={handleRecalcConfirm}
-          onDismiss={() => setRecalcModal(null)}
+          rates={recalcModal.rates} avg_deal_value={recalcModal.avg_deal_value}
+          sample={recalcModal.sample} validation={recalcModal.validation}
+          current={assumptions} onConfirm={handleRecalcConfirm} onDismiss={() => setRecalcModal(null)}
         />
       )}
     </div>
