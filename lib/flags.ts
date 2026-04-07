@@ -112,7 +112,7 @@ export const getSignsOfLife = (
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
   const pool = deals.filter(
-    d => d.stage === "1446534336" || d.stage === "contractsent" || d.stage === "qualifiedtobuy"
+    d => d.stage === "1446534336" || d.stage === "contractsent" || d.stage === "qualifiedtobuy" || d.stage === "appointmentscheduled"
   );
 
   const rows: SignsOfLifeRow[] = [];
