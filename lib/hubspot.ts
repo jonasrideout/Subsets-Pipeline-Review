@@ -1,5 +1,3 @@
-// lib/hubspot.ts
-
 import type { Deal, ClosedWonDeal, EmailSignal } from "@/types/deals";
 import { ACTIVE_STAGE_IDS } from "@/lib/deals";
 
@@ -234,7 +232,8 @@ export const fetchAllEmailSignals = async (
   const pool = deals.filter(
     d => d.stage === "1446534336" ||
          d.stage === "contractsent" ||
-         d.stage === "qualifiedtobuy"
+         d.stage === "qualifiedtobuy" ||
+         d.stage === "appointmentscheduled"   // Discovery
   );
 
   const results: Record<string, EmailSignal> = {};
