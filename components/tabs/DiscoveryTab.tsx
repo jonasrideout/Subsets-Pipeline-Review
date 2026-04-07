@@ -1,5 +1,3 @@
-// components/tabs/DiscoveryTab.tsx
-
 "use client";
 
 import { useState } from "react";
@@ -16,6 +14,8 @@ import type { PipelineCounts } from "@/app/page";
 const NB = ["Outbound", "Events", "Partnership", "Inbound"] as const;
 const fmtK = (n: number) => "$" + Math.round(n / 1000) + "K";
 
+type NewFilter = "all" | "week" | "quarter";
+
 interface DiscoveryTabProps {
   deals: Deal[];
   allActive: Deal[];
@@ -31,13 +31,12 @@ interface DiscoveryTabProps {
 export default function DiscoveryTab({
   deals, allActive, assumptions, onAssumptionsSave, now, weekAgo, qStart, qIndex, counts,
 }: DiscoveryTabProps) {
+  const [newFilter, setNewFilter] = useState<NewFilter>("all");
+
   const derived     = deriveTargets(assumptions, qIndex);
   const { expansionQTarget, nbTargets, channelQTargets } = derived;
   const discQTarget = Object.values(channelQTargets).reduce((s, v) => s + v, 0);
 
-  const sorted    = [...deals].sort((a, b) =>
-    new Date(b.entered_current || "").getTime() - new Date(a.entered_current || "").getTime()
-  );
   const staleCount = deals.filter(d => isStale(d, now)).length;
   const { discNewW: newThisWeek, discNewQ: newThisQ, qElapsedPct } = counts;
   const goalPct = discQTarget > 0 ? Math.round((newThisQ / discQTarget) * 100) : 0;
@@ -58,21 +57,54 @@ export default function DiscoveryTab({
     return e ? new Date(e) >= qStart : false;
   }).length;
 
+  const sorted = [...deals].sort((a, b) =>
+    new Date(b.entered_current || "").getTime() - new Date(a.entered_current || "").getTime()
+  );
+
+  const filtered = sorted.filter(d => {
+    if (newFilter === "week")    return !!d.createdate && new Date(d.createdate) >= weekAgo;
+    if (newFilter === "quarter") return !!d.createdate && new Date(d.createdate) >= qStart;
+    return true;
+  });
+
+  const toggleFilter = (f: NewFilter) => setNewFilter(prev => prev === f ? "all" : f);
+
   return (
     <div>
       {/* Summary cards */}
       <div className="flex gap-3 mb-5 flex-wrap">
         <StatCard label="Currently in Discovery" value={deals.length} />
-        <StatCard label="New This Week"           value={newThisWeek} />
+        <StatCard
+          label="New This Week"
+          value={newThisWeek}
+          onClick={() => toggleFilter("week")}
+          active={newFilter === "week"}
+        />
         <StatCard
           label="New This Quarter"
           value={newThisQ}
           target={discQTarget}
           goalPct={goalPct}
           pacePct={pacePct}
+          onClick={() => toggleFilter("quarter")}
+          active={newFilter === "quarter"}
         />
         <StatCard label="Stale >60 days" value={staleCount} />
       </div>
+
+      {/* Active filter label */}
+      {newFilter !== "all" && (
+        <div style={{ marginBottom: 10, fontSize: 12, color: "#64748b", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+          Showing <strong>{newFilter === "week" ? "new this week" : "new this quarter"}</strong>
+          {" "}({filtered.length} deal{filtered.length !== 1 ? "s" : ""})
+          <button
+            onClick={() => setNewFilter("all")}
+            style={{ marginLeft: 10, fontSize: 11, color: "#94a3b8", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", fontFamily: "'DM Sans', system-ui, sans-serif" }}
+          >
+            Show all
+          </button>
+        </div>
+      )}
 
       {/* New Business Pacing + attached assumptions drawer */}
       <PacingTable
@@ -108,7 +140,7 @@ export default function DiscoveryTab({
       <div style={{ marginTop: 14 }}>
         <TableCard>
           <DealTable
-            deals={sorted}
+            deals={filtered}
             mode="standard"
             now={now}
             qStart={qStart}
@@ -183,7 +215,6 @@ function NBAssumptionsDrawer({ assumptions, derived, onSave }: {
     setTmp(null);
   };
 
-  // Live derived annual closes for edit preview
   const liveAnnualCloses = (a: Assumptions) => {
     const annualNBRevenue = derived.nbQRevenueTarget * 4;
     const result: Record<string, number> = {};
@@ -197,7 +228,6 @@ function NBAssumptionsDrawer({ assumptions, derived, onSave }: {
     <DrawerShell>
       {editing && tmp ? (
         <div>
-          {/* Table — revenue share editable, avg deal size read-only */}
           <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 12 }}>
             <thead>
               <tr>
@@ -299,7 +329,6 @@ function UpsellAssumptionsDrawer({ assumptions, derived, onSave }: {
     setTmp(null);
   };
 
-  // Live derived values for edit preview
   const liveQCloses = (a: Assumptions) =>
     Math.ceil(derived.expansionQRevenueTarget / a.expansion_avg_deal_size);
   const liveQTarget = (a: Assumptions) =>
