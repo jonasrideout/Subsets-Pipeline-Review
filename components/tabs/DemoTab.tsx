@@ -8,7 +8,7 @@ import DealTable from "@/components/DealTable";
 import StatCard from "@/components/StatCard";
 import type { PipelineCounts } from "@/app/page";
 
-type NewFilter = "all" | "week" | "quarter";
+type Filter = "all" | "week" | "quarter" | "stale";
 
 interface DemoTabProps {
   deals: Deal[];
@@ -22,7 +22,7 @@ interface DemoTabProps {
 }
 
 export default function DemoTab({ deals, allActive, closePlans, now, weekAgo, qStart, demoQTarget, counts }: DemoTabProps) {
-  const [newFilter, setNewFilter] = useState<NewFilter>("all");
+  const [filter, setFilter] = useState<Filter>("all");
 
   const { demoNewW: newThisWeek, demoNewQ: newThisQ, qElapsedPct } = counts;
   const staleCount = deals.filter(d => isStale(d, now)).length;
@@ -37,44 +37,33 @@ export default function DemoTab({ deals, allActive, closePlans, now, weekAgo, qS
   });
 
   const filtered = sorted.filter(d => {
-    if (newFilter === "week")    return !!d.createdate && new Date(d.createdate) >= weekAgo;
-    if (newFilter === "quarter") return !!d.createdate && new Date(d.createdate) >= qStart;
+    if (filter === "week")    return !!d.createdate && new Date(d.createdate) >= weekAgo;
+    if (filter === "quarter") return !!d.createdate && new Date(d.createdate) >= qStart;
+    if (filter === "stale")   return isStale(d, now);
     return true;
   });
 
-  const toggleFilter = (f: NewFilter) => setNewFilter(prev => prev === f ? "all" : f);
+  const toggle = (f: Filter) => setFilter(prev => prev === f ? "all" : f);
+
+  const filterLabel: Record<Filter, string> = {
+    all: "", week: "new this week", quarter: "new this quarter", stale: "stale >60 days",
+  };
 
   return (
     <div>
       <div className="flex gap-3 mb-5 flex-wrap">
         <StatCard label="Currently in Meeting / Demo" value={deals.length} />
-        <StatCard
-          label="New This Week"
-          value={newThisWeek}
-          onClick={() => toggleFilter("week")}
-          active={newFilter === "week"}
-        />
-        <StatCard
-          label="New This Quarter"
-          value={newThisQ}
-          target={demoQTarget}
-          goalPct={goalPct}
-          pacePct={pacePct}
-          onClick={() => toggleFilter("quarter")}
-          active={newFilter === "quarter"}
-        />
-        <StatCard label="Stale >60 days" value={staleCount} />
+        <StatCard label="New This Week"    value={newThisWeek} onClick={() => toggle("week")}    active={filter === "week"} />
+        <StatCard label="New This Quarter" value={newThisQ}    target={demoQTarget} goalPct={goalPct} pacePct={pacePct} onClick={() => toggle("quarter")} active={filter === "quarter"} />
+        <StatCard label="Stale >60 days"   value={staleCount}  onClick={() => toggle("stale")}   active={filter === "stale"} />
       </div>
 
-      {/* Active filter label */}
-      {newFilter !== "all" && (
+      {filter !== "all" && (
         <div style={{ marginBottom: 10, fontSize: 12, color: "#64748b", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-          Showing <strong>{newFilter === "week" ? "new this week" : "new this quarter"}</strong>
+          Showing <strong>{filterLabel[filter]}</strong>
           {" "}({filtered.length} deal{filtered.length !== 1 ? "s" : ""})
-          <button
-            onClick={() => setNewFilter("all")}
-            style={{ marginLeft: 10, fontSize: 11, color: "#94a3b8", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", fontFamily: "'DM Sans', system-ui, sans-serif" }}
-          >
+          <button onClick={() => setFilter("all")}
+            style={{ marginLeft: 10, fontSize: 11, color: "#94a3b8", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
             Show all
           </button>
         </div>
