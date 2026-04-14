@@ -221,11 +221,6 @@ function RepCard({ rep, portalId, hiddenIds, rsvps, onHide, onRsvp }: {
                     {count}
                   </span>
                 </div>
-                {cat === "Roundtable" && comingCount > 0 && (
-                  <span style={{ fontSize: 10, fontWeight: 700, color: "#15803d", fontFamily: font }}>
-                    {comingCount} coming
-                  </span>
-                )}
               </button>
             );
           })}
@@ -266,6 +261,19 @@ function RepCard({ rep, portalId, hiddenIds, rsvps, onHide, onRsvp }: {
             >
               <div style={{ fontSize: 11, color: "#1e40af", fontFamily: font }}>→ Demo</div>
               <div style={{ fontSize: 15, fontWeight: 800, color: "#1e40af", fontFamily: font }}>{rep.progressions}</div>
+            </button>
+          )}
+          {comingCount > 0 && (
+            <button
+              onClick={() => toggle("Roundtable")}
+              style={{
+                background: drillDown === "Roundtable" ? "#f3e8ff" : "#faf5ff",
+                border: drillDown === "Roundtable" ? "1.5px solid #6b21a8" : "1px solid #e9d5ff",
+                borderRadius: 6, padding: "4px 10px", textAlign: "center", cursor: "pointer",
+              }}
+            >
+              <div style={{ fontSize: 11, color: "#6b21a8", fontFamily: font }}>Roundtable RSVPs</div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "#6b21a8", fontFamily: font }}>{comingCount}</div>
             </button>
           )}
           {!hasAttribution && visibleCounts.total > 0 && (
