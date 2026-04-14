@@ -276,7 +276,7 @@ function RepCard({ rep, portalId, hiddenIds, rsvps, onHide, onRsvp }: {
               <div style={{ fontSize: 15, fontWeight: 800, color: "#6b21a8", fontFamily: font }}>{comingCount}</div>
             </button>
           )}
-          {!hasAttribution && visibleCounts.total > 0 && (
+         {!hasAttribution && comingCount === 0 && visibleCounts.total > 0 && (
             <span style={{ fontSize: 11, color: "#94a3b8", fontFamily: font }}>No attributed outcomes</span>
           )}
           {visibleCounts.total === 0 && (
