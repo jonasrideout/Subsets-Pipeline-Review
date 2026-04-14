@@ -1,4 +1,4 @@
-// components/OutboundPanel.tsx
+// components/OutboundPanel.tsx 
 
 "use client";
 
