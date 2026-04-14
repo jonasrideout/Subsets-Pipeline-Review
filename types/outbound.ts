@@ -6,10 +6,11 @@ export type EmailCategory = "Sequence" | "Roundtable" | "Outreach";
 
 // Every sent email in the window — used for category drill-down
 export interface SentEmail {
-  emailId:  string;
-  category: EmailCategory;
-  sentAt:   string;
-  subject:  string | null;
+  emailId:     string;
+  contactName: string | null;
+  category:    EmailCategory;
+  sentAt:      string;
+  subject:     string | null;
 }
 
 // Emails that can be traced to a deal outcome
