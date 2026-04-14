@@ -81,7 +81,7 @@ function EmailDrillDown({
     <table style={{ width: "100%", borderCollapse: "collapse" }}>
       <thead>
         <tr style={{ background: "#f8fafc" }}>
-          {["Subject", "Sent", ...(isRoundtable ? [""] : []), ""].map((h, i) => (
+          {["Contact", "Subject", "Sent", ...(isRoundtable ? [""] : []), ""].map((h, i) => (
             <th key={i} style={{
               padding: "6px 12px", textAlign: "left", fontSize: 10,
               fontWeight: 600, color: "#94a3b8", textTransform: "uppercase" as const,
@@ -95,9 +95,12 @@ function EmailDrillDown({
           const coming = rsvps.has(e.emailId);
           return (
             <tr key={i} style={{ borderBottom: "1px solid #f8fafc" }}>
+              <td style={{ padding: "7px 12px", fontSize: 12, fontWeight: 600, color: "#0f172a", fontFamily: font, whiteSpace: "nowrap" }}>
+                {e.contactName ?? <span style={{ color: "#cbd5e1" }}>—</span>}
+              </td>
               <td style={{
                 padding: "7px 12px", fontSize: 12, color: "#374151",
-                fontFamily: font, maxWidth: 320,
+                fontFamily: font, maxWidth: 280,
                 overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
               }}>
                 <span style={{
