@@ -303,6 +303,7 @@ export async function GET(req: NextRequest) {
         ownerId: "", repName: name,
         counts: { Sequence: 0, Roundtable: 0, Outreach: 0, total: 0 },
         newDeals: 0, progressions: 0, attributed: [],
+        emailsByCategory: { Sequence: [], Roundtable: [], Outreach: [] },
       })),
       asOf: now.toISOString(),
     };
