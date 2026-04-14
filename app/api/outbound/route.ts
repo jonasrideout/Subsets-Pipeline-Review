@@ -1,5 +1,7 @@
+// app/api/outbound/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
-import type { OutboundWindow, EmailCategory, AttributedEmail, RepOutboundStats, OutboundReport } from "@/types/outbound";
+import type { OutboundWindow, EmailCategory, SentEmail, AttributedEmail, RepOutboundStats, OutboundReport } from "@/types/outbound";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +14,7 @@ const TOKEN = process.env.HUBSPOT_TOKEN!;
 const USER_ID_TO_REP: Record<string, string> = {
   "78829280":   "Jonas",
   "33321821":   "Jonas",   // withsubsets.com sender
-  "369437160":  "Nikolai",
+  "45520625":   "Nikolai", // HubSpot user ID (differs from owner ID 369437160)
   "1758144966": "Martin",
   "32168180":   "Judith",
 };
@@ -302,6 +304,9 @@ export async function GET(req: NextRequest) {
     const emails = emailsByRep[repName] ?? [];
     const counts = { Sequence: 0, Roundtable: 0, Outreach: 0, total: emails.length };
     const attributed: AttributedEmail[] = [];
+    const emailsByCategory: Record<EmailCategory, SentEmail[]> = {
+      Sequence: [], Roundtable: [], Outreach: [],
+    };
 
     // Deduplicate contacts per rep — one contact counts once, best attribution wins
     const contactBest: Record<string, { attribution: Attribution | null; email: any; category: EmailCategory }> = {};
@@ -310,6 +315,14 @@ export async function GET(req: NextRequest) {
       const p          = e.properties ?? {};
       const category   = classifyEmail(p.hs_email_subject ?? null, p.hs_sequence_id ?? null);
       counts[category]++;
+
+      // Track every sent email by category
+      emailsByCategory[category].push({
+        emailId:  String(e.id),
+        category,
+        sentAt:   p.hs_timestamp ?? "",
+        subject:  p.hs_email_subject ?? null,
+      });
 
       const contactIds = emailContactMap[String(e.id)] ?? [];
       for (const cid of contactIds) {
@@ -320,7 +333,6 @@ export async function GET(req: NextRequest) {
         if (!existing) {
           contactBest[cid] = { attribution: attr, email: e, category };
         } else {
-          // Upgrade if better attribution
           const existingRank = existing.attribution?.type === "progression" ? 2 : existing.attribution?.type === "new_deal" ? 1 : 0;
           const newRank      = attr?.type === "progression" ? 2 : attr?.type === "new_deal" ? 1 : 0;
           if (newRank > existingRank) {
@@ -331,7 +343,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Build attributed list and tally
-    let newDeals    = 0;
+    let newDeals     = 0;
     let progressions = 0;
 
     for (const [cid, { attribution, email, category }] of Object.entries(contactBest)) {
@@ -351,7 +363,7 @@ export async function GET(req: NextRequest) {
       if (attribution.type === "progression") progressions++;
     }
 
-    return { ownerId: "", repName, counts, newDeals, progressions, attributed };
+    return { ownerId: "", repName, counts, newDeals, progressions, attributed, emailsByCategory };
   });
 
   const report: OutboundReport = {
