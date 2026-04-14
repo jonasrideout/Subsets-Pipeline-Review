@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { OutboundReport, OutboundWindow, RepOutboundStats, EmailCategory, SentEmail } from "@/types/outbound";
 
 // ── Shared style helpers ──────────────────────────────────────────────────────
@@ -51,19 +51,35 @@ function AttributionBadge({ type }: { type: "new_deal" | "progression" }) {
   );
 }
 
-function EmailDrillDown({ emails, category }: { emails: SentEmail[]; category: EmailCategory }) {
+function EmailDrillDown({
+  emails, category, hiddenIds, onHide,
+}: {
+  emails: SentEmail[];
+  category: EmailCategory;
+  hiddenIds: Set<string>;
+  onHide: (emailId: string, subject: string | null) => void;
+}) {
   const { bg, text } = CATEGORY_COLORS[category];
+  const visible = emails.filter(e => !hiddenIds.has(e.emailId));
+
   if (!emails.length) return (
     <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: font, padding: "10px 14px" }}>
       No {category.toLowerCase()} emails in this period.
     </div>
   );
+
+  if (!visible.length) return (
+    <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: font, padding: "10px 14px" }}>
+      All {category.toLowerCase()} emails hidden.
+    </div>
+  );
+
   return (
     <table style={{ width: "100%", borderCollapse: "collapse" }}>
       <thead>
         <tr style={{ background: "#f8fafc" }}>
-          {["Subject", "Sent"].map(h => (
-            <th key={h} style={{
+          {["Subject", "Sent", ""].map((h, i) => (
+            <th key={i} style={{
               padding: "6px 12px", textAlign: "left", fontSize: 10,
               fontWeight: 600, color: "#94a3b8", textTransform: "uppercase" as const,
               letterSpacing: 0.4, fontFamily: font, borderBottom: "1px solid #f1f5f9",
@@ -72,7 +88,7 @@ function EmailDrillDown({ emails, category }: { emails: SentEmail[]; category: E
         </tr>
       </thead>
       <tbody>
-        {emails.map((e, i) => (
+        {visible.map((e, i) => (
           <tr key={i} style={{ borderBottom: "1px solid #f8fafc" }}>
             <td style={{
               padding: "7px 12px", fontSize: 12, color: "#374151",
@@ -90,6 +106,18 @@ function EmailDrillDown({ emails, category }: { emails: SentEmail[]; category: E
             <td style={{ padding: "7px 12px", fontSize: 11, color: "#94a3b8", fontFamily: font, whiteSpace: "nowrap" }}>
               {e.sentAt ? new Date(e.sentAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—"}
             </td>
+            <td style={{ padding: "7px 12px", textAlign: "right" }}>
+              <button
+                onClick={() => onHide(e.emailId, e.subject)}
+                style={{
+                  fontSize: 10, color: "#94a3b8", background: "none",
+                  border: "1px solid #e2e8f0", borderRadius: 4, padding: "2px 8px",
+                  cursor: "pointer", fontFamily: font,
+                }}
+              >
+                Hide
+              </button>
+            </td>
           </tr>
         ))}
       </tbody>
@@ -97,7 +125,12 @@ function EmailDrillDown({ emails, category }: { emails: SentEmail[]; category: E
   );
 }
 
-function RepCard({ rep, portalId }: { rep: RepOutboundStats; portalId: string }) {
+function RepCard({ rep, portalId, hiddenIds, onHide }: {
+  rep: RepOutboundStats;
+  portalId: string;
+  hiddenIds: Set<string>;
+  onHide: (emailId: string, subject: string | null) => void;
+}) {
   const [drillDown, setDrillDown]   = useState<EmailCategory | "attributed" | null>(null);
   const hasAttribution = rep.newDeals > 0 || rep.progressions > 0;
 
@@ -241,7 +274,7 @@ function RepCard({ rep, portalId }: { rep: RepOutboundStats; portalId: string })
               </tbody>
             </table>
           ) : (
-            <EmailDrillDown emails={rep.emailsByCategory[drillDown]} category={drillDown} />
+            <EmailDrillDown emails={rep.emailsByCategory[drillDown]} category={drillDown} hiddenIds={hiddenIds} onHide={onHide} />
           )}
         </div>
       )}
@@ -254,10 +287,58 @@ function RepCard({ rep, portalId }: { rep: RepOutboundStats; portalId: string })
 const PORTAL_ID = process.env.NEXT_PUBLIC_HUBSPOT_PORTAL_ID ?? "25962322";
 
 export default function OutboundPanel() {
-  const [window, setWindow]   = useState<OutboundWindow>("week");
-  const [report, setReport]   = useState<OutboundReport | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState<string | null>(null);
+  const [window, setWindow]       = useState<OutboundWindow>("week");
+  const [report, setReport]       = useState<OutboundReport | null>(null);
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState<string | null>(null);
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  const [toast, setToast]         = useState<{ emailId: string; subject: string | null } | null>(null);
+  const toastTimer                = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Load hidden IDs from Redis on mount
+  useEffect(() => {
+    fetch("/api/outbound-hidden")
+      .then(r => r.json())
+      .then(d => setHiddenIds(new Set(d.hiddenIds ?? [])))
+      .catch(() => {});
+  }, []);
+
+  const saveHidden = useCallback(async (ids: Set<string>) => {
+    try {
+      await fetch("/api/outbound-hidden", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hiddenIds: [...ids] }),
+      });
+    } catch {}
+  }, []);
+
+  const handleHide = useCallback((emailId: string, subject: string | null) => {
+    const next = new Set([...hiddenIds, emailId]);
+    setHiddenIds(next);
+    saveHidden(next);
+    // Show toast — dismiss after 6s
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ emailId, subject });
+    toastTimer.current = setTimeout(() => setToast(null), 6000);
+  }, [hiddenIds, saveHidden]);
+
+  const handleHideAllFromSender = useCallback((subject: string | null) => {
+    if (!report) return;
+    // Match by subject — hide all emails with this exact subject across all reps
+    const toHide = new Set<string>();
+    for (const rep of report.reps) {
+      for (const cat of ["Sequence", "Roundtable", "Outreach"] as EmailCategory[]) {
+        for (const e of rep.emailsByCategory[cat]) {
+          if (e.subject === subject) toHide.add(e.emailId);
+        }
+      }
+    }
+    const next = new Set([...hiddenIds, ...toHide]);
+    setHiddenIds(next);
+    saveHidden(next);
+    setToast(null);
+  }, [report, hiddenIds, saveHidden]);
 
   const load = useCallback(async (w: OutboundWindow) => {
     setLoading(true);
@@ -281,6 +362,7 @@ export default function OutboundPanel() {
   const totalProg   = report?.reps.reduce((s, r) => s + r.progressions, 0) ?? 0;
 
   return (
+    <>
     <div style={{
       border: "1.5px solid #e2e8f0", borderRadius: 12,
       background: "#fff", overflow: "hidden", marginTop: 14,
@@ -349,11 +431,43 @@ export default function OutboundPanel() {
         {!loading && !error && report && (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {report.reps.map(rep => (
-              <RepCard key={rep.repName} rep={rep} portalId={PORTAL_ID} />
+              <RepCard key={rep.repName} rep={rep} portalId={PORTAL_ID} hiddenIds={hiddenIds} onHide={handleHide} />
             ))}
           </div>
         )}
       </div>
     </div>
+
+    {/* Toast */}
+    {toast && (
+      <div style={{
+        position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)",
+        display: "flex", alignItems: "center", gap: 12,
+        padding: "10px 16px", borderRadius: 12, zIndex: 50,
+        background: "#1a0f4e", border: "1px solid rgba(160,250,215,0.2)",
+        boxShadow: "0 4px 20px rgba(0,0,0,0.3)", whiteSpace: "nowrap",
+      }}>
+        <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", fontFamily: font }}>
+          Hide all emails with this subject?
+        </span>
+        <button
+          onClick={() => handleHideAllFromSender(toast.subject)}
+          style={{
+            padding: "4px 12px", borderRadius: 6, fontSize: 11, fontWeight: 700,
+            background: "linear-gradient(135deg, #A0FAD7, #82F6C6)",
+            color: "#0a2e1f", border: "none", cursor: "pointer", fontFamily: font,
+          }}
+        >
+          Hide all
+        </button>
+        <button
+          onClick={() => setToast(null)}
+          style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", background: "none", border: "none", cursor: "pointer", fontFamily: font }}
+        >
+          ✕
+        </button>
+      </div>
+    )}
+    </>
   );
 }
