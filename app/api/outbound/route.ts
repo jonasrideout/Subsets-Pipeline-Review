@@ -274,6 +274,7 @@ export async function GET(req: NextRequest) {
       reps: REPS.map(name => ({
         ownerId: "", repName: name,
         counts: { Sequence: 0, Roundtable: 0, Outreach: 0, total: 0 },
+        emailsByCategory: { Sequence: [], Roundtable: [], Outreach: [] },
         newDeals: 0, progressions: 0, attributed: [],
       })),
       asOf: now.toISOString(),
