@@ -173,7 +173,35 @@ const fetchDealsForContacts = async (
   return result;
 };
 
-// ── Attribution logic ─────────────────────────────────────────────────────────
+// ── Fetch contact names ───────────────────────────────────────────────────────
+
+const fetchContactNames = async (contactIds: string[]): Promise<Record<string, string>> => {
+  if (!contactIds.length) return {};
+  const result: Record<string, string> = {};
+  const chunks: string[][] = [];
+  for (let i = 0; i < contactIds.length; i += 100) chunks.push(contactIds.slice(i, i + 100));
+
+  for (const chunk of chunks) {
+    try {
+      const data = await hs("/crm/v3/objects/contacts/batch/read", {
+        inputs: chunk.map(id => ({ id })),
+        properties: ["firstname", "lastname", "email"],
+      });
+      for (const c of data.results ?? []) {
+        const p = c.properties ?? {};
+        const name = [p.firstname, p.lastname].filter(Boolean).join(" ").trim()
+          || p.email
+          || String(c.id);
+        result[String(c.id)] = name;
+      }
+    } catch {
+      // skip
+    }
+  }
+  return result;
+};
+
+
 // Given deals for a contact and the window, return the best attribution.
 // Returns null if no relevant activity.
 
@@ -274,7 +302,6 @@ export async function GET(req: NextRequest) {
       reps: REPS.map(name => ({
         ownerId: "", repName: name,
         counts: { Sequence: 0, Roundtable: 0, Outreach: 0, total: 0 },
-        emailsByCategory: { Sequence: [], Roundtable: [], Outreach: [] },
         newDeals: 0, progressions: 0, attributed: [],
       })),
       asOf: now.toISOString(),
@@ -297,8 +324,11 @@ export async function GET(req: NextRequest) {
   // 5. Collect all unique contact IDs
   const allContactIds = [...new Set(Object.values(emailContactMap).flat())];
 
-  // 6. Fetch deals for all contacts
-  const contactDealMap = await fetchDealsForContacts(allContactIds, windowStart, windowEnd);
+  // 6. Fetch deals and contact names for all contacts in parallel
+  const [contactDealMap, contactNameMap] = await Promise.all([
+    fetchDealsForContacts(allContactIds, windowStart, windowEnd),
+    fetchContactNames(allContactIds),
+  ]);
 
   // 7. Build per-rep stats
   const repStats: RepOutboundStats[] = REPS.map(repName => {
@@ -317,9 +347,12 @@ export async function GET(req: NextRequest) {
       const category   = classifyEmail(p.hs_email_subject ?? null, p.hs_sequence_id ?? null);
       counts[category]++;
 
-      // Track every sent email by category
+      // Track every sent email by category — resolve contact name from first associated contact
+      const firstContactId  = (emailContactMap[String(e.id)] ?? [])[0] ?? null;
+      const contactName     = firstContactId ? (contactNameMap[firstContactId] ?? null) : null;
       emailsByCategory[category].push({
         emailId:  String(e.id),
+        contactName,
         category,
         sentAt:   p.hs_timestamp ?? "",
         subject:  p.hs_email_subject ?? null,
