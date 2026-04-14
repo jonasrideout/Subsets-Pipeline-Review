@@ -52,15 +52,18 @@ function AttributionBadge({ type }: { type: "new_deal" | "progression" }) {
 }
 
 function EmailDrillDown({
-  emails, category, hiddenIds, onHide,
+  emails, category, hiddenIds, rsvps, onHide, onRsvp,
 }: {
-  emails: SentEmail[];
-  category: EmailCategory;
+  emails:    SentEmail[];
+  category:  EmailCategory;
   hiddenIds: Set<string>;
-  onHide: (emailId: string, subject: string | null) => void;
+  rsvps:     Set<string>;
+  onHide:    (emailId: string, subject: string | null) => void;
+  onRsvp:    (emailId: string) => void;
 }) {
   const { bg, text } = CATEGORY_COLORS[category];
   const visible = emails.filter(e => !hiddenIds.has(e.emailId));
+  const isRoundtable = category === "Roundtable";
 
   if (!emails.length) return (
     <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: font, padding: "10px 14px" }}>
@@ -78,7 +81,7 @@ function EmailDrillDown({
     <table style={{ width: "100%", borderCollapse: "collapse" }}>
       <thead>
         <tr style={{ background: "#f8fafc" }}>
-          {["Subject", "Sent", ""].map((h, i) => (
+          {["Subject", "Sent", ...(isRoundtable ? [""] : []), ""].map((h, i) => (
             <th key={i} style={{
               padding: "6px 12px", textAlign: "left", fontSize: 10,
               fontWeight: 600, color: "#94a3b8", textTransform: "uppercase" as const,
@@ -88,54 +91,89 @@ function EmailDrillDown({
         </tr>
       </thead>
       <tbody>
-        {visible.map((e, i) => (
-          <tr key={i} style={{ borderBottom: "1px solid #f8fafc" }}>
-            <td style={{
-              padding: "7px 12px", fontSize: 12, color: "#374151",
-              fontFamily: font, maxWidth: 340,
-              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            }}>
-              <span style={{
-                display: "inline-block", marginRight: 6,
-                background: bg, color: text, fontSize: 9, fontWeight: 700,
-                borderRadius: 3, padding: "1px 5px", fontFamily: font,
-                textTransform: "uppercase" as const, letterSpacing: 0.4, verticalAlign: "middle",
-              }}>{category}</span>
-              {e.subject ?? "—"}
-            </td>
-            <td style={{ padding: "7px 12px", fontSize: 11, color: "#94a3b8", fontFamily: font, whiteSpace: "nowrap" }}>
-              {e.sentAt ? new Date(e.sentAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—"}
-            </td>
-            <td style={{ padding: "7px 12px", textAlign: "right" }}>
-              <button
-                onClick={() => onHide(e.emailId, e.subject)}
-                style={{
-                  fontSize: 10, color: "#94a3b8", background: "none",
-                  border: "1px solid #e2e8f0", borderRadius: 4, padding: "2px 8px",
-                  cursor: "pointer", fontFamily: font,
-                }}
-              >
-                Hide
-              </button>
-            </td>
-          </tr>
-        ))}
+        {visible.map((e, i) => {
+          const coming = rsvps.has(e.emailId);
+          return (
+            <tr key={i} style={{ borderBottom: "1px solid #f8fafc" }}>
+              <td style={{
+                padding: "7px 12px", fontSize: 12, color: "#374151",
+                fontFamily: font, maxWidth: 320,
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              }}>
+                <span style={{
+                  display: "inline-block", marginRight: 6,
+                  background: bg, color: text, fontSize: 9, fontWeight: 700,
+                  borderRadius: 3, padding: "1px 5px", fontFamily: font,
+                  textTransform: "uppercase" as const, letterSpacing: 0.4, verticalAlign: "middle",
+                }}>{category}</span>
+                {e.subject ?? "—"}
+              </td>
+              <td style={{ padding: "7px 12px", fontSize: 11, color: "#94a3b8", fontFamily: font, whiteSpace: "nowrap" }}>
+                {e.sentAt ? new Date(e.sentAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—"}
+              </td>
+              {isRoundtable && (
+                <td style={{ padding: "7px 12px", whiteSpace: "nowrap" }}>
+                  <button
+                    onClick={() => onRsvp(e.emailId)}
+                    style={{
+                      fontSize: 10, fontWeight: 700, borderRadius: 4, padding: "2px 8px",
+                      cursor: "pointer", fontFamily: font,
+                      background: coming ? "#f0fdf4" : "#f8fafc",
+                      color:      coming ? "#15803d" : "#94a3b8",
+                      border:     coming ? "1px solid #bbf7d0" : "1px solid #e2e8f0",
+                    }}
+                  >
+                    {coming ? "✓ Coming" : "Coming?"}
+                  </button>
+                </td>
+              )}
+              <td style={{ padding: "7px 12px", textAlign: "right" }}>
+                <button
+                  onClick={() => onHide(e.emailId, e.subject)}
+                  style={{
+                    fontSize: 10, color: "#94a3b8", background: "none",
+                    border: "1px solid #e2e8f0", borderRadius: 4, padding: "2px 8px",
+                    cursor: "pointer", fontFamily: font,
+                  }}
+                >
+                  Hide
+                </button>
+              </td>
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );
 }
 
-function RepCard({ rep, portalId, hiddenIds, onHide }: {
-  rep: RepOutboundStats;
-  portalId: string;
+function RepCard({ rep, portalId, hiddenIds, rsvps, onHide, onRsvp }: {
+  rep:       RepOutboundStats;
+  portalId:  string;
   hiddenIds: Set<string>;
-  onHide: (emailId: string, subject: string | null) => void;
+  rsvps:     Set<string>;
+  onHide:    (emailId: string, subject: string | null) => void;
+  onRsvp:    (emailId: string) => void;
 }) {
-  const [drillDown, setDrillDown]   = useState<EmailCategory | "attributed" | null>(null);
+  const [drillDown, setDrillDown] = useState<EmailCategory | "attributed" | null>(null);
   const hasAttribution = rep.newDeals > 0 || rep.progressions > 0;
 
   const toggle = (key: EmailCategory | "attributed") =>
     setDrillDown(prev => prev === key ? null : key);
+
+  // Visible counts — subtract hidden emails from each category and total
+  const hiddenSeq  = rep.emailsByCategory.Sequence.filter(e   => hiddenIds.has(e.emailId)).length;
+  const hiddenRt   = rep.emailsByCategory.Roundtable.filter(e => hiddenIds.has(e.emailId)).length;
+  const hiddenOut  = rep.emailsByCategory.Outreach.filter(e   => hiddenIds.has(e.emailId)).length;
+  const visibleCounts = {
+    Sequence:   rep.counts.Sequence   - hiddenSeq,
+    Roundtable: rep.counts.Roundtable - hiddenRt,
+    Outreach:   rep.counts.Outreach   - hiddenOut,
+    total:      rep.counts.total      - hiddenSeq - hiddenRt - hiddenOut,
+  };
+
+  // Coming count for this rep's roundtable emails
+  const comingCount = rep.emailsByCategory.Roundtable.filter(e => rsvps.has(e.emailId)).length;
 
   return (
     <div style={{
@@ -154,28 +192,37 @@ function RepCard({ rep, portalId, hiddenIds, onHide }: {
           </div>
         </div>
 
-        {/* Email count tiles — clickable */}
+        {/* Email count tiles — clickable, counts decrement on hide */}
         <div style={{ display: "flex", gap: 8, flex: 1, flexWrap: "wrap" }}>
           {(["Sequence", "Roundtable", "Outreach"] as EmailCategory[]).map(cat => {
             const active = drillDown === cat;
             const { bg, text } = CATEGORY_COLORS[cat];
+            const count = visibleCounts[cat];
             return (
               <button
                 key={cat}
-                onClick={() => rep.counts[cat] > 0 ? toggle(cat) : undefined}
+                onClick={() => count > 0 ? toggle(cat) : undefined}
                 style={{
                   display: "flex", alignItems: "center", gap: 5,
+                  flexDirection: "column",
                   background: active ? bg : "#f8fafc",
                   borderRadius: 6, padding: "4px 10px",
                   border: active ? `1.5px solid ${text}` : "1.5px solid transparent",
-                  cursor: rep.counts[cat] > 0 ? "pointer" : "default",
+                  cursor: count > 0 ? "pointer" : "default",
                   transition: "all 0.1s",
                 }}
               >
-                <span style={{ fontSize: 11, color: active ? text : "#64748b", fontFamily: font }}>{cat}</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: active ? text : "#0f172a", fontFamily: font }}>
-                  {rep.counts[cat]}
-                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <span style={{ fontSize: 11, color: active ? text : "#64748b", fontFamily: font }}>{cat}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: active ? text : "#0f172a", fontFamily: font }}>
+                    {count}
+                  </span>
+                </div>
+                {cat === "Roundtable" && comingCount > 0 && (
+                  <span style={{ fontSize: 10, fontWeight: 700, color: "#15803d", fontFamily: font }}>
+                    {comingCount} coming
+                  </span>
+                )}
               </button>
             );
           })}
@@ -185,7 +232,7 @@ function RepCard({ rep, portalId, hiddenIds, onHide }: {
           }}>
             <span style={{ fontSize: 11, color: "#64748b", fontFamily: font }}>Total</span>
             <span style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", fontFamily: font }}>
-              {rep.counts.total}
+              {visibleCounts.total}
             </span>
           </div>
         </div>
@@ -218,10 +265,10 @@ function RepCard({ rep, portalId, hiddenIds, onHide }: {
               <div style={{ fontSize: 15, fontWeight: 800, color: "#1e40af", fontFamily: font }}>{rep.progressions}</div>
             </button>
           )}
-          {!hasAttribution && rep.counts.total > 0 && (
+          {!hasAttribution && visibleCounts.total > 0 && (
             <span style={{ fontSize: 11, color: "#94a3b8", fontFamily: font }}>No attributed outcomes</span>
           )}
-          {rep.counts.total === 0 && (
+          {visibleCounts.total === 0 && (
             <span style={{ fontSize: 11, color: "#cbd5e1", fontFamily: font }}>No activity</span>
           )}
         </div>
@@ -274,7 +321,14 @@ function RepCard({ rep, portalId, hiddenIds, onHide }: {
               </tbody>
             </table>
           ) : (
-            <EmailDrillDown emails={rep.emailsByCategory[drillDown]} category={drillDown} hiddenIds={hiddenIds} onHide={onHide} />
+            <EmailDrillDown
+              emails={rep.emailsByCategory[drillDown]}
+              category={drillDown}
+              hiddenIds={hiddenIds}
+              rsvps={rsvps}
+              onHide={onHide}
+              onRsvp={onRsvp}
+            />
           )}
         </div>
       )}
@@ -292,23 +346,27 @@ export default function OutboundPanel() {
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState<string | null>(null);
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  const [rsvps, setRsvps]         = useState<Set<string>>(new Set());
   const [toast, setToast]         = useState<{ emailId: string; subject: string | null } | null>(null);
   const toastTimer                = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Load hidden IDs from Redis on mount
+  // Load hidden IDs and rsvps from Redis on mount
   useEffect(() => {
     fetch("/api/outbound-hidden")
       .then(r => r.json())
-      .then(d => setHiddenIds(new Set(d.hiddenIds ?? [])))
+      .then(d => {
+        setHiddenIds(new Set(d.hiddenIds ?? []));
+        setRsvps(new Set(d.rsvps ?? []));
+      })
       .catch(() => {});
   }, []);
 
-  const saveHidden = useCallback(async (ids: Set<string>) => {
+  const saveState = useCallback(async (hidden: Set<string>, rsvpSet: Set<string>) => {
     try {
       await fetch("/api/outbound-hidden", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hiddenIds: [...ids] }),
+        body: JSON.stringify({ hiddenIds: [...hidden], rsvps: [...rsvpSet] }),
       });
     } catch {}
   }, []);
@@ -316,16 +374,14 @@ export default function OutboundPanel() {
   const handleHide = useCallback((emailId: string, subject: string | null) => {
     const next = new Set([...hiddenIds, emailId]);
     setHiddenIds(next);
-    saveHidden(next);
-    // Show toast — dismiss after 6s
+    saveState(next, rsvps);
     if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast({ emailId, subject });
     toastTimer.current = setTimeout(() => setToast(null), 6000);
-  }, [hiddenIds, saveHidden]);
+  }, [hiddenIds, rsvps, saveState]);
 
   const handleHideAllFromSender = useCallback((subject: string | null) => {
     if (!report) return;
-    // Match by subject — hide all emails with this exact subject across all reps
     const toHide = new Set<string>();
     for (const rep of report.reps) {
       for (const cat of ["Sequence", "Roundtable", "Outreach"] as EmailCategory[]) {
@@ -336,9 +392,16 @@ export default function OutboundPanel() {
     }
     const next = new Set([...hiddenIds, ...toHide]);
     setHiddenIds(next);
-    saveHidden(next);
+    saveState(next, rsvps);
     setToast(null);
-  }, [report, hiddenIds, saveHidden]);
+  }, [report, hiddenIds, rsvps, saveState]);
+
+  const handleRsvp = useCallback((emailId: string) => {
+    const next = new Set(rsvps);
+    if (next.has(emailId)) next.delete(emailId); else next.add(emailId);
+    setRsvps(next);
+    saveState(hiddenIds, next);
+  }, [rsvps, hiddenIds, saveState]);
 
   const load = useCallback(async (w: OutboundWindow) => {
     setLoading(true);
@@ -431,7 +494,15 @@ export default function OutboundPanel() {
         {!loading && !error && report && (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {report.reps.map(rep => (
-              <RepCard key={rep.repName} rep={rep} portalId={PORTAL_ID} hiddenIds={hiddenIds} onHide={handleHide} />
+              <RepCard
+                key={rep.repName}
+                rep={rep}
+                portalId={PORTAL_ID}
+                hiddenIds={hiddenIds}
+                rsvps={rsvps}
+                onHide={handleHide}
+                onRsvp={handleRsvp}
+              />
             ))}
           </div>
         )}
