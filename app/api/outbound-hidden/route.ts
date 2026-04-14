@@ -3,7 +3,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "redis";
 
-const REDIS_KEY = "outbound:hiddenIds";
+const KEY_HIDDEN = "outbound:hiddenIds";
+const KEY_RSVPS  = "outbound:rsvps";
 
 const getClient = async () => {
   const client = createClient({ url: process.env.REDIS_URL });
@@ -15,11 +16,16 @@ export async function GET() {
   let client;
   try {
     client = await getClient();
-    const raw = await client.get(REDIS_KEY);
-    const hiddenIds: string[] = raw ? JSON.parse(raw) : [];
-    return NextResponse.json({ hiddenIds });
+    const [rawHidden, rawRsvps] = await Promise.all([
+      client.get(KEY_HIDDEN),
+      client.get(KEY_RSVPS),
+    ]);
+    return NextResponse.json({
+      hiddenIds: rawHidden ? JSON.parse(rawHidden) : [],
+      rsvps:     rawRsvps  ? JSON.parse(rawRsvps)  : [],
+    });
   } catch (err) {
-    return NextResponse.json({ hiddenIds: [] }, { status: 200 });
+    return NextResponse.json({ hiddenIds: [], rsvps: [] }, { status: 200 });
   } finally {
     await client?.disconnect();
   }
@@ -28,9 +34,12 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   let client;
   try {
-    const { hiddenIds } = await req.json();
+    const { hiddenIds, rsvps } = await req.json();
     client = await getClient();
-    await client.set(REDIS_KEY, JSON.stringify(hiddenIds));
+    await Promise.all([
+      client.set(KEY_HIDDEN, JSON.stringify(hiddenIds ?? [])),
+      client.set(KEY_RSVPS,  JSON.stringify(rsvps     ?? [])),
+    ]);
     return NextResponse.json({ ok: true });
   } catch (err) {
     return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
