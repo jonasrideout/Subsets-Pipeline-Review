@@ -38,18 +38,6 @@ const hs = async (path: string, body: object): Promise<any> => {
   return res.json();
 };
 
-const hsGet = async (path: string): Promise<any> => {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { Authorization: `Bearer ${TOKEN}` },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`HubSpot ${res.status}: ${text}`);
-  }
-  return res.json();
-};
-
 const searchAll = async (path: string, body: object): Promise<any[]> => {
   const results: any[] = [];
   let after: string | undefined;
@@ -66,9 +54,8 @@ const searchAll = async (path: string, body: object): Promise<any[]> => {
 // ── Window helpers ────────────────────────────────────────────────────────────
 
 const getWindowStart = (window: OutboundWindow, now: Date): Date => {
-  if (window === "week")    return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  if (window === "month")   return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  // quarter
+  if (window === "week")  return new Date(now.getTime() - 7  * 24 * 60 * 60 * 1000);
+  if (window === "month") return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   return new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
 };
 
@@ -86,7 +73,6 @@ const classifyEmail = (subject: string | null, sequenceId: string | null): Email
 // ── Batch association fetch: emails → contacts ────────────────────────────────
 
 const fetchEmailContactAssociations = async (emailIds: string[]): Promise<Record<string, string[]>> => {
-  // HubSpot batch associations v4
   if (!emailIds.length) return {};
   const chunks: string[][] = [];
   for (let i = 0; i < emailIds.length; i += 100) chunks.push(emailIds.slice(i, i + 100));
@@ -100,15 +86,12 @@ const fetchEmailContactAssociations = async (emailIds: string[]): Promise<Record
       for (const item of data.results ?? []) {
         result[String(item.from?.id)] = (item.to ?? []).map((t: any) => String(t.toObjectId));
       }
-    } catch {
-      // association fetch failed for chunk — skip
-    }
+    } catch { /* skip */ }
   }
   return result;
 };
 
 // ── Fetch deals for a set of contact IDs ─────────────────────────────────────
-// Returns map: contactId → deals[]
 
 const fetchDealsForContacts = async (
   contactIds: string[],
@@ -117,7 +100,6 @@ const fetchDealsForContacts = async (
 ): Promise<Record<string, any[]>> => {
   if (!contactIds.length) return {};
 
-  // Batch associations: contacts → deals
   const chunks: string[][] = [];
   for (let i = 0; i < contactIds.length; i += 100) chunks.push(contactIds.slice(i, i + 100));
 
@@ -131,16 +113,12 @@ const fetchDealsForContacts = async (
         const cid = String(item.from?.id);
         contactDealIds[cid] = (item.to ?? []).map((t: any) => String(t.toObjectId));
       }
-    } catch {
-      // skip
-    }
+    } catch { /* skip */ }
   }
 
-  // Collect all unique deal IDs
   const allDealIds = [...new Set(Object.values(contactDealIds).flat())];
   if (!allDealIds.length) return {};
 
-  // Fetch deal details in batch
   const dealChunks: string[][] = [];
   for (let i = 0; i < allDealIds.length; i += 100) dealChunks.push(allDealIds.slice(i, i + 100));
 
@@ -157,15 +135,10 @@ const fetchDealsForContacts = async (
           "hs_v2_date_entered_appointmentscheduled",
         ],
       });
-      for (const d of data.results ?? []) {
-        dealDetails[String(d.id)] = d;
-      }
-    } catch {
-      // skip
-    }
+      for (const d of data.results ?? []) dealDetails[String(d.id)] = d;
+    } catch { /* skip */ }
   }
 
-  // Build contactId → deals[] map
   const result: Record<string, any[]> = {};
   for (const [cid, dids] of Object.entries(contactDealIds)) {
     result[cid] = dids.map(did => dealDetails[did]).filter(Boolean);
@@ -194,16 +167,112 @@ const fetchContactNames = async (contactIds: string[]): Promise<Record<string, s
           || String(c.id);
         result[String(c.id)] = name;
       }
-    } catch {
-      // skip
-    }
+    } catch { /* skip */ }
   }
   return result;
 };
 
+// ── Reply-based attribution ───────────────────────────────────────────────────
+// For each contact, fetch their full email timeline.
+// For each inbound reply, find the most recent outbound email sent before it by one of our reps.
+// Return a map: contactId → repName (the rep whose email was replied to).
 
-// Given deals for a contact and the window, return the best attribution.
-// Returns null if no relevant activity.
+const buildReplyAttributionMap = async (
+  contactIds: string[],
+  repEmailIdToRep: Record<string, string>, // emailId → repName, for all outbound emails we sent
+): Promise<Record<string, string>> => {
+  if (!contactIds.length) return {};
+
+  const result: Record<string, string> = {};
+
+  // Batch contacts into chunks — fetch all their emails via association search
+  // We use the contacts→emails association batch endpoint
+  const chunks: string[][] = [];
+  for (let i = 0; i < contactIds.length; i += 100) chunks.push(contactIds.slice(i, i + 100));
+
+  // Step 1: get all email IDs associated with each contact
+  const contactEmailIds: Record<string, string[]> = {};
+  for (const chunk of chunks) {
+    try {
+      const data = await hs("/crm/v4/associations/contacts/emails/batch/read", {
+        inputs: chunk.map(id => ({ id })),
+      });
+      for (const item of data.results ?? []) {
+        const cid = String(item.from?.id);
+        contactEmailIds[cid] = (item.to ?? []).map((t: any) => String(t.toObjectId));
+      }
+    } catch { /* skip */ }
+  }
+
+  // Step 2: collect all unique email IDs across all contacts
+  const allEmailIds = [...new Set(Object.values(contactEmailIds).flat())];
+  if (!allEmailIds.length) return {};
+
+  // Step 3: batch fetch all those emails to get direction, timestamp, sender
+  const emailChunks: string[][] = [];
+  for (let i = 0; i < allEmailIds.length; i += 100) emailChunks.push(allEmailIds.slice(i, i + 100));
+
+  const emailDetails: Record<string, any> = {};
+  for (const chunk of emailChunks) {
+    try {
+      const data = await hs("/crm/v3/objects/emails/batch/read", {
+        inputs: chunk.map(id => ({ id })),
+        properties: [
+          "hs_email_direction",
+          "hs_timestamp",
+          "hs_created_by_user_id",
+          "hs_sequence_id",
+        ],
+      });
+      for (const e of data.results ?? []) emailDetails[String(e.id)] = e;
+    } catch { /* skip */ }
+  }
+
+  // Step 4: for each contact, build timeline and find reply attribution
+  for (const cid of contactIds) {
+    const emailIds = contactEmailIds[cid] ?? [];
+    if (!emailIds.length) continue;
+
+    // Build timeline of all emails for this contact, sorted by timestamp ascending
+    const timeline = emailIds
+      .map(eid => emailDetails[eid])
+      .filter(Boolean)
+      .map(e => ({
+        id:        String(e.id),
+        direction: (e.properties?.hs_email_direction ?? "") as string,
+        ts:        e.properties?.hs_timestamp ? new Date(e.properties.hs_timestamp).getTime() : 0,
+        userId:    String(e.properties?.hs_created_by_user_id ?? ""),
+      }))
+      .sort((a, b) => a.ts - b.ts);
+
+    // For each inbound reply, find the most recent outbound email before it by one of our reps
+    for (const email of timeline) {
+      if (email.direction !== "INCOMING_EMAIL") continue;
+
+      // Walk backwards through emails before this reply
+      const before = timeline.filter(e => e.ts < email.ts && e.direction === "EMAIL");
+      if (!before.length) continue;
+
+      // Most recent outbound before this reply
+      const lastOutbound = before[before.length - 1];
+
+      // Check if that outbound was sent by one of our reps (by email ID in our sent set)
+      const rep = repEmailIdToRep[lastOutbound.id]
+        ?? USER_ID_TO_REP[lastOutbound.userId]
+        ?? null;
+
+      if (rep) {
+        // Only upgrade if no attribution yet, or keep existing (first reply wins)
+        if (!result[cid]) result[cid] = rep;
+        break;
+      }
+    }
+  }
+
+  return result;
+};
+
+// ── Deal attribution logic ────────────────────────────────────────────────────
 
 interface Attribution {
   dealId:          string;
@@ -220,7 +289,7 @@ const attributeDeal = (
   if (!deals.length) return null;
 
   let best: Attribution | null = null;
-  let bestRank = -1; // higher = better (Demo > Discovery)
+  let bestRank = -1;
 
   for (const raw of deals) {
     const p           = raw.properties ?? {};
@@ -228,32 +297,16 @@ const attributeDeal = (
     const enteredDemo = p.hs_v2_date_entered_qualifiedtobuy
       ? new Date(p.hs_v2_date_entered_qualifiedtobuy) : null;
 
-    const createdInWindow  = createdate  && createdate  >= windowStart && createdate  <= windowEnd;
-    const demoInWindow     = enteredDemo && enteredDemo >= windowStart && enteredDemo <= windowEnd;
-    const preExistingDeal  = !!(createdate && createdate < windowStart);
+    const createdInWindow = createdate  && createdate  >= windowStart && createdate  <= windowEnd;
+    const demoInWindow    = enteredDemo && enteredDemo >= windowStart && enteredDemo <= windowEnd;
+    const preExisting     = !!(createdate && createdate < windowStart);
 
-    if (demoInWindow) {
-      // Rank 2 — best outcome, always wins
-      if (bestRank < 2) {
-        best = {
-          dealId:   String(raw.id),
-          dealName: p.dealname ?? "",
-          type:     "progression",
-          preExistingDeal,
-        };
-        bestRank = 2;
-      }
-    } else if (createdInWindow && !preExistingDeal) {
-      // Rank 1 — new deal, but only if not pre-existing
-      if (bestRank < 1) {
-        best = {
-          dealId:   String(raw.id),
-          dealName: p.dealname ?? "",
-          type:     "new_deal",
-          preExistingDeal: false,
-        };
-        bestRank = 1;
-      }
+    if (demoInWindow && bestRank < 2) {
+      best = { dealId: String(raw.id), dealName: p.dealname ?? "", type: "progression", preExistingDeal: preExisting };
+      bestRank = 2;
+    } else if (createdInWindow && !preExisting && bestRank < 1) {
+      best = { dealId: String(raw.id), dealName: p.dealname ?? "", type: "new_deal", preExistingDeal: false };
+      bestRank = 1;
     }
   }
 
@@ -294,23 +347,28 @@ export async function GET(req: NextRequest) {
     return userId in USER_ID_TO_REP;
   });
 
+  const emptyReps = REPS.map(name => ({
+    ownerId: "", repName: name,
+    counts: { Sequence: 0, Roundtable: 0, Outreach: 0, total: 0 },
+    newDeals: 0, progressions: 0, attributed: [],
+    emailsByCategory: { Sequence: [], Roundtable: [], Outreach: [] } as Record<EmailCategory, SentEmail[]>,
+  }));
+
   if (!repEmails.length) {
-    const report: OutboundReport = {
-      window,
-      windowStart: windowStart.toISOString(),
-      windowEnd:   windowEnd.toISOString(),
-      reps: REPS.map(name => ({
-        ownerId: "", repName: name,
-        counts: { Sequence: 0, Roundtable: 0, Outreach: 0, total: 0 },
-        newDeals: 0, progressions: 0, attributed: [],
-        emailsByCategory: { Sequence: [], Roundtable: [], Outreach: [] },
-      })),
-      asOf: now.toISOString(),
-    };
-    return NextResponse.json(report);
+    return NextResponse.json({
+      window, windowStart: windowStart.toISOString(),
+      windowEnd: windowEnd.toISOString(), reps: emptyReps, asOf: now.toISOString(),
+    } as OutboundReport);
   }
 
-  // 3. Classify emails and group by rep
+  // 3. Build emailId → repName map for all our outbound emails
+  const repEmailIdToRep: Record<string, string> = {};
+  for (const e of repEmails) {
+    const rep = USER_ID_TO_REP[String(e.properties?.hs_created_by_user_id)];
+    if (rep) repEmailIdToRep[String(e.id)] = rep;
+  }
+
+  // 4. Classify emails and group by rep
   const emailsByRep: Record<string, typeof repEmails> = {};
   for (const e of repEmails) {
     const rep = USER_ID_TO_REP[String(e.properties?.hs_created_by_user_id)];
@@ -318,68 +376,83 @@ export async function GET(req: NextRequest) {
     emailsByRep[rep].push(e);
   }
 
-  // 4. Fetch email → contact associations for all emails
-  const allEmailIds = repEmails.map(e => String(e.id));
+  // 5. Fetch email → contact associations for all emails
+  const allEmailIds    = repEmails.map(e => String(e.id));
   const emailContactMap = await fetchEmailContactAssociations(allEmailIds);
 
-  // 5. Collect all unique contact IDs
+  // 6. Collect all unique contact IDs
   const allContactIds = [...new Set(Object.values(emailContactMap).flat())];
 
-  // 6. Fetch deals and contact names for all contacts in parallel
-  const [contactDealMap, contactNameMap] = await Promise.all([
+  // 7. Fetch deals, contact names, and reply attribution in parallel
+  const [contactDealMap, contactNameMap, replyAttributionMap] = await Promise.all([
     fetchDealsForContacts(allContactIds, windowStart, windowEnd),
     fetchContactNames(allContactIds),
+    buildReplyAttributionMap(allContactIds, repEmailIdToRep),
   ]);
 
-  // 7. Build per-rep stats
-  const repStats: RepOutboundStats[] = REPS.map(repName => {
-    const emails = emailsByRep[repName] ?? [];
-    const counts = { Sequence: 0, Roundtable: 0, Outreach: 0, total: emails.length };
-    const attributed: AttributedEmail[] = [];
-    const emailsByCategory: Record<EmailCategory, SentEmail[]> = {
-      Sequence: [], Roundtable: [], Outreach: [],
-    };
+  // 8. Build a map: contactId → best attribution result (deal)
+  //    Keyed by the rep determined by reply attribution (or email sender as fallback)
+  //    Structure: repName → contactId → { attribution, email, category }
+  const repContactBest: Record<string, Record<string, {
+    attribution: Attribution | null;
+    email: any;
+    category: EmailCategory;
+  }>> = {};
+  for (const rep of REPS) repContactBest[rep] = {};
 
-    // Deduplicate contacts per rep — one contact counts once, best attribution wins
-    const contactBest: Record<string, { attribution: Attribution | null; email: any; category: EmailCategory }> = {};
+  // For each rep's sent emails, build emailsByCategory and populate contactBest
+  const repCounts: Record<string, { Sequence: number; Roundtable: number; Outreach: number; total: number }> = {};
+  const repEmailsByCategory: Record<string, Record<EmailCategory, SentEmail[]>> = {};
+  for (const rep of REPS) {
+    repCounts[rep] = { Sequence: 0, Roundtable: 0, Outreach: 0, total: 0 };
+    repEmailsByCategory[rep] = { Sequence: [], Roundtable: [], Outreach: [] };
+  }
 
-    for (const e of emails) {
-      const p          = e.properties ?? {};
-      const category   = classifyEmail(p.hs_email_subject ?? null, p.hs_sequence_id ?? null);
-      counts[category]++;
+  for (const e of repEmails) {
+    const senderRep  = USER_ID_TO_REP[String(e.properties?.hs_created_by_user_id)];
+    const p          = e.properties ?? {};
+    const category   = classifyEmail(p.hs_email_subject ?? null, p.hs_sequence_id ?? null);
 
-      // Track every sent email by category — resolve contact name from first associated contact
-      const firstContactId  = (emailContactMap[String(e.id)] ?? [])[0] ?? null;
-      const contactName     = firstContactId ? (contactNameMap[firstContactId] ?? null) : null;
-      emailsByCategory[category].push({
-        emailId:  String(e.id),
-        contactName,
-        category,
-        sentAt:   p.hs_timestamp ?? "",
-        subject:  p.hs_email_subject ?? null,
-      });
+    // Counts and emailsByCategory always attributed to the sender
+    repCounts[senderRep].total++;
+    repCounts[senderRep][category]++;
 
-      const contactIds = emailContactMap[String(e.id)] ?? [];
-      for (const cid of contactIds) {
-        const deals = contactDealMap[cid] ?? [];
-        const attr  = attributeDeal(deals, windowStart, windowEnd);
+    const firstContactId = (emailContactMap[String(e.id)] ?? [])[0] ?? null;
+    const contactName    = firstContactId ? (contactNameMap[firstContactId] ?? null) : null;
+    repEmailsByCategory[senderRep][category].push({
+      emailId: String(e.id),
+      contactName,
+      category,
+      sentAt:  p.hs_timestamp ?? "",
+      subject: p.hs_email_subject ?? null,
+    });
 
-        const existing = contactBest[cid];
-        if (!existing) {
-          contactBest[cid] = { attribution: attr, email: e, category };
-        } else {
-          const existingRank = existing.attribution?.type === "progression" ? 2 : existing.attribution?.type === "new_deal" ? 1 : 0;
-          const newRank      = attr?.type === "progression" ? 2 : attr?.type === "new_deal" ? 1 : 0;
-          if (newRank > existingRank) {
-            contactBest[cid] = { attribution: attr, email: e, category };
-          }
-        }
+    // Deal attribution goes to whoever the contact replied to (fallback: sender)
+    const contactIds = emailContactMap[String(e.id)] ?? [];
+    for (const cid of contactIds) {
+      const deals = contactDealMap[cid] ?? [];
+      const attr  = attributeDeal(deals, windowStart, windowEnd);
+
+      // The rep who gets credit is the one whose email was replied to
+      const creditRep = replyAttributionMap[cid] ?? senderRep;
+      const contactBest = repContactBest[creditRep];
+
+      const existing = contactBest[cid];
+      if (!existing) {
+        contactBest[cid] = { attribution: attr, email: e, category };
+      } else {
+        const existingRank = existing.attribution?.type === "progression" ? 2 : existing.attribution?.type === "new_deal" ? 1 : 0;
+        const newRank      = attr?.type === "progression" ? 2 : attr?.type === "new_deal" ? 1 : 0;
+        if (newRank > existingRank) contactBest[cid] = { attribution: attr, email: e, category };
       }
     }
+  }
 
-    // Build attributed list and tally
-    let newDeals     = 0;
-    let progressions = 0;
+  // 9. Build final rep stats
+  const repStats: RepOutboundStats[] = REPS.map(repName => {
+    const contactBest = repContactBest[repName];
+    const attributed: AttributedEmail[] = [];
+    let newDeals = 0, progressions = 0;
 
     for (const [cid, { attribution, email, category }] of Object.entries(contactBest)) {
       if (!attribution) continue;
@@ -398,7 +471,15 @@ export async function GET(req: NextRequest) {
       if (attribution.type === "progression") progressions++;
     }
 
-    return { ownerId: "", repName, counts, newDeals, progressions, attributed, emailsByCategory };
+    return {
+      ownerId: "",
+      repName,
+      counts:           repCounts[repName],
+      newDeals,
+      progressions,
+      attributed,
+      emailsByCategory: repEmailsByCategory[repName],
+    };
   });
 
   const report: OutboundReport = {
