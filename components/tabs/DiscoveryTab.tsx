@@ -8,7 +8,6 @@ import { isStale } from "@/lib/flags";
 import { TableCard } from "@/components/Table";
 import PacingTable from "@/components/PacingTable";
 import DealTable from "@/components/DealTable";
-import OutboundPanel from "@/components/OutboundPanel";
 import StatCard from "@/components/StatCard";
 import type { PipelineCounts } from "@/app/page";
 
@@ -140,8 +139,6 @@ export default function DiscoveryTab({
           />
         </TableCard>
       </div>
-      {/* Outbound Activity */}
-      <OutboundPanel />
     </div>
   );
 }
