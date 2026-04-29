@@ -1,4 +1,4 @@
-// components/DiscoveryTab.tsx
+// components/tabs/DiscoveryTab.tsx
 "use client";
 
 import React, { useState } from "react";
@@ -15,7 +15,7 @@ import type { PipelineCounts } from "@/app/page";
 const NB = ["Outbound", "Events", "Partnership", "Inbound"] as const;
 const fmtK = (n: number) => "$" + Math.round(n / 1000) + "K";
 
-type Filter = "all" | "week" | "quarter" | "stale";
+type Filter = "all" | "week" | "quarter" | "stale" | "progressed";
 
 interface DiscoveryTabProps {
   deals: Deal[];
@@ -39,17 +39,17 @@ export default function DiscoveryTab({
   const discQTarget = Object.values(channelQTargets).reduce((s, v) => s + v, 0);
 
   const staleCount = deals.filter(d => isStale(d, now)).length;
+  const { discNewW: newThisWeek, discNewQ: newThisQ, qElapsedPct } = counts;
+  const goalPct = discQTarget > 0 ? Math.round((newThisQ / discQTarget) * 100) : 0;
+  const pacePct = discQTarget > 0 && qElapsedPct > 0
+    ? Math.round((newThisQ / discQTarget) / qElapsedPct * 100) : 0;
 
   const newThisQDeals = allActive.filter(d => {
     const e = earliestStageEntry(d);
     return e ? new Date(e) >= qStart : false;
   });
   const progressedCount = newThisQDeals.filter(d => d.stage !== "appointmentscheduled").length;
-  const progressedPct = newThisQDeals.length > 0 ? Math.round((progressedCount / newThisQDeals.length) * 100) : 0;
-  const { discNewW: newThisWeek, discNewQ: newThisQ, qElapsedPct } = counts;
-  const goalPct = discQTarget > 0 ? Math.round((newThisQ / discQTarget) * 100) : 0;
-  const pacePct = discQTarget > 0 && qElapsedPct > 0
-    ? Math.round((newThisQ / discQTarget) / qElapsedPct * 100) : 0;
+  const progressedPct   = newThisQDeals.length > 0 ? Math.round((progressedCount / newThisQDeals.length) * 100) : 0;
 
   const nbActuals: Record<string, number> = {};
   for (const ch of NB) {
@@ -92,10 +92,13 @@ export default function DiscoveryTab({
     return true;
   });
 
+  const progressedDeals = newThisQDeals.filter(d => d.stage !== "appointmentscheduled");
+  const displayDeals    = filter === "progressed" ? progressedDeals : filtered;
+
   const toggle = (f: Filter) => setFilter(prev => prev === f ? "all" : f);
 
   const filterLabel: Record<Filter, string> = {
-    all: "", week: "new this week", quarter: "new this quarter", stale: "stale >60 days",
+    all: "", week: "new this week", quarter: "new this quarter", stale: "stale >60 days", progressed: "progressed past discovery",
   };
 
   return (
@@ -105,14 +108,14 @@ export default function DiscoveryTab({
         <StatCard label="Currently in Discovery" value={deals.length} />
         <StatCard label="New This Week"    value={newThisWeek} onClick={() => toggle("week")}    active={filter === "week"} />
         <StatCard label="New This Quarter" value={newThisQ}    target={discQTarget} goalPct={goalPct} pacePct={pacePct} onClick={() => toggle("quarter")} active={filter === "quarter"} />
-        <StatCard label="Progressed Past Discovery" value={progressedCount} subValue={`${progressedPct}% of Q adds`} />
+        <StatCard label="Progressed Past Discovery" value={progressedCount} subValue={`${progressedPct}% of Q adds`} onClick={() => toggle("progressed")} active={filter === "progressed"} />
         <StatCard label="Stale >60 days"   value={staleCount}  onClick={() => toggle("stale")}   active={filter === "stale"} />
       </div>
 
       {filter !== "all" && (
         <div style={{ marginBottom: 10, fontSize: 12, color: "#64748b", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
           Showing <strong>{filterLabel[filter]}</strong>
-          {" "}({filtered.length} deal{filtered.length !== 1 ? "s" : ""})
+          {" "}({displayDeals.length} deal{displayDeals.length !== 1 ? "s" : ""})
           <button onClick={() => setFilter("all")}
             style={{ marginLeft: 10, fontSize: 11, color: "#94a3b8", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
             Show all
@@ -158,7 +161,7 @@ export default function DiscoveryTab({
       <div style={{ marginTop: 14 }}>
         <TableCard>
           <DealTable
-            deals={filtered}
+            deals={displayDeals}
             mode="standard"
             now={now}
             qStart={qStart}
