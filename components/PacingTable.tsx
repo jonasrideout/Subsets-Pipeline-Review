@@ -80,7 +80,7 @@ export default function PacingTable({
                       <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 10px" }}>
                         {chDeals.map(d => (
                           <span
-                            key={d.hs_object_id ?? d.dealname}
+                            key={d.dealname}
                             style={{ fontSize: 12, color: "#374151", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 6, padding: "2px 9px", fontFamily: "'DM Sans', system-ui, sans-serif" }}
                           >
                             {d.dealname ?? "Unnamed deal"}
