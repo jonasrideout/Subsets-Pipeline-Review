@@ -1,9 +1,9 @@
 // components/DiscoveryTab.tsx
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import type { Deal, Assumptions } from "@/types/deals";
-import { NB_CHANNELS, earliestStageEntry } from "@/lib/deals";
+import { earliestStageEntry } from "@/lib/deals";
 import { deriveTargets, type DerivedTargets } from "@/lib/assumptions";
 import { isStale } from "@/lib/flags";
 import { TableCard } from "@/components/Table";
@@ -119,6 +119,7 @@ export default function DiscoveryTab({
         targets={nbTargets}
         actuals={nbActuals}
         dealsByChannel={nbDealsByChannel}
+        now={now}
         squareBottom
       />
       <NBAssumptionsDrawer
@@ -135,6 +136,7 @@ export default function DiscoveryTab({
           targets={{ Expansion: expansionQTarget }}
           actuals={{ Expansion: expansionActual }}
           dealsByChannel={{ Expansion: expansionDeals }}
+          now={now}
           squareBottom
         />
         <UpsellAssumptionsDrawer
