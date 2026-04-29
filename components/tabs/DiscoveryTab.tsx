@@ -9,6 +9,7 @@ import { isStale } from "@/lib/flags";
 import { TableCard } from "@/components/Table";
 import PacingTable from "@/components/PacingTable";
 import DealTable from "@/components/DealTable";
+import type { HiddenColumn } from "@/components/DealTable";
 import StatCard from "@/components/StatCard";
 import type { PipelineCounts } from "@/app/page";
 
@@ -44,10 +45,10 @@ export default function DiscoveryTab({
   const pacePct = discQTarget > 0 && qElapsedPct > 0
     ? Math.round((newThisQ / discQTarget) / qElapsedPct * 100) : 0;
 
-  const newThisQDeals = allActive.filter(d => {
-    const e = earliestStageEntry(d);
-    return e ? new Date(e) >= qStart : false;
-  });
+  // All deals that entered discovery this quarter (regardless of current stage)
+  const newThisQDeals = allActive.filter(d =>
+    d.entered_discovery && new Date(d.entered_discovery) >= qStart
+  );
   const progressedCount = newThisQDeals.filter(d => d.stage !== "appointmentscheduled").length;
   const progressedPct   = newThisQDeals.length > 0 ? Math.round((progressedCount / newThisQDeals.length) * 100) : 0;
 
@@ -86,19 +87,31 @@ export default function DiscoveryTab({
   );
 
   const filtered = sorted.filter(d => {
-    if (filter === "week")    return !!d.createdate && new Date(d.createdate) >= weekAgo;
-    if (filter === "quarter") return !!d.createdate && new Date(d.createdate) >= qStart;
-    if (filter === "stale")   return isStale(d, now);
+    if (filter === "week")  return !!d.createdate && new Date(d.createdate) >= weekAgo;
+    if (filter === "stale") return isStale(d, now);
     return true;
   });
 
   const progressedDeals = newThisQDeals.filter(d => d.stage !== "appointmentscheduled");
-  const displayDeals    = filter === "progressed" ? progressedDeals : filtered;
+  const quarterDeals    = [...newThisQDeals].sort((a, b) =>
+    new Date(b.entered_discovery || "").getTime() - new Date(a.entered_discovery || "").getTime()
+  );
+
+  const displayDeals =
+    filter === "progressed" ? progressedDeals :
+    filter === "quarter"    ? quarterDeals :
+    filtered;
+
+  // Show stage column when viewing cross-stage lists
+  const showStage = filter === "quarter" || filter === "progressed";
+  const hiddenCols: HiddenColumn[] = ["amount", "closeDate", "closePlan"];
+  if (!showStage) hiddenCols.push("stage");
 
   const toggle = (f: Filter) => setFilter(prev => prev === f ? "all" : f);
 
   const filterLabel: Record<Filter, string> = {
-    all: "", week: "new this week", quarter: "new this quarter", stale: "stale >60 days", progressed: "progressed past discovery",
+    all: "", week: "new this week", quarter: "new this quarter",
+    stale: "stale >60 days", progressed: "progressed past discovery",
   };
 
   return (
@@ -167,7 +180,7 @@ export default function DiscoveryTab({
             qStart={qStart}
             weekAgo={weekAgo}
             enteredDateFn={d => d.entered_discovery || d.entered_current}
-            hiddenColumns={["amount", "closeDate", "closePlan"]}
+            hiddenColumns={hiddenCols}
           />
         </TableCard>
       </div>
