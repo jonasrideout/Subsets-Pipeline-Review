@@ -16,6 +16,30 @@ import {
 } from "@/components/Badges";
 import DealLink from "@/components/DealLink";
 
+// ── STAGE LABELS ──────────────────────────────────────────────────────────────
+
+const STAGE_LABELS: Record<string, string> = {
+  "appointmentscheduled": "Discovery",
+  "qualifiedtobuy":       "Meeting / Demo",
+  "contractsent":         "Proposal / Negotiation",
+  "1446534336":           "Legal / Procurement",
+  "closedwon":            "Closed Won",
+  "closedlost":           "Closed Lost",
+  "563428070":            "Closed Lost Churn",
+  "582003949":            "Bad Fit",
+};
+
+const STAGE_COLORS: Record<string, string> = {
+  "appointmentscheduled": "#64748b",
+  "qualifiedtobuy":       "#0369a1",
+  "contractsent":         "#7c3aed",
+  "1446534336":           "#b45309",
+  "closedwon":            "#15803d",
+  "closedlost":           "#dc2626",
+  "563428070":            "#dc2626",
+  "582003949":            "#94a3b8",
+};
+
 // ── SIGNS OF LIFE BADGES ──────────────────────────────────────────────────────
 
 function InboundBadge({ count }: { count: number }) {
@@ -26,12 +50,10 @@ function InboundBadge({ count }: { count: number }) {
       background: "rgba(34,197,94,0.1)", color: "#15803d",
       border: "1px solid rgba(34,197,94,0.25)", marginRight: 4, whiteSpace: "nowrap",
     }}>
-      {/* right-pointing arrow → */}
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
         <line x1="4" y1="12" x2="18" y2="12"/>
         <polyline points="12,6 18,12 12,18"/>
       </svg>
-      {/* envelope */}
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
         <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
         <polyline points="22,6 12,13 2,6"/>
@@ -91,7 +113,7 @@ function EnteredStageBadge() {
 
 // ── TYPES ─────────────────────────────────────────────────────────────────────
 
-export type HiddenColumn = "channel" | "amount" | "closeDate" | "closePlan" | "enteredStage" | "lastContact" | "daysInStage";
+export type HiddenColumn = "channel" | "amount" | "closeDate" | "closePlan" | "enteredStage" | "lastContact" | "daysInStage" | "stage";
 
 export type DealTableMode = "standard" | "sol" | "needs-action";
 
@@ -141,6 +163,7 @@ export default function DealTable({
         <tr>
           <TH>Company</TH>
           {!hide("channel")      && <TH>Channel</TH>}
+          {!hide("stage")        && <TH>Stage</TH>}
           {!hide("amount")       && <TH>Amount</TH>}
           {!hide("closeDate")    && <TH>Close Date</TH>}
           {!hide("closePlan")    && <TH>Close Plan</TH>}
@@ -162,19 +185,15 @@ export default function DealTable({
             ? Math.ceil((new Date(d.closedate).getTime() - now.getTime()) / 86400000)
             : null;
 
-          // Signs of Life signals
           const sig         = emailSignals[String(d.id)] ?? {};
           const opens7d     = sig.opens7d    ?? 0;
           const clicks7d    = sig.clicks7d   ?? 0;
           const inbound7d   = sig.inbound7d  ?? 0;
-          const lastInbound = sig.lastInbound ?? null;
           const enteredNew  = weekAgo ? !!enteredDate && new Date(enteredDate) >= weekAgo : false;
-
-          const rowBg = "white";
 
           return (
             <tr key={d.id} className="table-row-hover"
-              style={{ borderBottom: "1px solid #f4f5f8", background: rowBg }}>
+              style={{ borderBottom: "1px solid #f4f5f8", background: "white" }}>
 
               {/* Company */}
               <TD><DealLink id={d.id} name={d.name} /></TD>
@@ -183,6 +202,18 @@ export default function DealTable({
               {!hide("channel") && (
                 <TD style={{ color: d.channel ? "#374151" : "#f59e0b" }}>
                   {d.channel ?? "⚠ missing"}
+                </TD>
+              )}
+
+              {/* Stage */}
+              {!hide("stage") && (
+                <TD>
+                  <span style={{
+                    fontSize: 11, fontWeight: 600,
+                    color: STAGE_COLORS[d.stage] ?? "#64748b",
+                  }}>
+                    {STAGE_LABELS[d.stage] ?? d.stage}
+                  </span>
                 </TD>
               )}
 
