@@ -1,13 +1,10 @@
 // components/PacingTable.tsx
+
 "use client";
 import { useState } from "react";
 import { TH, TD } from "@/components/Table";
 
-interface Deal {
-  dealname?: string;
-  hs_object_id?: string;
-  channel?: string;
-}
+import type { Deal } from "@/types/deals";
 
 interface PacingTableProps {
   title:            string;
