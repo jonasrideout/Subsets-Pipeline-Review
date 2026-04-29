@@ -37,8 +37,9 @@ export default function DemoTab({ deals, allActive, closePlans, now, weekAgo, qS
   });
 
   const filtered = sorted.filter(d => {
-    if (filter === "week")    return !!d.createdate && new Date(d.createdate) >= weekAgo;
-    if (filter === "quarter") return !!d.createdate && new Date(d.createdate) >= qStart;
+    const enteredDemo = d.entered_demo || d.entered_current;
+    if (filter === "week")    return !!enteredDemo && new Date(enteredDemo) >= weekAgo;
+    if (filter === "quarter") return !!enteredDemo && new Date(enteredDemo) >= qStart;
     if (filter === "stale")   return isStale(d, now);
     return true;
   });
