@@ -4,6 +4,19 @@
 import React, { useState } from "react";
 import { TH, TD } from "@/components/Table";
 import type { Deal } from "@/types/deals";
+import { ownerName, fmtDate, daysSince } from "@/lib/deals";
+import DealLink from "@/components/DealLink";
+
+const STAGE_LABELS: Record<string, string> = {
+  "appointmentscheduled": "Discovery",
+  "qualifiedtobuy":       "Meeting / Demo",
+  "contractsent":         "Proposal / Negotiation",
+  "1446534336":           "Legal / Procurement",
+  "closedwon":            "Closed Won",
+  "closedlost":           "Closed Lost",
+  "563428070":            "Closed Lost Churn",
+  "582003949":            "Bad Fit",
+};
 
 interface PacingTableProps {
   title:            string;
@@ -12,10 +25,11 @@ interface PacingTableProps {
   actuals:          Record<string, number>;
   squareBottom?:    boolean;
   dealsByChannel?:  Record<string, Deal[]>;
+  now?:             Date;
 }
 
 export default function PacingTable({
-  title, channels, targets, actuals, squareBottom = false, dealsByChannel,
+  title, channels, targets, actuals, squareBottom = false, dealsByChannel, now = new Date(),
 }: PacingTableProps) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const br = squareBottom ? "12px 12px 0 0" : "12px";
@@ -71,23 +85,47 @@ export default function PacingTable({
 
                 {isOpen && (
                   <tr>
-                    <td colSpan={4} style={{ padding: "8px 20px 12px", background: "#f8fafc", borderBottom: "1px solid #f1f5f9" }}>
-                      <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.4, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                        Deals — {ch}
-                      </div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 10px" }}>
-                        {chDeals.map(d => (
-                          <a
-                            key={d.name}
-                            href={"https://app.hubspot.com/contacts/25962322/deal/" + d.id}
-                            target="_blank"
-                            rel="noreferrer"
-                            style={{ fontSize: 12, color: "#374151", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 6, padding: "2px 9px", fontFamily: "'DM Sans', system-ui, sans-serif", textDecoration: "none", cursor: "pointer" }}
-                          >
-                            {d.name}
-                          </a>
-                        ))}
-                      </div>
+                    <td colSpan={4} style={{ padding: "0 0 2px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                        <thead>
+                          <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
+                            {["Deal", "Owner", "Entered Discovery", "Days in Discovery", "Last Contacted", "Stage"].map(h => (
+                              <th key={h} style={{ padding: "6px 16px", textAlign: "left", fontSize: 10, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.4, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                                {h}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {chDeals.map(d => {
+                            const daysIn = daysSince(d.entered_discovery ?? d.entered_current, now);
+                            const lc     = daysSince(d.last_contacted, now);
+                            const stale  = daysIn !== null && daysIn >= 60;
+                            return (
+                              <tr key={d.id} style={{ borderBottom: "1px solid #f8fafc", background: stale ? "#fff7f7" : "#fff" }}>
+                                <td style={{ padding: "7px 16px", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                                  <DealLink id={d.id} name={d.name} />
+                                </td>
+                                <td style={{ padding: "7px 16px", color: "#374151", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                                  {ownerName(d.owner)}
+                                </td>
+                                <td style={{ padding: "7px 16px", color: "#8b90a0", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                                  {fmtDate(d.entered_discovery ?? d.entered_current)}
+                                </td>
+                                <td style={{ padding: "7px 16px", fontWeight: stale ? 700 : 400, color: stale ? "#dc2626" : "#374151", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                                  {daysIn != null ? daysIn + "d" : "—"}
+                                </td>
+                                <td style={{ padding: "7px 16px", color: lc !== null && lc >= 14 ? "#c2410c" : "#8b90a0", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                                  {d.last_contacted ? fmtDate(d.last_contacted) + " (" + lc + "d)" : "—"}
+                                </td>
+                                <td style={{ padding: "7px 16px", color: "#374151", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                                  {STAGE_LABELS[d.stage] ?? d.stage}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </td>
                   </tr>
                 )}
