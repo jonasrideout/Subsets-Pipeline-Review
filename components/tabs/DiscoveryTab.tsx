@@ -39,6 +39,13 @@ export default function DiscoveryTab({
   const discQTarget = Object.values(channelQTargets).reduce((s, v) => s + v, 0);
 
   const staleCount = deals.filter(d => isStale(d, now)).length;
+
+  const newThisQDeals = allActive.filter(d => {
+    const e = earliestStageEntry(d);
+    return e ? new Date(e) >= qStart : false;
+  });
+  const progressedCount = newThisQDeals.filter(d => d.stage !== "appointmentscheduled").length;
+  const progressedPct = newThisQDeals.length > 0 ? Math.round((progressedCount / newThisQDeals.length) * 100) : 0;
   const { discNewW: newThisWeek, discNewQ: newThisQ, qElapsedPct } = counts;
   const goalPct = discQTarget > 0 ? Math.round((newThisQ / discQTarget) * 100) : 0;
   const pacePct = discQTarget > 0 && qElapsedPct > 0
@@ -98,6 +105,7 @@ export default function DiscoveryTab({
         <StatCard label="Currently in Discovery" value={deals.length} />
         <StatCard label="New This Week"    value={newThisWeek} onClick={() => toggle("week")}    active={filter === "week"} />
         <StatCard label="New This Quarter" value={newThisQ}    target={discQTarget} goalPct={goalPct} pacePct={pacePct} onClick={() => toggle("quarter")} active={filter === "quarter"} />
+        <StatCard label="Progressed Past Discovery" value={progressedCount} subValue={`${progressedPct}% of Q adds`} />
         <StatCard label="Stale >60 days"   value={staleCount}  onClick={() => toggle("stale")}   active={filter === "stale"} />
       </div>
 
