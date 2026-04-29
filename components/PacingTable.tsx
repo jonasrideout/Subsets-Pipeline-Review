@@ -3,7 +3,6 @@
 "use client";
 import React, { useState } from "react";
 import { TH, TD } from "@/components/Table";
-
 import type { Deal } from "@/types/deals";
 
 interface PacingTableProps {
@@ -41,8 +40,8 @@ export default function PacingTable({
             const hasDeals = chDeals.length > 0;
 
             return (
-            <React.Fragment key={ch}>
-              <tr
+              <React.Fragment key={ch}>
+                <tr
                   onClick={() => hasDeals && setExpanded(isOpen ? null : ch)}
                   style={{ cursor: hasDeals ? "pointer" : "default", background: isOpen ? "#f8fafc" : undefined }}
                 >
@@ -71,19 +70,22 @@ export default function PacingTable({
                 </tr>
 
                 {isOpen && (
-                  <tr key={`${ch}-expanded`}>
+                  <tr>
                     <td colSpan={4} style={{ padding: "8px 20px 12px", background: "#f8fafc", borderBottom: "1px solid #f1f5f9" }}>
                       <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.4, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
                         Deals — {ch}
                       </div>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 10px" }}>
                         {chDeals.map(d => (
-                          <span
+                          <a
                             key={d.name}
-                            style={{ fontSize: 12, color: "#374151", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 6, padding: "2px 9px", fontFamily: "'DM Sans', system-ui, sans-serif" }}
+                            href={"https://app.hubspot.com/contacts/25962322/deal/" + d.id}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ fontSize: 12, color: "#374151", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 6, padding: "2px 9px", fontFamily: "'DM Sans', system-ui, sans-serif", textDecoration: "none", cursor: "pointer" }}
                           >
-                            {d.name ?? "Unnamed deal"}
-                          </span>
+                            {d.name}
+                          </a>
                         ))}
                       </div>
                     </td>
