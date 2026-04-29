@@ -1,7 +1,7 @@
 // components/PacingTable.tsx
 
 "use client";
-import { useState } from "react";
+import React, { useState } from "react";
 import { TH, TD } from "@/components/Table";
 
 import type { Deal } from "@/types/deals";
@@ -41,9 +41,8 @@ export default function PacingTable({
             const hasDeals = chDeals.length > 0;
 
             return (
-              <>
-                <tr
-                  key={ch}
+            <React.Fragment key={ch}>
+              <tr
                   onClick={() => hasDeals && setExpanded(isOpen ? null : ch)}
                   style={{ cursor: hasDeals ? "pointer" : "default", background: isOpen ? "#f8fafc" : undefined }}
                 >
@@ -80,17 +79,17 @@ export default function PacingTable({
                       <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 10px" }}>
                         {chDeals.map(d => (
                           <span
-                            key={d.dealname}
+                            key={d.name}
                             style={{ fontSize: 12, color: "#374151", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 6, padding: "2px 9px", fontFamily: "'DM Sans', system-ui, sans-serif" }}
                           >
-                            {d.dealname ?? "Unnamed deal"}
+                            {d.name ?? "Unnamed deal"}
                           </span>
                         ))}
                       </div>
                     </td>
                   </tr>
                 )}
-              </>
+              </React.Fragment>
             );
           })}
         </tbody>
