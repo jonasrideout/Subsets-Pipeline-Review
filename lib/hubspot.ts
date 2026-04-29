@@ -81,7 +81,7 @@ const mapDeal = (raw: any): Deal => {
     entered_legal:     p["hs_v2_date_entered_1446534336"]           ?? null,
     entered_proposal:  p.hs_v2_date_entered_contractsent            ?? null,
     entered_demo:      p.hs_v2_date_entered_qualifiedtobuy          ?? null,
-    entered_discovery: p.hs_v2_date_entered_appointmentscheduled    ?? null,
+    entered_discovery: p.hs_v2_date_entered_appointmentscheduled ?? p.createdate ?? null,
     new_genuine:       false,
   };
 };
