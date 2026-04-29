@@ -1,3 +1,4 @@
+// app/page.tsx
 // adding comment to force build
 
 "use client";
@@ -44,19 +45,21 @@ function computeCounts(active: Deal[], weekAgo: Date, qStart: Date, yearStart: D
   const yElapsedPct = Math.min(1, (now.getTime() - yearStart.getTime()) / 86400000 / yTotalDays);
 
   return {
-    discNewW:  active.filter(d => d.createdate && new Date(d.createdate) >= weekAgo).length,
-    discNewQ:  active.filter(d => d.createdate && new Date(d.createdate) >= qStart).length,
+    // Discovery — use createdate (immutable, doesn't shift when stages change)
+    discNewW:  active.filter(d => d.createdate      && new Date(d.createdate)      >= weekAgo).length,
+    discNewQ:  active.filter(d => d.createdate      && new Date(d.createdate)      >= qStart).length,
+    discNewY:  active.filter(d => d.createdate      && new Date(d.createdate)      >= yearStart).length,
+    // Other stages — use stage entry date
     demoNewW:  active.filter(d => d.entered_demo     && new Date(d.entered_demo)     >= weekAgo).length,
     demoNewQ:  active.filter(d => d.entered_demo     && new Date(d.entered_demo)     >= qStart).length,
+    demoNewY:  active.filter(d => d.entered_demo     && new Date(d.entered_demo)     >= yearStart).length,
     propNewW:  active.filter(d => d.entered_proposal && new Date(d.entered_proposal) >= weekAgo).length,
     propNewQ:  active.filter(d => d.entered_proposal && new Date(d.entered_proposal) >= qStart).length,
+    propNewY:  active.filter(d => d.entered_proposal && new Date(d.entered_proposal) >= yearStart).length,
     legalNewW: active.filter(d => d.entered_legal    && new Date(d.entered_legal)    >= weekAgo).length,
     legalNewQ: active.filter(d => d.entered_legal    && new Date(d.entered_legal)    >= qStart).length,
-    qElapsedPct,
-    discNewY:  active.filter(d => d.createdate && new Date(d.createdate) >= yearStart).length,
-    demoNewY:  active.filter(d => d.entered_demo     && new Date(d.entered_demo)     >= yearStart).length,
-    propNewY:  active.filter(d => d.entered_proposal && new Date(d.entered_proposal) >= yearStart).length,
     legalNewY: active.filter(d => d.entered_legal    && new Date(d.entered_legal)    >= yearStart).length,
+    qElapsedPct,
     yElapsedPct,
   };
 }
@@ -153,7 +156,6 @@ export default function Page() {
     es.addEventListener("progress", (e: MessageEvent) => {
       const data = JSON.parse(e.data);
       setProgressSteps(prev => {
-        // signals_progress updates the last signals line in place
         if (data.step === "signals_progress") {
           const next = [...prev];
           const idx  = next.findLastIndex(s => s.message.startsWith("Fetching email signals"));
@@ -161,7 +163,6 @@ export default function Page() {
           if (idx >= 0) { next[idx] = line; return next; }
           return [...next, line];
         }
-        // _done steps mark the previous matching line as done and add the new one
         if (data.step === "deals_done" || data.step === "signals_done") {
           return [...prev.map(s => ({ ...s, done: true })), { message: data.message, done: true }];
         }
