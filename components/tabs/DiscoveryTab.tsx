@@ -45,9 +45,9 @@ export default function DiscoveryTab({
   const pacePct = discQTarget > 0 && qElapsedPct > 0
     ? Math.round((newThisQ / discQTarget) / qElapsedPct * 100) : 0;
 
-  // All deals that entered discovery this quarter (regardless of current stage)
+  // Use createdate to match the stat card count (immutable, doesn't shift with stage moves)
   const newThisQDeals = allActive.filter(d =>
-    d.entered_discovery && new Date(d.entered_discovery) >= qStart
+    d.createdate && new Date(d.createdate) >= qStart
   );
   const progressedCount = newThisQDeals.filter(d => d.stage !== "appointmentscheduled").length;
   const progressedPct   = newThisQDeals.length > 0 ? Math.round((progressedCount / newThisQDeals.length) * 100) : 0;
@@ -94,7 +94,7 @@ export default function DiscoveryTab({
 
   const progressedDeals = newThisQDeals.filter(d => d.stage !== "appointmentscheduled");
   const quarterDeals    = [...newThisQDeals].sort((a, b) =>
-    new Date(b.entered_discovery || "").getTime() - new Date(a.entered_discovery || "").getTime()
+    new Date(b.createdate || "").getTime() - new Date(a.createdate || "").getTime()
   );
 
   const displayDeals =
