@@ -1,3 +1,4 @@
+// components/DiscoveryTab.tsx
 "use client";
 
 import { useState } from "react";
@@ -51,11 +52,27 @@ export default function DiscoveryTab({
       return e ? new Date(e) >= qStart : false;
     }).length;
   }
+
+  const nbDealsByChannel: Record<string, Deal[]> = {};
+  for (const ch of NB) {
+    nbDealsByChannel[ch] = allActive.filter(d => {
+      if (d.channel !== ch) return false;
+      const e = earliestStageEntry(d);
+      return e ? new Date(e) >= qStart : false;
+    });
+  }
+
   const expansionActual = allActive.filter(d => {
     if (d.channel !== "Expansion") return false;
     const e = earliestStageEntry(d);
     return e ? new Date(e) >= qStart : false;
   }).length;
+
+  const expansionDeals = allActive.filter(d => {
+    if (d.channel !== "Expansion") return false;
+    const e = earliestStageEntry(d);
+    return e ? new Date(e) >= qStart : false;
+  });
 
   const sorted = [...deals].sort((a, b) =>
     new Date(b.entered_current || "").getTime() - new Date(a.entered_current || "").getTime()
@@ -101,6 +118,7 @@ export default function DiscoveryTab({
         channels={[...NB]}
         targets={nbTargets}
         actuals={nbActuals}
+        dealsByChannel={nbDealsByChannel}
         squareBottom
       />
       <NBAssumptionsDrawer
@@ -116,6 +134,7 @@ export default function DiscoveryTab({
           channels={["Expansion"]}
           targets={{ Expansion: expansionQTarget }}
           actuals={{ Expansion: expansionActual }}
+          dealsByChannel={{ Expansion: expansionDeals }}
           squareBottom
         />
         <UpsellAssumptionsDrawer
