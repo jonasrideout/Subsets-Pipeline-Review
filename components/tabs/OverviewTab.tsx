@@ -24,6 +24,8 @@ interface OverviewTabProps {
   closedWonYTD: ClosedWonDeal[];
   emailSignals: EmailSignalMap;
   closePlans: ClosePlanMap;
+  committedIds: Record<string, boolean>;
+  onToggleCommit: (dealId: string) => void;
   assumptions: Assumptions;
   counts: PipelineCounts;
   now: Date;
@@ -45,11 +47,13 @@ const fmtProgress = (n: number) => {
 
 export default function OverviewTab({
   active, legal, proposal, demo, discovery, closedWon, closedWonYTD,
-  emailSignals, closePlans, assumptions, counts,
+  emailSignals, closePlans, committedIds, onToggleCommit,
+  assumptions, counts,
   now, weekAgo, qStart, yearStart, qIndex, hubspotRates,
   ytdMode, onYtdModeChange, onTabChange, onAssumptionsSave,
 }: OverviewTabProps) {
   const [minOpens, setMinOpens] = useState(3);
+  const [showCommitted, setShowCommitted] = useState(false);
 
   const derived = deriveTargets(assumptions, qIndex);
   const { channelQTargets, combinedLegalTarget, combinedPropTarget, combinedDemoTarget } = derived;
@@ -72,6 +76,10 @@ export default function OverviewTab({
   const closedWonTotal    = closedWon.reduce((s, d) => s + d.amount, 0);
   const closedWonYTDTotal = closedWonYTD.reduce((s, d) => s + d.amount, 0);
   const QUARTERLY_TARGET  = QUARTERLY_TARGETS[qIndex] ?? QUARTERLY_TARGETS[0];
+
+  // Committed: sum of deal amounts for committed active deals (unweighted)
+  const committedDeals  = active.filter(d => committedIds[String(d.id)]);
+  const committedTotal  = committedDeals.reduce((s, d) => s + (d.amount || 0), 0);
 
   const elapsedPct = ytdMode ? yElapsedPct : qElapsedPct;
 
@@ -202,10 +210,11 @@ export default function OverviewTab({
 
       {/* Pipeline Progress */}
       {(() => {
-        const closedPct   = Math.min(100, progressWon / progressTarget * 100);
-        const combinedPct = Math.min(100, (progressWon + wp) / progressTarget * 100);
-        const wpPct       = Math.min(100 - closedPct, wp / progressTarget * 100);
-        const dayPct      = Math.min(100, elapsedPct * 100);
+        const closedPct     = Math.min(100, progressWon / progressTarget * 100);
+        const committedPct  = Math.min(100 - closedPct, committedTotal / progressTarget * 100);
+        const combinedPct   = Math.min(100, (progressWon + wp) / progressTarget * 100);
+        const wpPct         = Math.min(100 - closedPct, wp / progressTarget * 100);
+        const dayPct        = Math.min(100, elapsedPct * 100);
 
         return (
           <div style={{ background: "#fff", border: "1px solid #e2e4ed", borderRadius: 12, padding: "18px 20px", marginBottom: 20, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
@@ -232,7 +241,25 @@ export default function OverviewTab({
                 </div>
               </div>
 
-              {/* Row 2: Weighted Pipeline */}
+              {/* Row 2: Committed */}
+              <div
+                style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, cursor: committedDeals.length > 0 ? "pointer" : "default" }}
+                onClick={() => committedDeals.length > 0 && setShowCommitted(v => !v)}
+                title={committedDeals.length > 0 ? (showCommitted ? "Hide committed deals" : "Show committed deals") : undefined}
+              >
+                <div style={{ flex: 1, position: "relative", height: 20, background: "#f1f5f9", borderRadius: 999, overflow: "hidden" }}>
+                  <div style={{ position: "absolute", left: `${closedPct}%`, top: "15%", height: "70%", width: `${committedPct}%`, background: "#f59e0b", borderRadius: 999 }} />
+                </div>
+                <div style={{
+                  flexShrink: 0, fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 999,
+                  background: "#fef3c7", color: "#b45309", fontFamily: "'DM Sans', system-ui, sans-serif",
+                  minWidth: 52, textAlign: "center",
+                }}>
+                  {Math.round((progressWon + committedTotal) / progressTarget * 100)}%
+                </div>
+              </div>
+
+              {/* Row 3: Weighted Pipeline */}
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <div style={{ flex: 1, position: "relative", height: 20, background: "#f1f5f9", borderRadius: 999, overflow: "hidden" }}>
                   {wpPct > 0 && (
@@ -290,6 +317,19 @@ export default function OverviewTab({
                   {" "}Closed Won {progressLabel} · {progressWonDeals.length} deals
                 </span>
               </div>
+              <div
+                style={{ display: "flex", alignItems: "center", gap: 6, cursor: committedDeals.length > 0 ? "pointer" : "default" }}
+                onClick={() => committedDeals.length > 0 && setShowCommitted(v => !v)}
+              >
+                <div style={{ width: 10, height: 10, borderRadius: 2, background: "#f59e0b", flexShrink: 0 }} />
+                <span style={{ fontSize: 11, color: "#8b90a0", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                  <span style={{ fontWeight: 700, color: "#b45309" }}>{fmtProgress(committedTotal)}</span>
+                  {" "}Committed · {committedDeals.length} deal{committedDeals.length !== 1 ? "s" : ""}
+                  {committedDeals.length > 0 && (
+                    <span style={{ marginLeft: 4, color: "#b45309", fontSize: 10 }}>{showCommitted ? "▲" : "▼"}</span>
+                  )}
+                </span>
+              </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <div style={{ width: 10, height: 10, borderRadius: 2, background: "#bfdbfe", flexShrink: 0 }} />
                 <span style={{ fontSize: 11, color: "#8b90a0", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
@@ -304,6 +344,26 @@ export default function OverviewTab({
                 </span>
               </div>
             </div>
+
+            {/* Committed deals drill-down */}
+            {showCommitted && committedDeals.length > 0 && (
+              <div style={{ marginTop: 16, borderTop: "1px solid #f1f5f9", paddingTop: 14 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#b45309", marginBottom: 10, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                  Committed Deals
+                </div>
+                <DealTable
+                  deals={committedDeals}
+                  mode="standard"
+                  closePlans={closePlans}
+                  now={now}
+                  qStart={qStart}
+                  weekAgo={weekAgo}
+                  committedIds={committedIds}
+                  onToggleCommit={onToggleCommit}
+                  hiddenColumns={["enteredStage", "daysInStage"]}
+                />
+              </div>
+            )}
           </div>
         );
       })()}
@@ -328,7 +388,17 @@ export default function OverviewTab({
         {solRows.length === 0 ? (
           <div style={{ padding: "16px 18px", color: "#b0b5c3", fontSize: 13 }}>No signals this week.</div>
         ) : (
-          <DealTable deals={solRows.map(r => r.deal)} mode="sol" closePlans={closePlans} emailSignals={emailSignals} now={now} qStart={qStart} weekAgo={weekAgo} />
+          <DealTable
+            deals={solRows.map(r => r.deal)}
+            mode="sol"
+            closePlans={closePlans}
+            emailSignals={emailSignals}
+            now={now}
+            qStart={qStart}
+            weekAgo={weekAgo}
+            committedIds={committedIds}
+            onToggleCommit={onToggleCommit}
+          />
         )}
       </TableCard>
 
@@ -338,7 +408,16 @@ export default function OverviewTab({
         {naAlerts.length === 0 ? (
           <div style={{ padding: "16px 18px", color: "#b0b5c3", fontSize: 13 }}>All clear.</div>
         ) : (
-          <DealTable deals={naAlerts.map(a => a.deal)} mode="needs-action" closePlans={closePlans} now={now} qStart={qStart} weekAgo={weekAgo} />
+          <DealTable
+            deals={naAlerts.map(a => a.deal)}
+            mode="needs-action"
+            closePlans={closePlans}
+            now={now}
+            qStart={qStart}
+            weekAgo={weekAgo}
+            committedIds={committedIds}
+            onToggleCommit={onToggleCommit}
+          />
         )}
       </TableCard>
 
