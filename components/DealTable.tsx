@@ -111,7 +111,7 @@ function EnteredStageBadge() {
 
 // ── TYPES ─────────────────────────────────────────────────────────────────────
 
-export type HiddenColumn = "channel" | "amount" | "closeDate" | "closePlan" | "enteredStage" | "lastContact" | "daysInStage";
+export type HiddenColumn = "channel" | "amount" | "closeDate" | "closePlan" | "enteredStage" | "lastContact" | "daysInStage" | "stage";
 
 export type DealTableMode = "standard" | "sol" | "needs-action";
 
