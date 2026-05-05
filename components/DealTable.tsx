@@ -16,29 +16,27 @@ import {
 } from "@/components/Badges";
 import DealLink from "@/components/DealLink";
 
-// ── STAGE LABELS ──────────────────────────────────────────────────────────────
+// ── COMMIT BADGE ──────────────────────────────────────────────────────────────
 
-const STAGE_LABELS: Record<string, string> = {
-  "appointmentscheduled": "Discovery",
-  "qualifiedtobuy":       "Meeting / Demo",
-  "contractsent":         "Proposal / Negotiation",
-  "1446534336":           "Legal / Procurement",
-  "closedwon":            "Closed Won",
-  "closedlost":           "Closed Lost",
-  "563428070":            "Closed Lost Churn",
-  "582003949":            "Bad Fit",
-};
-
-const STAGE_COLORS: Record<string, string> = {
-  "appointmentscheduled": "#64748b",
-  "qualifiedtobuy":       "#0369a1",
-  "contractsent":         "#7c3aed",
-  "1446534336":           "#b45309",
-  "closedwon":            "#15803d",
-  "closedlost":           "#dc2626",
-  "563428070":            "#dc2626",
-  "582003949":            "#94a3b8",
-};
+function CommitBadge({ committed, onToggle }: { committed: boolean; onToggle: () => void }) {
+  return (
+    <button
+      onClick={e => { e.stopPropagation(); onToggle(); }}
+      title={committed ? "Remove commit" : "Commit this deal"}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 3,
+        padding: "2px 8px", borderRadius: 999, fontSize: 10, fontWeight: 700,
+        cursor: "pointer", border: "none", marginLeft: 6, whiteSpace: "nowrap",
+        background: committed ? "rgba(22,163,74,0.12)" : "#f1f5f9",
+        color: committed ? "#15803d" : "#94a3b8",
+        outline: committed ? "1.5px solid rgba(22,163,74,0.3)" : "1.5px solid #e2e4ed",
+        transition: "all 0.15s",
+      }}
+    >
+      {committed ? "✓ Committed" : "Commit"}
+    </button>
+  );
+}
 
 // ── SIGNS OF LIFE BADGES ──────────────────────────────────────────────────────
 
@@ -113,7 +111,7 @@ function EnteredStageBadge() {
 
 // ── TYPES ─────────────────────────────────────────────────────────────────────
 
-export type HiddenColumn = "channel" | "amount" | "closeDate" | "closePlan" | "enteredStage" | "lastContact" | "daysInStage" | "stage";
+export type HiddenColumn = "channel" | "amount" | "closeDate" | "closePlan" | "enteredStage" | "lastContact" | "daysInStage";
 
 export type DealTableMode = "standard" | "sol" | "needs-action";
 
@@ -129,6 +127,8 @@ interface DealTableProps {
   weekAgo?: Date;
   enteredDateFn?: (d: Deal) => string | null;
   hiddenColumns?: HiddenColumn[];
+  committedIds?: Record<string, boolean>;
+  onToggleCommit?: (dealId: string) => void;
 }
 
 // ── COMPONENT ─────────────────────────────────────────────────────────────────
@@ -139,6 +139,8 @@ export default function DealTable({
   now, qStart, weekAgo,
   enteredDateFn,
   hiddenColumns = [],
+  committedIds = {},
+  onToggleCommit,
 }: DealTableProps) {
   const hide = (col: HiddenColumn) => hiddenColumns.includes(col);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -163,7 +165,6 @@ export default function DealTable({
         <tr>
           <TH>Company</TH>
           {!hide("channel")      && <TH>Channel</TH>}
-          {!hide("stage")        && <TH>Stage</TH>}
           {!hide("amount")       && <TH>Amount</TH>}
           {!hide("closeDate")    && <TH>Close Date</TH>}
           {!hide("closePlan")    && <TH>Close Plan</TH>}
@@ -185,35 +186,38 @@ export default function DealTable({
             ? Math.ceil((new Date(d.closedate).getTime() - now.getTime()) / 86400000)
             : null;
 
+          // Signs of Life signals
           const sig         = emailSignals[String(d.id)] ?? {};
           const opens7d     = sig.opens7d    ?? 0;
           const clicks7d    = sig.clicks7d   ?? 0;
           const inbound7d   = sig.inbound7d  ?? 0;
+          const lastInbound = sig.lastInbound ?? null;
           const enteredNew  = weekAgo ? !!enteredDate && new Date(enteredDate) >= weekAgo : false;
+
+          const isCommitted = !!committedIds[String(d.id)];
+          const rowBg = "white";
 
           return (
             <tr key={d.id} className="table-row-hover"
-              style={{ borderBottom: "1px solid #f4f5f8", background: "white" }}>
+              style={{ borderBottom: "1px solid #f4f5f8", background: rowBg }}>
 
               {/* Company */}
-              <TD><DealLink id={d.id} name={d.name} /></TD>
+              <TD>
+                <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 2 }}>
+                  <DealLink id={d.id} name={d.name} />
+                  {onToggleCommit && (
+                    <CommitBadge
+                      committed={isCommitted}
+                      onToggle={() => onToggleCommit(String(d.id))}
+                    />
+                  )}
+                </div>
+              </TD>
 
               {/* Channel */}
               {!hide("channel") && (
                 <TD style={{ color: d.channel ? "#374151" : "#f59e0b" }}>
                   {d.channel ?? "⚠ missing"}
-                </TD>
-              )}
-
-              {/* Stage */}
-              {!hide("stage") && (
-                <TD>
-                  <span style={{
-                    fontSize: 11, fontWeight: 600,
-                    color: STAGE_COLORS[d.stage] ?? "#64748b",
-                  }}>
-                    {STAGE_LABELS[d.stage] ?? d.stage}
-                  </span>
                 </TD>
               )}
 
