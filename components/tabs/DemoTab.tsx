@@ -1,5 +1,4 @@
 "use client";
-
 import { useState } from "react";
 import type { Deal, ClosePlanMap } from "@/types/deals";
 import { isStale } from "@/lib/flags";
@@ -7,35 +6,31 @@ import { TableCard } from "@/components/Table";
 import DealTable from "@/components/DealTable";
 import StatCard from "@/components/StatCard";
 import type { PipelineCounts } from "@/app/page";
-
 type Filter = "all" | "week" | "quarter" | "stale";
-
 interface DemoTabProps {
   deals: Deal[];
   allActive: Deal[];
   closePlans: ClosePlanMap;
+  committedIds: Record<string, boolean>;
+  onToggleCommit: (dealId: string) => void;
   now: Date;
   weekAgo: Date;
   qStart: Date;
   demoQTarget: number;
   counts: PipelineCounts;
 }
-
-export default function DemoTab({ deals, allActive, closePlans, now, weekAgo, qStart, demoQTarget, counts }: DemoTabProps) {
+export default function DemoTab({ deals, allActive, closePlans, committedIds, onToggleCommit, now, weekAgo, qStart, demoQTarget, counts }: DemoTabProps) {
   const [filter, setFilter] = useState<Filter>("all");
-
   const { demoNewW: newThisWeek, demoNewQ: newThisQ, qElapsedPct } = counts;
   const staleCount = deals.filter(d => isStale(d, now)).length;
   const goalPct = demoQTarget > 0 ? Math.round((newThisQ / demoQTarget) * 100) : 0;
   const pacePct = demoQTarget > 0 && qElapsedPct > 0
     ? Math.round((newThisQ / demoQTarget) / qElapsedPct * 100) : 0;
-
   const sorted = [...deals].sort((a, b) => {
     const la = a.last_contacted ? new Date(a.last_contacted).getTime() : 0;
     const lb = b.last_contacted ? new Date(b.last_contacted).getTime() : 0;
     return la - lb;
   });
-
   const filtered = sorted.filter(d => {
     const enteredDemo = d.entered_demo || d.entered_current;
     if (filter === "week")    return !!enteredDemo && new Date(enteredDemo) >= weekAgo;
@@ -43,13 +38,10 @@ export default function DemoTab({ deals, allActive, closePlans, now, weekAgo, qS
     if (filter === "stale")   return isStale(d, now);
     return true;
   });
-
   const toggle = (f: Filter) => setFilter(prev => prev === f ? "all" : f);
-
   const filterLabel: Record<Filter, string> = {
     all: "", week: "new this week", quarter: "new this quarter", stale: "stale >60 days",
   };
-
   return (
     <div>
       <div className="flex gap-3 mb-5 flex-wrap">
@@ -58,7 +50,6 @@ export default function DemoTab({ deals, allActive, closePlans, now, weekAgo, qS
         <StatCard label="New This Quarter" value={newThisQ}    target={demoQTarget} goalPct={goalPct} pacePct={pacePct} onClick={() => toggle("quarter")} active={filter === "quarter"} />
         <StatCard label="Stale >60 days"   value={staleCount}  onClick={() => toggle("stale")}   active={filter === "stale"} />
       </div>
-
       {filter !== "all" && (
         <div style={{ marginBottom: 10, fontSize: 12, color: "#64748b", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
           Showing <strong>{filterLabel[filter]}</strong>
@@ -69,7 +60,6 @@ export default function DemoTab({ deals, allActive, closePlans, now, weekAgo, qS
           </button>
         </div>
       )}
-
       <TableCard>
         <DealTable
           deals={filtered}
@@ -80,6 +70,8 @@ export default function DemoTab({ deals, allActive, closePlans, now, weekAgo, qS
           weekAgo={weekAgo}
           enteredDateFn={d => d.entered_demo || d.entered_current}
           hiddenColumns={["amount", "closeDate", "closePlan"]}
+          committedIds={committedIds}
+          onToggleCommit={onToggleCommit}
         />
       </TableCard>
     </div>
