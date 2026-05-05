@@ -45,11 +45,9 @@ function computeCounts(active: Deal[], weekAgo: Date, qStart: Date, yearStart: D
   const yElapsedPct = Math.min(1, (now.getTime() - yearStart.getTime()) / 86400000 / yTotalDays);
 
   return {
-    // Discovery — use createdate (immutable, doesn't shift when stages change)
     discNewW:  active.filter(d => d.createdate      && new Date(d.createdate)      >= weekAgo).length,
     discNewQ:  active.filter(d => d.createdate      && new Date(d.createdate)      >= qStart).length,
     discNewY:  active.filter(d => d.createdate      && new Date(d.createdate)      >= yearStart).length,
-    // Other stages — use stage entry date
     demoNewW:  active.filter(d => d.entered_demo     && new Date(d.entered_demo)     >= weekAgo).length,
     demoNewQ:  active.filter(d => d.entered_demo     && new Date(d.entered_demo)     >= qStart).length,
     demoNewY:  active.filter(d => d.entered_demo     && new Date(d.entered_demo)     >= yearStart).length,
@@ -129,6 +127,7 @@ export default function Page() {
   const [asOf, setAsOf]                 = useState<string | null>(null);
 
   const [closePlans, setClosePlans]     = useState<ClosePlanMap>({});
+  const [committedIds, setCommittedIds] = useState<Record<string, boolean>>({});
   const [assumptions, setAssumptions]   = useState<Assumptions>(DEFAULT_ASSUMPTIONS);
   const [hubspotRates, setHubspotRates] = useState<HubSpotRates | null>(null);
 
@@ -207,6 +206,13 @@ export default function Page() {
     } catch (e) { console.error("Failed to load close plans:", e); }
   }, []);
 
+  const fetchCommits = useCallback(async () => {
+    try {
+      const res = await fetch("/api/commits");
+      if (res.ok) setCommittedIds(await res.json());
+    } catch (e) { console.error("Failed to load commits:", e); }
+  }, []);
+
   const fetchAssumptions = useCallback(async () => {
     try {
       const res = await fetch("/api/assumptions");
@@ -224,9 +230,10 @@ export default function Page() {
   useEffect(() => {
     fetchPipeline();
     fetchClosePlans();
+    fetchCommits();
     fetchAssumptions();
     fetchHubspotRates();
-  }, [fetchPipeline, fetchClosePlans, fetchAssumptions, fetchHubspotRates]);
+  }, [fetchPipeline, fetchClosePlans, fetchCommits, fetchAssumptions, fetchHubspotRates]);
 
   // ── RECALCULATE ───────────────────────────────────────────────────────────
   const handleRecalculate = async () => {
@@ -258,6 +265,26 @@ export default function Page() {
         return next;
       });
     } catch (e) { console.error("Failed to save close plan:", e); }
+  };
+
+  const handleToggleCommit = async (dealId: string) => {
+    // Optimistic update
+    setCommittedIds(prev => {
+      const next = { ...prev };
+      if (next[dealId]) delete next[dealId];
+      else next[dealId] = true;
+      return next;
+    });
+    try {
+      await fetch("/api/commits", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dealId }),
+      });
+    } catch (e) {
+      console.error("Failed to toggle commit:", e);
+      // Revert optimistic update on failure
+      fetchCommits();
+    }
   };
 
   const handleAssumptionsSave = async (a: Assumptions) => {
@@ -303,6 +330,7 @@ export default function Page() {
                 active={active} legal={legal} proposal={proposal} demo={demo} discovery={discovery}
                 closedWon={closedWon} closedWonYTD={closedWonYTD}
                 emailSignals={emailSignals} closePlans={closePlans}
+                committedIds={committedIds} onToggleCommit={handleToggleCommit}
                 assumptions={assumptions} counts={counts} hubspotRates={hubspotRates}
                 now={now} weekAgo={weekAgo} qStart={qStart} yearStart={yearStart} qIndex={qIndex}
                 ytdMode={ytdMode} onYtdModeChange={setYtdMode}
@@ -310,13 +338,13 @@ export default function Page() {
               />
             )}
             {tab === "legal" && (
-              <LegalTab deals={legal} closePlans={closePlans} now={now} weekAgo={weekAgo} qStart={qStart} counts={counts} legalQTarget={derived.combinedLegalTarget} />
+              <LegalTab deals={legal} closePlans={closePlans} committedIds={committedIds} onToggleCommit={handleToggleCommit} now={now} weekAgo={weekAgo} qStart={qStart} counts={counts} legalQTarget={derived.combinedLegalTarget} />
             )}
             {tab === "proposal" && (
-              <ProposalTab deals={proposal} closePlans={closePlans} onClosePlanSave={handleClosePlanSave} now={now} weekAgo={weekAgo} qStart={qStart} counts={counts} propQTarget={derived.combinedPropTarget} />
+              <ProposalTab deals={proposal} closePlans={closePlans} onClosePlanSave={handleClosePlanSave} committedIds={committedIds} onToggleCommit={handleToggleCommit} now={now} weekAgo={weekAgo} qStart={qStart} counts={counts} propQTarget={derived.combinedPropTarget} />
             )}
             {tab === "demo" && (
-              <DemoTab deals={demo} allActive={active} closePlans={closePlans} now={now} weekAgo={weekAgo} qStart={qStart} counts={counts} demoQTarget={derived.combinedDemoTarget} />
+              <DemoTab deals={demo} allActive={active} closePlans={closePlans} committedIds={committedIds} onToggleCommit={handleToggleCommit} now={now} weekAgo={weekAgo} qStart={qStart} counts={counts} demoQTarget={derived.combinedDemoTarget} />
             )}
             {tab === "discovery" && (
               <DiscoveryTab deals={discovery} allActive={active} assumptions={assumptions} onAssumptionsSave={handleAssumptionsSave} now={now} weekAgo={weekAgo} qStart={qStart} qIndex={qIndex} counts={counts} />
