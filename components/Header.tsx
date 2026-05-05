@@ -43,6 +43,7 @@ export default function Header({ asOf, loading, qIndex, ytdMode, onRefresh, onRe
     ? `${now.getFullYear()} target: ${fmtK(ANNUAL_REVENUE_TARGET)}`
     : `Q${qIndex + 1} target: ${fmtK(QUARTERLY_TARGETS[qIndex] ?? QUARTERLY_TARGETS[0])}`;
 
+  console.log({ asOf, canRecalc, search: typeof window !== "undefined" ? window.location.search : "ssr" });
   return (
     <header style={{
       background: "linear-gradient(135deg, #0f0a2e 0%, #1a0f4e 60%, #0d1a3a 100%)",
