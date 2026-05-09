@@ -1,3 +1,4 @@
+// components/tabs/ProposalTab.tsx
 "use client";
 import { useState } from "react";
 import type { Deal, ClosePlanMap } from "@/types/deals";
@@ -5,6 +6,7 @@ import { isStale } from "@/lib/flags";
 import { TableCard } from "@/components/Table";
 import DealTable from "@/components/DealTable";
 import StatCard from "@/components/StatCard";
+import StageDefinition from "@/components/StageDefinition";
 import type { PipelineCounts } from "@/app/page";
 type Filter = "all" | "week" | "quarter" | "stale";
 interface ProposalTabProps {
@@ -38,6 +40,7 @@ export default function ProposalTab({ deals, closePlans, onClosePlanSave, commit
   };
   return (
     <div>
+      <StageDefinition stage="proposal" />
       <div className="flex gap-3 mb-5 flex-wrap">
         <StatCard label="Currently in Proposal" value={deals.length} />
         <StatCard label="New This Week"    value={propNewW}   onClick={() => toggle("week")}    active={filter === "week"} />
