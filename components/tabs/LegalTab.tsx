@@ -1,3 +1,4 @@
+// components/tabs/LegalTab.tsx
 "use client";
 import { useState } from "react";
 import type { Deal, ClosePlanMap } from "@/types/deals";
@@ -5,6 +6,7 @@ import { isStale } from "@/lib/flags";
 import { TableCard } from "@/components/Table";
 import DealTable from "@/components/DealTable";
 import StatCard from "@/components/StatCard";
+import StageDefinition from "@/components/StageDefinition";
 import type { PipelineCounts } from "@/app/page";
 type Filter = "all" | "week" | "quarter" | "stale";
 interface LegalTabProps {
@@ -37,6 +39,7 @@ export default function LegalTab({ deals, closePlans, committedIds, onToggleComm
   };
   return (
     <div>
+      <StageDefinition stage="legal" />
       <div className="flex gap-3 mb-5 flex-wrap">
         <StatCard label="Currently in Legal" value={deals.length} />
         <StatCard label="New This Week"    value={legalNewW}  onClick={() => toggle("week")}    active={filter === "week"} />
