@@ -1,6 +1,4 @@
 // app/page.tsx
-// adding comment to force build
-
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -115,9 +113,9 @@ function LoadingScreen({ steps }: { steps: ProgressStep[] }) {
 // ── PAGE ──────────────────────────────────────────────────────────────────────
 
 export default function Page() {
-  const [tab, setTab]                   = useState<TabId>("overview");
-  const [loading, setLoading]           = useState(true);
-  const [error, setError]               = useState<string | null>(null);
+  const [tab, setTab]                     = useState<TabId>("overview");
+  const [loading, setLoading]             = useState(true);
+  const [error, setError]                 = useState<string | null>(null);
   const [progressSteps, setProgressSteps] = useState<ProgressStep[]>([]);
 
   const [active, setActive]             = useState<Deal[]>([]);
@@ -144,7 +142,32 @@ export default function Page() {
   const yearStart = new Date(now.getFullYear(), 0, 1);
   const counts    = computeCounts(active, weekAgo, qStart, yearStart, now);
 
-  // ── FETCH via SSE ─────────────────────────────────────────────────────────
+  // ── LOAD FROM CACHE (page load) ───────────────────────────────────────────
+  const loadSnapshot = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/snapshot");
+      if (!res.ok) {
+        // No cache yet — fall back to live fetch
+        fetchPipeline();
+        return;
+      }
+      const data = await res.json();
+      setActive(data.active ?? []);
+      setClosedWon(data.closedWon ?? []);
+      setClosedWonYTD(data.closedWonYTD ?? []);
+      setEmailSignals(data.emailSignals ?? {});
+      setAsOf(data.asOf ?? null);
+      setNow(new Date(data.asOf ?? Date.now()));
+    } catch {
+      fetchPipeline();
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // ── FETCH LIVE via SSE (refresh button) ───────────────────────────────────
   const fetchPipeline = useCallback(() => {
     setLoading(true);
     setError(null);
@@ -228,12 +251,12 @@ export default function Page() {
   }, []);
 
   useEffect(() => {
-    fetchPipeline();
+    loadSnapshot();
     fetchClosePlans();
     fetchCommits();
     fetchAssumptions();
     fetchHubspotRates();
-  }, [fetchPipeline, fetchClosePlans, fetchCommits, fetchAssumptions, fetchHubspotRates]);
+  }, [loadSnapshot, fetchClosePlans, fetchCommits, fetchAssumptions, fetchHubspotRates]);
 
   // ── RECALCULATE ───────────────────────────────────────────────────────────
   const handleRecalculate = async () => {
@@ -268,7 +291,6 @@ export default function Page() {
   };
 
   const handleToggleCommit = async (dealId: string) => {
-    // Optimistic update
     setCommittedIds(prev => {
       const next = { ...prev };
       if (next[dealId]) delete next[dealId];
@@ -282,7 +304,6 @@ export default function Page() {
       });
     } catch (e) {
       console.error("Failed to toggle commit:", e);
-      // Revert optimistic update on failure
       fetchCommits();
     }
   };
