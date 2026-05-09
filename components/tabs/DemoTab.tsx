@@ -1,3 +1,4 @@
+// components/tabs/DemoTab.tsx
 "use client";
 import { useState } from "react";
 import type { Deal, ClosePlanMap } from "@/types/deals";
@@ -5,6 +6,7 @@ import { isStale } from "@/lib/flags";
 import { TableCard } from "@/components/Table";
 import DealTable from "@/components/DealTable";
 import StatCard from "@/components/StatCard";
+import StageDefinition from "@/components/StageDefinition";
 import type { PipelineCounts } from "@/app/page";
 type Filter = "all" | "week" | "quarter" | "stale";
 interface DemoTabProps {
@@ -44,6 +46,7 @@ export default function DemoTab({ deals, allActive, closePlans, committedIds, on
   };
   return (
     <div>
+      <StageDefinition stage="demo" />
       <div className="flex gap-3 mb-5 flex-wrap">
         <StatCard label="Currently in Meeting / Demo" value={deals.length} />
         <StatCard label="New This Week"    value={newThisWeek} onClick={() => toggle("week")}    active={filter === "week"} />
