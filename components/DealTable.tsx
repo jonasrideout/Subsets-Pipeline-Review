@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { Deal, ClosePlanMap, EmailSignalMap } from "@/types/deals";
 import { ownerName, fmtDate, fmtCur, daysSince, UNRESOLVED_OWNER_IDS } from "@/lib/deals";
 import { isStale } from "@/lib/flags";
@@ -115,6 +115,9 @@ export type HiddenColumn = "channel" | "amount" | "closeDate" | "closePlan" | "e
 
 export type DealTableMode = "standard" | "sol" | "needs-action";
 
+type SortCol = "company" | "channel" | "amount" | "closeDate" | "owner" | "enteredStage" | "lastContact" | "daysInStage" | "stage";
+type SortDir = "asc" | "desc";
+
 interface DealTableProps {
   deals: Deal[];
   mode: DealTableMode;
@@ -131,6 +134,134 @@ interface DealTableProps {
   onToggleCommit?: (dealId: string) => void;
 }
 
+// ── CHECKBOX FILTER DROPDOWN ──────────────────────────────────────────────────
+
+function FilterDropdown({
+  label, options, selected, onChange, sortCol, sortDir, colKey, onSort,
+}: {
+  label: string;
+  options: string[];
+  selected: Set<string>;
+  onChange: (next: Set<string>) => void;
+  sortCol: SortCol | null;
+  sortDir: SortDir;
+  colKey: SortCol;
+  onSort: (col: SortCol) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const isActive = selected.size > 0;
+  const isSorted = sortCol === colKey;
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const toggle = (val: string) => {
+    const next = new Set(selected);
+    if (next.has(val)) next.delete(val); else next.add(val);
+    onChange(next);
+  };
+
+  return (
+    <div ref={ref} style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 4 }}>
+      <span
+        onClick={() => onSort(colKey)}
+        style={{ cursor: "pointer", userSelect: "none" as const, display: "inline-flex", alignItems: "center", gap: 3 }}
+      >
+        {label}
+        <span style={{ fontSize: 9, color: isSorted ? "#6366f1" : "#cbd5e1" }}>
+          {isSorted ? (sortDir === "asc" ? " ▲" : " ▼") : " ▲▼"}
+        </span>
+      </span>
+      <button
+        onClick={e => { e.stopPropagation(); setOpen(v => !v); }}
+        style={{
+          background: isActive ? "#eff6ff" : "none",
+          border: isActive ? "1.5px solid #6366f1" : "1px solid #e2e8f0",
+          borderRadius: 4, cursor: "pointer", padding: "1px 4px",
+          display: "inline-flex", alignItems: "center",
+          color: isActive ? "#6366f1" : "#94a3b8",
+        }}
+      >
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <polyline points="6,9 12,15 18,9"/>
+        </svg>
+      </button>
+
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 100,
+          background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10,
+          boxShadow: "0 8px 24px rgba(0,0,0,0.12)", minWidth: 180, padding: "8px 0",
+        }}>
+          <div style={{ display: "flex", justifyContent: "flex-end", padding: "0 10px 4px" }}>
+            <button onClick={() => setOpen(false)}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", fontSize: 13 }}>✕</button>
+          </div>
+          {selected.size > 0 && (
+            <div style={{ padding: "0 14px 6px" }}>
+              <button onClick={() => onChange(new Set())}
+                style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "#6366f1", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                Clear all
+              </button>
+            </div>
+          )}
+          {options.map(opt => (
+            <label key={opt} style={{
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "7px 14px", cursor: "pointer",
+              fontFamily: "'DM Sans', system-ui, sans-serif",
+            }}
+              onMouseEnter={e => (e.currentTarget.style.background = "#f8fafc")}
+              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+            >
+              <input
+                type="checkbox"
+                checked={selected.has(opt)}
+                onChange={() => toggle(opt)}
+                style={{ width: 15, height: 15, accentColor: "#6366f1", cursor: "pointer" }}
+              />
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#1e293b", textTransform: "uppercase" as const, letterSpacing: 0.4 }}>
+                {opt}
+              </span>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── SORTABLE HEADER ───────────────────────────────────────────────────────────
+
+function SortableHeader({
+  label, colKey, sortCol, sortDir, onSort,
+}: {
+  label: string;
+  colKey: SortCol;
+  sortCol: SortCol | null;
+  sortDir: SortDir;
+  onSort: (col: SortCol) => void;
+}) {
+  const isSorted = sortCol === colKey;
+  return (
+    <span
+      onClick={() => onSort(colKey)}
+      style={{ cursor: "pointer", userSelect: "none" as const, display: "inline-flex", alignItems: "center", gap: 3 }}
+    >
+      {label}
+      <span style={{ fontSize: 9, color: isSorted ? "#6366f1" : "#cbd5e1" }}>
+        {isSorted ? (sortDir === "asc" ? " ▲" : " ▼") : " ▲▼"}
+      </span>
+    </span>
+  );
+}
+
 // ── COMPONENT ─────────────────────────────────────────────────────────────────
 
 export default function DealTable({
@@ -143,9 +274,24 @@ export default function DealTable({
   onToggleCommit,
 }: DealTableProps) {
   const hide = (col: HiddenColumn) => hiddenColumns.includes(col);
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [inputVal, setInputVal]   = useState("");
   const [saving, setSaving]       = useState(false);
+
+  // Sort state: 3-click cycle — asc → desc → null
+  const [sortCol, setSortCol] = useState<SortCol | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  // Filter state
+  const [ownerFilter,   setOwnerFilter]   = useState<Set<string>>(new Set());
+  const [channelFilter, setChannelFilter] = useState<Set<string>>(new Set());
+
+  const handleSort = (col: SortCol) => {
+    if (sortCol !== col) { setSortCol(col); setSortDir("asc"); }
+    else if (sortDir === "asc") setSortDir("desc");
+    else { setSortCol(null); setSortDir("asc"); }
+  };
 
   const handleSave = async (dealId: string) => {
     if (!onClosePlanSave) return;
@@ -159,24 +305,80 @@ export default function DealTable({
   const getEnteredDate = (d: Deal) =>
     enteredDateFn ? enteredDateFn(d) : d.entered_current;
 
+  // Unique options for filter dropdowns
+  const ownerOptions   = [...new Set(deals.map(d => ownerName(d.owner)).filter(Boolean))].sort();
+  const channelOptions = [...new Set(deals.map(d => d.channel ?? "Unknown").filter(Boolean))].sort();
+
+  // Apply filters
+  let rows = deals.filter(d => {
+    if (ownerFilter.size   > 0 && !ownerFilter.has(ownerName(d.owner)))      return false;
+    if (channelFilter.size > 0 && !channelFilter.has(d.channel ?? "Unknown")) return false;
+    return true;
+  });
+
+  // Apply sort
+  if (sortCol) {
+    rows = [...rows].sort((a, b) => {
+      let av: any, bv: any;
+      switch (sortCol) {
+        case "company":      av = a.name;                            bv = b.name; break;
+        case "channel":      av = a.channel ?? "";                   bv = b.channel ?? ""; break;
+        case "amount":       av = a.amount ?? 0;                     bv = b.amount ?? 0; break;
+        case "closeDate":    av = a.closedate ? new Date(a.closedate).getTime() : 0;
+                             bv = b.closedate ? new Date(b.closedate).getTime() : 0; break;
+        case "owner":        av = ownerName(a.owner);                bv = ownerName(b.owner); break;
+        case "enteredStage": av = getEnteredDate(a) ? new Date(getEnteredDate(a)!).getTime() : 0;
+                             bv = getEnteredDate(b) ? new Date(getEnteredDate(b)!).getTime() : 0; break;
+        case "lastContact":  av = a.last_contacted ? new Date(a.last_contacted).getTime() : 0;
+                             bv = b.last_contacted ? new Date(b.last_contacted).getTime() : 0; break;
+        case "daysInStage":  av = daysSince(getEnteredDate(a), now) ?? 0;
+                             bv = daysSince(getEnteredDate(b), now) ?? 0; break;
+        case "stage":        av = a.stage;                           bv = b.stage; break;
+        default:             av = 0; bv = 0;
+      }
+      if (av < bv) return sortDir === "asc" ? -1 : 1;
+      if (av > bv) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+  }
+
+  const sh = (label: string, col: SortCol) => (
+    <SortableHeader label={label} colKey={col} sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
+  );
+
   return (
     <table style={{ width: "100%", borderCollapse: "collapse" }}>
       <thead>
         <tr>
-          <TH>Company</TH>
-          {!hide("channel")      && <TH>Channel</TH>}
-          {!hide("amount")       && <TH>Amount</TH>}
-          {!hide("closeDate")    && <TH>Close Date</TH>}
+          <TH>{sh("Company", "company")}</TH>
+          {!hide("channel") && (
+            <TH>
+              <FilterDropdown
+                label="Channel" options={channelOptions} selected={channelFilter}
+                onChange={setChannelFilter} sortCol={sortCol} sortDir={sortDir}
+                colKey="channel" onSort={handleSort}
+              />
+            </TH>
+          )}
+          {!hide("amount")       && <TH>{sh("Amount", "amount")}</TH>}
+          {!hide("closeDate")    && <TH>{sh("Close Date", "closeDate")}</TH>}
           {!hide("closePlan")    && <TH>Close Plan</TH>}
-          <TH>Owner</TH>
-          {!hide("enteredStage") && <TH>Entered Stage</TH>}
-          {!hide("lastContact")  && <TH>Last Contact</TH>}
-          {!hide("daysInStage")  && <TH>Days in Stage</TH>}
+          <TH>
+            <FilterDropdown
+              label="Owner" options={ownerOptions} selected={ownerFilter}
+              onChange={setOwnerFilter} sortCol={sortCol} sortDir={sortDir}
+              colKey="owner" onSort={handleSort}
+            />
+          </TH>
+          {!hide("enteredStage") && <TH>{sh("Entered Stage", "enteredStage")}</TH>}
+          {!hide("lastContact")  && <TH>{sh("Last Contact", "lastContact")}</TH>}
+          {!hide("daysInStage")  && <TH>{sh("Days in Stage", "daysInStage")}</TH>}
+          {!hide("stage")        && <TH>{sh("Stage", "stage")}</TH>}
           <TH>Flags</TH>
         </tr>
       </thead>
       <tbody>
-        {deals.map(d => {
+        {rows.map(d => {
           const enteredDate = getEnteredDate(d);
           const daysIn      = daysSince(enteredDate, now);
           const lc          = daysSince(d.last_contacted, now);
@@ -186,52 +388,41 @@ export default function DealTable({
             ? Math.ceil((new Date(d.closedate).getTime() - now.getTime()) / 86400000)
             : null;
 
-          // Signs of Life signals
           const sig         = emailSignals[String(d.id)] ?? {};
           const opens7d     = sig.opens7d    ?? 0;
           const clicks7d    = sig.clicks7d   ?? 0;
           const inbound7d   = sig.inbound7d  ?? 0;
-          const lastInbound = sig.lastInbound ?? null;
           const enteredNew  = weekAgo ? !!enteredDate && new Date(enteredDate) >= weekAgo : false;
 
           const isCommitted = !!committedIds[String(d.id)];
-          const rowBg = "white";
 
           return (
             <tr key={d.id} className="table-row-hover"
-              style={{ borderBottom: "1px solid #f4f5f8", background: rowBg }}>
+              style={{ borderBottom: "1px solid #f4f5f8", background: "white" }}>
 
-              {/* Company */}
               <TD>
                 <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 2 }}>
                   <DealLink id={d.id} name={d.name} />
                   {onToggleCommit && (
-                    <CommitBadge
-                      committed={isCommitted}
-                      onToggle={() => onToggleCommit(String(d.id))}
-                    />
+                    <CommitBadge committed={isCommitted} onToggle={() => onToggleCommit(String(d.id))} />
                   )}
                 </div>
               </TD>
 
-              {/* Channel */}
               {!hide("channel") && (
                 <TD style={{ color: d.channel ? "#374151" : "#f59e0b" }}>
                   {d.channel ?? "⚠ missing"}
                 </TD>
               )}
 
-              {/* Amount */}
               {!hide("amount") && (
                 <TD style={{ fontWeight: 600, color: "#15803d" }}>{fmtCur(d.amount)}</TD>
               )}
 
-              {/* Close Date */}
               {!hide("closeDate") && (
                 <TD><CloseDateBadge dateStr={d.closedate} now={now} /></TD>
               )}
 
-              {/* Close Plan */}
               {!hide("closePlan") && (
                 <TD>
                   {editingId === d.id ? (
@@ -266,32 +457,31 @@ export default function DealTable({
                 </TD>
               )}
 
-              {/* Owner */}
               <TD style={{ color: "#374151" }}>
                 {ownerName(d.owner)}
                 {UNRESOLVED_OWNER_IDS.has(d.owner) && <UnresolvedOwnerBadge />}
               </TD>
 
-              {/* Entered Stage */}
               {!hide("enteredStage") && (
                 <TD style={{ color: "#8b90a0" }}>{fmtDate(enteredDate)}</TD>
               )}
 
-              {/* Last Contact */}
               {!hide("lastContact") && (
                 <TD style={{ color: lc !== null && lc >= 14 ? "#c2410c" : "#8b90a0" }}>
                   {d.last_contacted ? `${fmtDate(d.last_contacted)} (${lc}d)` : "—"}
                 </TD>
               )}
 
-              {/* Days in Stage */}
               {!hide("daysInStage") && (
                 <TD style={{ color: stale ? "#dc2626" : "#374151", fontWeight: stale ? 700 : 400 }}>
                   {daysIn != null ? `${daysIn}d` : "—"}
                 </TD>
               )}
 
-              {/* Flags */}
+              {!hide("stage") && (
+                <TD style={{ color: "#374151" }}>{d.stage}</TD>
+              )}
+
               <TD>
                 {mode === "sol" ? (
                   <>
