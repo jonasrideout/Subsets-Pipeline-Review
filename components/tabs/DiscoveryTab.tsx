@@ -145,6 +145,7 @@ export default function DiscoveryTab({
         targets={nbTargets}
         actuals={nbActuals}
         dealsByChannel={nbDealsByChannel}
+        qElapsedPct={qElapsedPct}
         now={now}
         squareBottom
       />
@@ -162,6 +163,7 @@ export default function DiscoveryTab({
           targets={{ Expansion: expansionQTarget }}
           actuals={{ Expansion: expansionActual }}
           dealsByChannel={{ Expansion: expansionDeals }}
+          qElapsedPct={qElapsedPct}
           now={now}
           squareBottom
         />
