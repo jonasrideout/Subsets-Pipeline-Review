@@ -17,7 +17,7 @@ const STAGE_DEFS: Record<string, StageDef> = {
     enter:
       "Expressed interest in a concrete way: asked for a meeting or demo, attended a roundtable or sponsored event, or requested more info at a conference.",
     exit:
-      "A meeting or demo is scheduled. Deals stalled for 2+ months move to Closed Lost; contacts at those deals get tagged for nurture emails.",
+      "A meeting or demo is scheduled. Deals stalled for 2+ months move to Dormant/No Deal; contacts at those deals get tagged for nurture emails.",
     special:
       "Deals in this stage should not yet have a deal amount or a close date.",
   },
