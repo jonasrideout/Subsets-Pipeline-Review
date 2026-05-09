@@ -1,19 +1,21 @@
+// app/api/deals/route.ts
+
 import { NextResponse } from "next/server";
 import { fetchActiveDeals, fetchClosedWonQTD, fetchClosedWonYTD, fetchAllEmailSignals } from "@/lib/hubspot";
+import { writeSnapshot } from "@/lib/cache";
+
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const encoder = new TextEncoder();
-
-  const stream = new ReadableStream({
+  const stream  = new ReadableStream({
     async start(controller) {
       const emit = (event: string, data: object) => {
         controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
       };
-
       try {
         emit("progress", { step: "deals", message: "Fetching active deals…" });
-        const [active, closedWonQTD, closedWonYTD] = await Promise.all([
+        const [active, closedWon, closedWonYTD] = await Promise.all([
           fetchActiveDeals(),
           fetchClosedWonQTD(),
           fetchClosedWonYTD(),
@@ -22,7 +24,6 @@ export async function GET() {
 
         const now = new Date();
         emit("progress", { step: "signals", message: "Fetching email signals…", total: active.length });
-
         const emailSignals = await fetchAllEmailSignals(
           active,
           now,
@@ -30,16 +31,14 @@ export async function GET() {
             emit("progress", { step: "signals_progress", message: `Fetching email signals (${fetched} of ${total})…`, fetched, total });
           }
         );
-
         emit("progress", { step: "signals_done", message: "✓ Email signals loaded" });
 
-        emit("result", {
-          active,
-          closedWon:    closedWonQTD,
-          closedWonYTD,
-          emailSignals,
-          asOf: now.toISOString(),
-        });
+        const snapshot = { active, closedWon, closedWonYTD, emailSignals, asOf: now.toISOString() };
+
+        // Write to cache in the background — don't block the SSE response
+        writeSnapshot(snapshot).catch(err => console.error("Cache write failed:", err));
+
+        emit("result", snapshot);
       } catch (err) {
         emit("error", { message: String(err) });
       } finally {
