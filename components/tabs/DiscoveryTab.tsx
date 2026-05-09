@@ -12,6 +12,7 @@ import DealTable from "@/components/DealTable";
 import type { HiddenColumn } from "@/components/DealTable";
 import StatCard from "@/components/StatCard";
 import type { PipelineCounts } from "@/app/page";
+import StageDefinition from "@/components/StageDefinition";
 
 const NB = ["Outbound", "Events", "Partnership", "Inbound"] as const;
 const fmtK = (n: number) => "$" + Math.round(n / 1000) + "K";
@@ -116,6 +117,7 @@ export default function DiscoveryTab({
 
   return (
     <div>
+      <StageDefinition stage="discovery" />
       {/* Summary cards */}
       <div className="flex gap-3 mb-5 flex-wrap">
         <StatCard label="Currently in Discovery" value={deals.length} />
