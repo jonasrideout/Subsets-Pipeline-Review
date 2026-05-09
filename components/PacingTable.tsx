@@ -23,13 +23,27 @@ interface PacingTableProps {
   channels:         string[];
   targets:          Record<string, number>;
   actuals:          Record<string, number>;
+  qElapsedPct:      number;
   squareBottom?:    boolean;
   dealsByChannel?:  Record<string, Deal[]>;
   now?:             Date;
 }
 
+function paceRatio(actual: number, target: number, qElapsedPct: number): number {
+  if (target === 0) return 1;
+  if (qElapsedPct === 0) return 1;
+  return (actual / target) / qElapsedPct;
+}
+
+function paceColor(ratio: number): { bar: string; badge: string; badgeText: string; label: string } {
+  if (ratio >= 0.90) return { bar: "#00c896", badge: "#dcfce7", badgeText: "#15803d", label: "ON TRACK" };
+  if (ratio >= 0.75) return { bar: "#eab308", badge: "#fefce8", badgeText: "#854d0e", label: "SLIGHTLY BEHIND" };
+  if (ratio >= 0.50) return { bar: "#f97316", badge: "#fff7ed", badgeText: "#9a3412", label: "BEHIND" };
+  return               { bar: "#ef4444", badge: "#fee2e2", badgeText: "#dc2626", label: "BEHIND" };
+}
+
 export default function PacingTable({
-  title, channels, targets, actuals, squareBottom = false, dealsByChannel, now = new Date(),
+  title, channels, targets, actuals, qElapsedPct, squareBottom = false, dealsByChannel, now = new Date(),
 }: PacingTableProps) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const br = squareBottom ? "12px 12px 0 0" : "12px";
@@ -59,8 +73,10 @@ export default function PacingTable({
             {channels.map(ch => {
               const tgt      = targets[ch] ?? 0;
               const actual   = actuals[ch] ?? 0;
+              const ratio    = paceRatio(actual, tgt, qElapsedPct);
               const pct      = tgt > 0 ? actual / tgt : 0;
-              const behind   = actual < tgt * 0.5;
+              const color    = paceColor(ratio);
+              const onTrack  = ratio >= 0.90;
               const chDeals  = dealsByChannel?.[ch] ?? [];
               const isOpen   = expanded === ch;
               const hasDeals = chDeals.length > 0;
@@ -82,15 +98,15 @@ export default function PacingTable({
                     <TD>{actual}</TD>
                     <TD>
                       {tgt}
-                      {behind && (
-                        <span style={{ marginLeft: 8, background: "#fee2e2", color: "#dc2626", padding: "1px 7px", borderRadius: 8, fontSize: 11, fontWeight: 700 }}>
-                          BEHIND
+                      {!onTrack && (
+                        <span style={{ marginLeft: 8, background: color.badge, color: color.badgeText, padding: "1px 7px", borderRadius: 8, fontSize: 11, fontWeight: 700 }}>
+                          {color.label}
                         </span>
                       )}
                     </TD>
                     <TD>
                       <div style={{ background: "#f1f5f9", borderRadius: 6, height: 8, overflow: "hidden", width: 120 }}>
-                        <div style={{ height: "100%", width: `${Math.min(100, pct * 100)}%`, background: behind ? "#ef4444" : "#00c896", borderRadius: 6 }} />
+                        <div style={{ height: "100%", width: `${Math.min(100, pct * 100)}%`, background: color.bar, borderRadius: 6 }} />
                       </div>
                     </TD>
                   </tr>
