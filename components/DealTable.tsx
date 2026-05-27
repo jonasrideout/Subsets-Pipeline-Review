@@ -479,7 +479,7 @@ export default function DealTable({
               )}
 
               {!hide("stage") && (
-                <TD style={{ color: "#374151" }}>{d.stage}</TD>
+                <TD style={{ color: "#374151" }}>{stageLabel(d.stage)}</TD>
               )}
 
               <TD>
