@@ -520,7 +520,7 @@ function AssumptionDrawer({ tileKey, assumptions, hubspotRates, borderColor, onS
     const hsVal  = hubspotRates[field as keyof HubSpotRates];
     const curVal = assumptions[field];
     if (hsVal === null || hsVal === undefined) return null;
-    return hsVal === curVal ? "Source: HubSpot historical data" : "Manually entered";
+    return Math.abs((hsVal as number) - (curVal as number)) < 0.01 ? "Source: HubSpot historical data" : "Manually entered";
   };
 
   return (
