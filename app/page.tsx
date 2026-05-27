@@ -272,6 +272,9 @@ export default function Page() {
 
   const handleRecalcConfirm = async (updated: Assumptions) => {
     await handleAssumptionsSave(updated);
+    if (recalcModal?.rates) {
+      setHubspotRates(prev => prev ? { ...prev, ...recalcModal.rates } : prev);
+    }
     setRecalcModal(null);
   };
 
