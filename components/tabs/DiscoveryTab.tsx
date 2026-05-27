@@ -27,12 +27,15 @@ interface DiscoveryTabProps {
   now: Date;
   weekAgo: Date;
   qStart: Date;
+  yearStart: Date;
   qIndex: number;
   counts: PipelineCounts;
+  ytdMode: boolean;
+  onYtdModeChange: (v: boolean) => void;
 }
 
 export default function DiscoveryTab({
-  deals, allActive, assumptions, onAssumptionsSave, now, weekAgo, qStart, qIndex, counts,
+  deals, allActive, assumptions, onAssumptionsSave, now, weekAgo, qStart, yearStart, qIndex, counts, ytdMode, onYtdModeChange,
 }: DiscoveryTabProps) {
   const [filter, setFilter] = useState<Filter>("all");
 
@@ -40,25 +43,41 @@ export default function DiscoveryTab({
   const { expansionQTarget, nbTargets, channelQTargets } = derived;
   const discQTarget = Object.values(channelQTargets).reduce((s, v) => s + v, 0);
 
-  const staleCount = deals.filter(d => isStale(d, now)).length;
-  const { discNewW: newThisWeek, discNewQ: newThisQ, qElapsedPct } = counts;
-  const goalPct = discQTarget > 0 ? Math.round((newThisQ / discQTarget) * 100) : 0;
-  const pacePct = discQTarget > 0 && qElapsedPct > 0
-    ? Math.round((newThisQ / discQTarget) / qElapsedPct * 100) : 0;
+  // Annual targets (sum across all quarters)
+  const { QUARTERLY_TARGETS } = require("@/lib/assumptions");
+  const annualDerived      = (QUARTERLY_TARGETS as number[]).map((_: number, i: number) => deriveTargets(assumptions, i));
+  const annualDiscTarget   = annualDerived.reduce((s: number, d: ReturnType<typeof deriveTargets>) => s + Object.values(d.channelQTargets).reduce((a, v) => a + v, 0), 0);
+  const annualNBTargets    = Object.fromEntries(
+    NB.map(ch => [ch, annualDerived.reduce((s: number, d: ReturnType<typeof deriveTargets>) => s + (d.nbTargets[ch] ?? 0), 0)])
+  ) as Record<string, number>;
+  const annualExpansionTarget = annualDerived.reduce((s: number, d: ReturnType<typeof deriveTargets>) => s + d.expansionQTarget, 0);
 
-  // Use createdate to match the stat card count (immutable, doesn't shift with stage moves)
+  const periodStart   = ytdMode ? yearStart : qStart;
+  const elapsedPct    = ytdMode ? counts.yElapsedPct : counts.qElapsedPct;
+  const newThisWeek   = counts.discNewW;
+  const newThisPeriod = ytdMode ? counts.discNewY : counts.discNewQ;
+  const periodTarget  = ytdMode ? annualDiscTarget : discQTarget;
+  const periodLabel   = ytdMode ? "New This Year" : "New This Quarter";
+
+  const staleCount = deals.filter(d => isStale(d, now)).length;
+  const goalPct = periodTarget > 0 ? Math.round((newThisPeriod / periodTarget) * 100) : 0;
+  const pacePct = periodTarget > 0 && elapsedPct > 0
+    ? Math.round((newThisPeriod / periodTarget) / elapsedPct * 100) : 0;
+
+  // Progressed stat always uses Q (quarter is the planning unit)
   const newThisQDeals = allActive.filter(d =>
     d.createdate && new Date(d.createdate) >= qStart
   );
   const progressedCount = newThisQDeals.filter(d => d.stage !== "appointmentscheduled").length;
   const progressedPct   = newThisQDeals.length > 0 ? Math.round((progressedCount / newThisQDeals.length) * 100) : 0;
 
+  // Pacing actuals by channel for the selected period
   const nbActuals: Record<string, number> = {};
   for (const ch of NB) {
     nbActuals[ch] = allActive.filter(d => {
       if (d.channel !== ch) return false;
       const e = earliestStageEntry(d);
-      return e ? new Date(e) >= qStart : false;
+      return e ? new Date(e) >= periodStart : false;
     }).length;
   }
 
@@ -67,20 +86,20 @@ export default function DiscoveryTab({
     nbDealsByChannel[ch] = allActive.filter(d => {
       if (d.channel !== ch) return false;
       const e = earliestStageEntry(d);
-      return e ? new Date(e) >= qStart : false;
+      return e ? new Date(e) >= periodStart : false;
     });
   }
 
   const expansionActual = allActive.filter(d => {
     if (d.channel !== "Expansion") return false;
     const e = earliestStageEntry(d);
-    return e ? new Date(e) >= qStart : false;
+    return e ? new Date(e) >= periodStart : false;
   }).length;
 
   const expansionDeals = allActive.filter(d => {
     if (d.channel !== "Expansion") return false;
     const e = earliestStageEntry(d);
-    return e ? new Date(e) >= qStart : false;
+    return e ? new Date(e) >= periodStart : false;
   });
 
   const sorted = [...deals].sort((a, b) =>
@@ -103,7 +122,6 @@ export default function DiscoveryTab({
     filter === "quarter"    ? quarterDeals :
     filtered;
 
-  // Show stage column when viewing cross-stage lists
   const showStage = filter === "quarter" || filter === "progressed";
   const hiddenCols: HiddenColumn[] = ["amount", "closeDate", "closePlan"];
   if (!showStage) hiddenCols.push("stage");
@@ -115,14 +133,42 @@ export default function DiscoveryTab({
     stale: "stale >60 days", progressed: "progressed past discovery",
   };
 
+  const pacingTitle = ytdMode
+    ? `New Business Pacing — ${now.getFullYear()} YTD`
+    : `New Business Pacing — Q${qIndex + 1}`;
+  const upsellTitle = ytdMode
+    ? `Upsell Pacing — ${now.getFullYear()} YTD`
+    : `Upsell Pacing — Q${qIndex + 1}`;
+
   return (
     <div>
       <StageDefinition stage="discovery" />
+
+      {/* Q / YTD toggle */}
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+        <div style={{ display: "flex", background: "#f1f5f9", borderRadius: 8, padding: 3, gap: 2 }}>
+          {(["Q", "YTD"] as const).map(mode => (
+            <button key={mode}
+              onClick={() => onYtdModeChange(mode === "YTD")}
+              style={{
+                padding: "5px 16px", borderRadius: 6, border: "none", cursor: "pointer",
+                fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif",
+                background: (mode === "YTD") === ytdMode ? "#fff" : "transparent",
+                color: (mode === "YTD") === ytdMode ? "#0f172a" : "#94a3b8",
+                boxShadow: (mode === "YTD") === ytdMode ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                transition: "all 0.15s",
+              }}>
+              {mode}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Summary cards */}
       <div className="flex gap-3 mb-5 flex-wrap">
         <StatCard label="Currently in Discovery" value={deals.length} />
         <StatCard label="New This Week"    value={newThisWeek} onClick={() => toggle("week")}    active={filter === "week"} />
-        <StatCard label="New This Quarter" value={newThisQ}    target={discQTarget} goalPct={goalPct} pacePct={pacePct} onClick={() => toggle("quarter")} active={filter === "quarter"} />
+        <StatCard label={periodLabel}      value={newThisPeriod} target={periodTarget} goalPct={goalPct} pacePct={pacePct} onClick={() => toggle("quarter")} active={filter === "quarter"} />
         <StatCard label="Progressed Past Discovery" value={progressedCount} subValue={`${progressedPct}% of Q adds`} onClick={() => toggle("progressed")} active={filter === "progressed"} />
         <StatCard label="Stale >60 days"   value={staleCount}  onClick={() => toggle("stale")}   active={filter === "stale"} />
       </div>
@@ -138,14 +184,14 @@ export default function DiscoveryTab({
         </div>
       )}
 
-      {/* New Business Pacing + attached assumptions drawer */}
+      {/* New Business Pacing */}
       <PacingTable
-        title={`New Business Pacing — Q${qIndex + 1}`}
+        title={pacingTitle}
         channels={[...NB]}
-        targets={nbTargets}
+        targets={ytdMode ? annualNBTargets : nbTargets}
         actuals={nbActuals}
         dealsByChannel={nbDealsByChannel}
-        qElapsedPct={qElapsedPct}
+        qElapsedPct={elapsedPct}
         now={now}
         squareBottom
       />
@@ -155,15 +201,15 @@ export default function DiscoveryTab({
         onSave={onAssumptionsSave}
       />
 
-      {/* Upsell Pacing + attached assumptions drawer */}
+      {/* Upsell Pacing */}
       <div style={{ marginTop: 14 }}>
         <PacingTable
-          title={`Upsell Pacing — Q${qIndex + 1}`}
+          title={upsellTitle}
           channels={["Expansion"]}
-          targets={{ Expansion: expansionQTarget }}
+          targets={{ Expansion: ytdMode ? annualExpansionTarget : expansionQTarget }}
           actuals={{ Expansion: expansionActual }}
           dealsByChannel={{ Expansion: expansionDeals }}
-          qElapsedPct={qElapsedPct}
+          qElapsedPct={elapsedPct}
           now={now}
           squareBottom
         />
