@@ -1,6 +1,3 @@
-No, you're changing a block of lines. But since you prefer complete files, here's the full `MethodologyTab.tsx` with just that fix applied:
-
-```tsx
 // components/tabs/MethodologyTab.tsx
 
 "use client";
