@@ -27,6 +27,7 @@ interface PacingTableProps {
   squareBottom?:    boolean;
   dealsByChannel?:  Record<string, Deal[]>;
   now?:             Date;
+  ytdMode?:         boolean;
 }
 
 function paceRatio(actual: number, target: number, qElapsedPct: number): number {
@@ -43,7 +44,7 @@ function paceColor(ratio: number): { bar: string; badge: string; badgeText: stri
 }
 
 export default function PacingTable({
-  title, channels, targets, actuals, qElapsedPct, squareBottom = false, dealsByChannel, now = new Date(),
+  title, channels, targets, actuals, qElapsedPct, squareBottom = false, dealsByChannel, now = new Date(), ytdMode = false,
 }: PacingTableProps) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const br = squareBottom ? "12px 12px 0 0" : "12px";
@@ -67,7 +68,7 @@ export default function PacingTable({
         </div>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
-            <tr>{["Channel", "New This Q", "Q Target", "Pace"].map(h => <TH key={h}>{h}</TH>)}</tr>
+            <tr>{["Channel", ytdMode ? "New This Year" : "New This Q", ytdMode ? "Annual Target" : "Q Target", "Pace"].map(h => <TH key={h}>{h}</TH>)}</tr>
           </thead>
           <tbody>
             {channels.map(ch => {
