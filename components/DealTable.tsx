@@ -4,7 +4,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import type { Deal, ClosePlanMap, EmailSignalMap } from "@/types/deals";
-import { ownerName, fmtDate, fmtCur, daysSince, UNRESOLVED_OWNER_IDS } from "@/lib/deals";
+import { ownerName, fmtDate, fmtCur, daysSince, stageLabel, UNRESOLVED_OWNER_IDS } from "@/lib/deals";
 import { isStale } from "@/lib/flags";
 import { opensColor } from "@/lib/flags";
 import { TH, TD } from "@/components/Table";
