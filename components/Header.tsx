@@ -2,6 +2,7 @@
 
 "use client";
 
+import { useState, useEffect } from "react";
 import { QUARTERLY_TARGETS, ANNUAL_REVENUE_TARGET } from "@/lib/assumptions";
 
 interface HeaderProps {
@@ -32,8 +33,13 @@ const fmtK = (n: number) =>
     : "$" + Math.round(n / 1000) + "K";
 
 export default function Header({ asOf, loading, qIndex, ytdMode, onRefresh, onRecalculate, recalculating }: HeaderProps) {
+
   const now       = asOf ? new Date(asOf) : new Date();
-  const canRecalc = isRecalculateWindow(now);
+  const [canRecalc, setCanRecalc] = useState(false);
+
+  useEffect(() => {
+    setCanRecalc(isRecalculateWindow(now));
+  }, [asOf]);
 
   const formatted = asOf
     ? new Date(asOf).toLocaleString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })
