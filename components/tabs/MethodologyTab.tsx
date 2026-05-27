@@ -335,4 +335,3 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
     </div>
   );
 }
-```
