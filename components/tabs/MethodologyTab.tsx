@@ -1,3 +1,6 @@
+No, you're changing a block of lines. But since you prefer complete files, here's the full `MethodologyTab.tsx` with just that fix applied:
+
+```tsx
 // components/tabs/MethodologyTab.tsx
 
 "use client";
@@ -23,9 +26,6 @@ const HISTORICAL_AVG_DEAL_VALUE = 62137;
 export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAssumptionsSave }: MethodologyTabProps) {
   const derived = deriveTargets(assumptions, qIndex);
 
-  // Classify each rate as HubSpot-derived or manually set.
-  // disc_to_demo is always manual — the recalculate route never returns a value for it.
-  // For the other three: manual if hubspotRates has a value that differs from assumptions.
   const RATE_KEYS: { key: keyof Assumptions; label: string }[] = [
     { key: "disc_to_demo",   label: "Discovery→Demo" },
     { key: "demo_to_prop",   label: "Demo→Proposal" },
@@ -34,14 +34,12 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
   ];
 
   const manualRates = RATE_KEYS.filter(({ key }) => {
-    if (key === "disc_to_demo") return true; // always manual
-    if (!hubspotRates) return true;          // no data yet — treat as manual
+    if (!hubspotRates) return true;
     const hsVal = hubspotRates[key as keyof HubSpotRates];
     return hsVal === null || hsVal === undefined || hsVal !== assumptions[key];
   });
 
   const hubspotDerivedRates = RATE_KEYS.filter(({ key }) => {
-    if (key === "disc_to_demo") return false;
     if (!hubspotRates) return false;
     const hsVal = hubspotRates[key as keyof HubSpotRates];
     return hsVal !== null && hsVal !== undefined && hsVal === assumptions[key];
@@ -157,7 +155,7 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
             {manualRates.length > 0 && bullet(<>
               <span style={{ color: "#d97706", fontWeight: 600 }}>Manually set:</span>{" "}
               {manualRates.map(({ key, label }, i) => {
-                const hsVal = key !== "disc_to_demo" && hubspotRates
+                const hsVal = hubspotRates
                   ? hubspotRates[key as keyof HubSpotRates]
                   : null;
                 return (
@@ -173,7 +171,6 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
                 );
               })}.
             </>)}
-            {/* View Assumptions button */}
             <div style={{ marginTop: 10, marginLeft: 20 }}>
               <button
                 onClick={handleViewAssumptions}
@@ -183,7 +180,6 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
                 {loadingValidation ? "Loading…" : showAssumptions ? "Hide Assumptions" : "View Assumptions"}
               </button>
             </div>
-            {/* Inline validation dashboard */}
             {showAssumptions && validationData && validationRates && validationSample && (
               <div style={{ marginTop: 16, border: "1px solid #e2e8f0", borderRadius: 12, overflow: "hidden" }}>
                 <ValidationDashboard
@@ -342,3 +338,4 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
     </div>
   );
 }
+```
