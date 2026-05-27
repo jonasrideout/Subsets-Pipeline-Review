@@ -64,7 +64,7 @@ export default function DiscoveryTab({
   const pacePct = periodTarget > 0 && elapsedPct > 0
     ? Math.round((newThisPeriod / periodTarget) / elapsedPct * 100) : 0;
 
- const newThisQDeals = allActive.filter(d =>
+  const newThisQDeals = allActive.filter(d =>
     d.createdate && new Date(d.createdate) >= qStart
   );
   const newThisPeriodDeals = allActive.filter(d =>
@@ -73,6 +73,7 @@ export default function DiscoveryTab({
   const progressedCount = newThisPeriodDeals.filter(d => d.stage !== "appointmentscheduled").length;
   const progressedPct   = newThisPeriodDeals.length > 0 ? Math.round((progressedCount / newThisPeriodDeals.length) * 100) : 0;
   const progressedLabel = `${progressedPct}% of deals added this ${ytdMode ? "year" : "quarter"} have progressed past discovery`;
+
   // Pacing actuals by channel for the selected period
   const nbActuals: Record<string, number> = {};
   for (const ch of NB) {
@@ -195,6 +196,7 @@ export default function DiscoveryTab({
         dealsByChannel={nbDealsByChannel}
         qElapsedPct={elapsedPct}
         now={now}
+        ytdMode={ytdMode}
         squareBottom
       />
       <NBAssumptionsDrawer
@@ -213,6 +215,7 @@ export default function DiscoveryTab({
           dealsByChannel={{ Expansion: expansionDeals }}
           qElapsedPct={elapsedPct}
           now={now}
+          ytdMode={ytdMode}
           squareBottom
         />
         <UpsellAssumptionsDrawer
