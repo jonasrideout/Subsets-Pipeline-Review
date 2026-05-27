@@ -64,13 +64,15 @@ export default function DiscoveryTab({
   const pacePct = periodTarget > 0 && elapsedPct > 0
     ? Math.round((newThisPeriod / periodTarget) / elapsedPct * 100) : 0;
 
-  // Progressed stat always uses Q (quarter is the planning unit)
-  const newThisQDeals = allActive.filter(d =>
+ const newThisQDeals = allActive.filter(d =>
     d.createdate && new Date(d.createdate) >= qStart
   );
-  const progressedCount = newThisQDeals.filter(d => d.stage !== "appointmentscheduled").length;
-  const progressedPct   = newThisQDeals.length > 0 ? Math.round((progressedCount / newThisQDeals.length) * 100) : 0;
-
+  const newThisPeriodDeals = allActive.filter(d =>
+    d.createdate && new Date(d.createdate) >= periodStart
+  );
+  const progressedCount = newThisPeriodDeals.filter(d => d.stage !== "appointmentscheduled").length;
+  const progressedPct   = newThisPeriodDeals.length > 0 ? Math.round((progressedCount / newThisPeriodDeals.length) * 100) : 0;
+  const progressedLabel = `${progressedPct}% of deals added this ${ytdMode ? "year" : "quarter"} have progressed past discovery`;
   // Pacing actuals by channel for the selected period
   const nbActuals: Record<string, number> = {};
   for (const ch of NB) {
@@ -112,8 +114,8 @@ export default function DiscoveryTab({
     return true;
   });
 
-  const progressedDeals = newThisQDeals.filter(d => d.stage !== "appointmentscheduled");
-  const quarterDeals    = [...newThisQDeals].sort((a, b) =>
+  const progressedDeals = newThisPeriodDeals.filter(d => d.stage !== "appointmentscheduled");
+  const quarterDeals    = [...newThisPeriodDeals].sort((a, b) =>
     new Date(b.createdate || "").getTime() - new Date(a.createdate || "").getTime()
   );
 
@@ -169,7 +171,7 @@ export default function DiscoveryTab({
         <StatCard label="Currently in Discovery" value={deals.length} />
         <StatCard label="New This Week"    value={newThisWeek} onClick={() => toggle("week")}    active={filter === "week"} />
         <StatCard label={periodLabel}      value={newThisPeriod} target={periodTarget} goalPct={goalPct} pacePct={pacePct} onClick={() => toggle("quarter")} active={filter === "quarter"} />
-        <StatCard label="Progressed Past Discovery" value={progressedCount} subValue={`${progressedPct}% of Q adds`} onClick={() => toggle("progressed")} active={filter === "progressed"} />
+        <StatCard label="Progressed Past Discovery" value={progressedCount} subValue={progressedLabel} onClick={() => toggle("progressed")} active={filter === "progressed"} />
         <StatCard label="Stale >60 days"   value={staleCount}  onClick={() => toggle("stale")}   active={filter === "stale"} />
       </div>
 
