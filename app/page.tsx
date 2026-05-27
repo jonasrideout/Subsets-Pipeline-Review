@@ -368,7 +368,7 @@ export default function Page() {
               <DemoTab deals={demo} allActive={active} closePlans={closePlans} committedIds={committedIds} onToggleCommit={handleToggleCommit} now={now} weekAgo={weekAgo} qStart={qStart} counts={counts} demoQTarget={derived.combinedDemoTarget} />
             )}
             {tab === "discovery" && (
-              <DiscoveryTab deals={discovery} allActive={active} assumptions={assumptions} onAssumptionsSave={handleAssumptionsSave} now={now} weekAgo={weekAgo} qStart={qStart} qIndex={qIndex} counts={counts} />
+              <DiscoveryTab deals={discovery} allActive={active} assumptions={assumptions} onAssumptionsSave={handleAssumptionsSave} now={now} weekAgo={weekAgo} qStart={qStart} yearStart={yearStart} qIndex={qIndex} counts={counts} ytdMode={ytdMode} onYtdModeChange={setYtdMode} />
             )}
             {tab === "methodology" && (
               <MethodologyTab assumptions={assumptions} qIndex={qIndex} hubspotRates={hubspotRates} onAssumptionsSave={handleAssumptionsSave} />
