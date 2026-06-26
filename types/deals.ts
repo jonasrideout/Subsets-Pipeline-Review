@@ -27,6 +27,7 @@ export interface Deal {
 export interface ClosedWonDeal {
   id:        string;
   name:      string;
+  company:   string | null;
   amount:    number;
   closedate: string;
   owner:     string;
