@@ -1,6 +1,6 @@
 // lib/deals.ts
 
-import type { Deal, DealStage } from "@/types/deals";
+import type { Deal, DealStage, ClosedWonDeal } from "@/types/deals";
 
 export const PORTAL_ID = process.env.NEXT_PUBLIC_HUBSPOT_PORTAL_ID ?? "25962322";
 
@@ -59,9 +59,9 @@ export const stageColorKey = (stage: string) => {
   return "discovery";
 };
 
-export const stageColor = (stage: string) => STAGE_COLORS[stageColorKey(stage)];
-export const stageLabel = (stage: string) => STAGE_LABELS[stage] ?? stage;
-export const ownerName  = (id: string)    => OWNERS[id] ?? id;
+export const stageColor  = (stage: string) => STAGE_COLORS[stageColorKey(stage)];
+export const stageLabel  = (stage: string) => STAGE_LABELS[stage] ?? stage;
+export const ownerName   = (id: string)    => OWNERS[id] ?? id;
 
 export const dealUrl = (id: string) =>
   `https://app.hubspot.com/contacts/${PORTAL_ID}/record/0-3/${id}`;
@@ -115,4 +115,28 @@ export const earliestStageEntry = (d: Deal): string | null => {
   return entries.reduce((earliest, e) =>
     new Date(e) < new Date(earliest) ? e : earliest
   );
+};
+
+// ACV — group all-time closed won deals by company, sum per company,
+// then average across accounts. Deals without a company name are grouped
+// under their deal name as a fallback so they're not silently dropped.
+export const computeACV = (closedWonAllTime: ClosedWonDeal[]): {
+  acv:          number | null;
+  accountCount: number;
+} => {
+  if (!closedWonAllTime.length) return { acv: null, accountCount: 0 };
+
+  const byCompany = new Map<string, number>();
+
+  for (const d of closedWonAllTime) {
+    const key = (d.company ?? d.name ?? "").trim().toLowerCase();
+    if (!key) continue;
+    byCompany.set(key, (byCompany.get(key) ?? 0) + d.amount);
+  }
+
+  const totals = [...byCompany.values()];
+  if (!totals.length) return { acv: null, accountCount: 0 };
+
+  const acv = Math.round(totals.reduce((s, v) => s + v, 0) / totals.length);
+  return { acv, accountCount: totals.length };
 };
