@@ -1,7 +1,7 @@
 // app/api/deals/route.ts
 
 import { NextResponse } from "next/server";
-import { fetchActiveDeals, fetchClosedWonQTD, fetchClosedWonYTD, fetchAllEmailSignals } from "@/lib/hubspot";
+import { fetchActiveDeals, fetchClosedWonQTD, fetchClosedWonYTD, fetchClosedWonAllTime, fetchAllEmailSignals } from "@/lib/hubspot";
 import { writeSnapshot } from "@/lib/cache";
 
 export const dynamic = "force-dynamic";
@@ -15,10 +15,11 @@ export async function GET() {
       };
       try {
         emit("progress", { step: "deals", message: "Fetching active deals…" });
-        const [active, closedWon, closedWonYTD] = await Promise.all([
+        const [active, closedWon, closedWonYTD, closedWonAllTime] = await Promise.all([
           fetchActiveDeals(),
           fetchClosedWonQTD(),
           fetchClosedWonYTD(),
+          fetchClosedWonAllTime(),
         ]);
         emit("progress", { step: "deals_done", message: `✓ Loaded ${active.length} active deals` });
 
@@ -33,7 +34,7 @@ export async function GET() {
         );
         emit("progress", { step: "signals_done", message: "✓ Email signals loaded" });
 
-        const snapshot = { active, closedWon, closedWonYTD, emailSignals, asOf: now.toISOString() };
+        const snapshot = { active, closedWon, closedWonYTD, closedWonAllTime, emailSignals, asOf: now.toISOString() };
 
         // Write to cache in the background — don't block the SSE response
         writeSnapshot(snapshot).catch(err => console.error("Cache write failed:", err));
