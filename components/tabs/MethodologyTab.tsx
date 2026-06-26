@@ -18,8 +18,6 @@ interface MethodologyTabProps {
 const fmtK    = (n: number) => "$" + Math.round(n / 1000) + "K";
 const fmtFull = (n: number) => "$" + n.toLocaleString();
 
-const HISTORICAL_AVG_DEAL_VALUE = 62137;
-
 export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAssumptionsSave }: MethodologyTabProps) {
   const derived = deriveTargets(assumptions, qIndex);
 
@@ -102,6 +100,12 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
     { bg: "#fefce8", border: "#fde68a", label: "Yellow", desc: "75–89% of pace — slightly behind" },
     { bg: "#fff7ed", border: "#fed7aa", label: "Orange", desc: "50–74% of pace — behind pace" },
     { bg: "#fef2f2", border: "#fecaca", label: "Red",    desc: "< 50% of pace — significantly behind, needs attention" },
+  ];
+
+  const avgBreakdown = [
+    { label: "All deals",  value: hubspotRates?.avg_deal_value_all },
+    { label: "NB only",    value: hubspotRates?.avg_deal_value },
+    { label: "Expansion",  value: hubspotRates?.avg_deal_value_expansion },
   ];
 
   return (
@@ -232,8 +236,21 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
                   Cancel
                 </button>
               </div>
-              <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                12-month rolling avg <span style={{ fontWeight: 600, color: "#64748b" }}>{fmtFull(HISTORICAL_AVG_DEAL_VALUE)}</span>
+              {/* Rolling 12M breakdown */}
+              <div style={{ display: "flex", gap: 24, marginTop: 4, flexWrap: "wrap" }}>
+                {avgBreakdown.map(({ label, value }) => (
+                  <div key={label} style={{ fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                    {label}{" "}
+                    <span style={{ fontWeight: 600, color: "#64748b" }}>
+                      {value != null ? fmtFull(value) : "—"}
+                    </span>
+                  </div>
+                ))}
+                <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                  {hubspotRates?.as_of
+                    ? `12-month rolling · last updated ${new Date(hubspotRates.as_of).toLocaleDateString()}`
+                    : "Run Recalculate to compute"}
+                </div>
               </div>
             </div>
           ) : (
@@ -246,8 +263,21 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
                   Edit
                 </button>
               </div>
-              <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                12-month rolling avg <span style={{ fontWeight: 600, color: "#64748b" }}>{fmtFull(HISTORICAL_AVG_DEAL_VALUE)}</span>
+              {/* Rolling 12M breakdown */}
+              <div style={{ display: "flex", gap: 24, marginTop: 4, flexWrap: "wrap" }}>
+                {avgBreakdown.map(({ label, value }) => (
+                  <div key={label} style={{ fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                    {label}{" "}
+                    <span style={{ fontWeight: 600, color: "#64748b" }}>
+                      {value != null ? fmtFull(value) : "—"}
+                    </span>
+                  </div>
+                ))}
+                <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                  {hubspotRates?.as_of
+                    ? `12-month rolling · last updated ${new Date(hubspotRates.as_of).toLocaleDateString()}`
+                    : "Run Recalculate to compute"}
+                </div>
               </div>
             </div>
           )}
