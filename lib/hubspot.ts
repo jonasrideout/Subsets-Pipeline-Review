@@ -1,3 +1,5 @@
+// lib/hubspot.ts
+
 import type { Deal, ClosedWonDeal, EmailSignal } from "@/types/deals";
 import { ACTIVE_STAGE_IDS } from "@/lib/deals";
 
@@ -12,6 +14,19 @@ const hs = async (path: string, body: object): Promise<any> => {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`HubSpot API error ${res.status}: ${text}`);
+  }
+  return res.json();
+};
+
+const hsGet = async (path: string): Promise<any> => {
+  const res = await fetch(`${BASE}${path}`, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${TOKEN}` },
     cache: "no-store",
   });
   if (!res.ok) {
@@ -63,6 +78,90 @@ const searchAll = async (path: string, body: object): Promise<any[]> => {
   return results;
 };
 
+// ── COMPANY NAME ENRICHMENT ───────────────────────────────────────────────────
+
+// Fetches company names for a list of deal IDs.
+// Uses the v4 associations API to get company IDs, then batch-reads company names.
+// Returns a map of dealId → company name.
+const fetchCompanyNamesForDeals = async (
+  dealIds: string[]
+): Promise<Map<string, string>> => {
+  if (!dealIds.length) return new Map();
+
+  const result = new Map<string, string>();
+
+  // Step 1: batch fetch deal → company associations (max 100 per request)
+  const BATCH_SIZE = 100;
+  const dealToCompanyId = new Map<string, string>();
+
+  for (let i = 0; i < dealIds.length; i += BATCH_SIZE) {
+    const batch = dealIds.slice(i, i + BATCH_SIZE);
+    try {
+      const res = await fetch(`${BASE}/crm/v4/associations/deals/companies/batch/read`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          inputs: batch.map(id => ({ id })),
+        }),
+        cache: "no-store",
+      });
+      if (!res.ok) continue;
+      const data = await res.json();
+      for (const item of data.results ?? []) {
+        const companyId = item.to?.[0]?.toObjectId;
+        if (item.from?.id && companyId) {
+          dealToCompanyId.set(String(item.from.id), String(companyId));
+        }
+      }
+    } catch (e) {
+      console.error("Failed to fetch deal→company associations:", e);
+    }
+  }
+
+  if (!dealToCompanyId.size) return result;
+
+  // Step 2: batch read company names
+  const companyIds = [...new Set(dealToCompanyId.values())];
+
+  for (let i = 0; i < companyIds.length; i += BATCH_SIZE) {
+    const batch = companyIds.slice(i, i + BATCH_SIZE);
+    try {
+      const res = await fetch(`${BASE}/crm/v3/objects/companies/batch/read`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          inputs:     batch.map(id => ({ id })),
+          properties: ["name"],
+        }),
+        cache: "no-store",
+      });
+      if (!res.ok) continue;
+      const data = await res.json();
+      const companyNameById = new Map<string, string>();
+      for (const obj of data.results ?? []) {
+        if (obj.id && obj.properties?.name) {
+          companyNameById.set(String(obj.id), obj.properties.name);
+        }
+      }
+      // Map back: dealId → company name
+      for (const [dealId, companyId] of dealToCompanyId.entries()) {
+        const name = companyNameById.get(companyId);
+        if (name) result.set(dealId, name);
+      }
+    } catch (e) {
+      console.error("Failed to batch read company names:", e);
+    }
+  }
+
+  return result;
+};
+
 // ── MAPPERS ───────────────────────────────────────────────────────────────────
 
 const mapDeal = (raw: any): Deal => {
@@ -86,11 +185,12 @@ const mapDeal = (raw: any): Deal => {
   };
 };
 
-const mapClosedWon = (raw: any): ClosedWonDeal => {
+const mapClosedWon = (raw: any, companyName: string | null = null): ClosedWonDeal => {
   const p = raw.properties ?? {};
   return {
     id:        String(raw.id),
     name:      p.dealname         ?? "",
+    company:   companyName,
     amount:    p.amount           ? Number(p.amount) : 0,
     closedate: p.closedate        ?? "",
     owner:     p.hubspot_owner_id ?? "",
@@ -133,21 +233,29 @@ export const fetchActiveDeals = async (): Promise<Deal[]> => {
   return deals;
 };
 
+// ── SHARED CLOSED WON FETCHER ─────────────────────────────────────────────────
+
+const fetchClosedWonDeals = async (filters: object[]): Promise<ClosedWonDeal[]> => {
+  const raw = await searchAll("/crm/v3/objects/deals/search", {
+    filterGroups: [{ filters }],
+    properties: ["dealname", "amount", "closedate", "hubspot_owner_id", "deal_attribution"],
+  });
+
+  const dealIds      = raw.map(r => String(r.id));
+  const companyNames = await fetchCompanyNamesForDeals(dealIds);
+
+  return raw.map(r => mapClosedWon(r, companyNames.get(String(r.id)) ?? null));
+};
+
 // ── CLOSED WON — CURRENT QUARTER ─────────────────────────────────────────────
 
 export const fetchClosedWonQTD = async (): Promise<ClosedWonDeal[]> => {
   const now    = new Date();
   const qStart = getQStart(now).toISOString();
-  const raw    = await searchAll("/crm/v3/objects/deals/search", {
-    filterGroups: [{
-      filters: [
-        { propertyName: "dealstage", operator: "EQ",  value: "closedwon" },
-        { propertyName: "closedate", operator: "GTE", value: qStart },
-      ],
-    }],
-    properties: ["dealname", "amount", "closedate", "hubspot_owner_id", "deal_attribution"],
-  });
-  return raw.map(mapClosedWon);
+  return fetchClosedWonDeals([
+    { propertyName: "dealstage", operator: "EQ",  value: "closedwon" },
+    { propertyName: "closedate", operator: "GTE", value: qStart },
+  ]);
 };
 
 // ── CLOSED WON — FULL YEAR ────────────────────────────────────────────────────
@@ -155,16 +263,18 @@ export const fetchClosedWonQTD = async (): Promise<ClosedWonDeal[]> => {
 export const fetchClosedWonYTD = async (): Promise<ClosedWonDeal[]> => {
   const now       = new Date();
   const yearStart = getYearStart(now).toISOString();
-  const raw       = await searchAll("/crm/v3/objects/deals/search", {
-    filterGroups: [{
-      filters: [
-        { propertyName: "dealstage", operator: "EQ",  value: "closedwon" },
-        { propertyName: "closedate", operator: "GTE", value: yearStart },
-      ],
-    }],
-    properties: ["dealname", "amount", "closedate", "hubspot_owner_id", "deal_attribution"],
-  });
-  return raw.map(mapClosedWon);
+  return fetchClosedWonDeals([
+    { propertyName: "dealstage", operator: "EQ",  value: "closedwon" },
+    { propertyName: "closedate", operator: "GTE", value: yearStart },
+  ]);
+};
+
+// ── CLOSED WON — ALL TIME ─────────────────────────────────────────────────────
+
+export const fetchClosedWonAllTime = async (): Promise<ClosedWonDeal[]> => {
+  return fetchClosedWonDeals([
+    { propertyName: "dealstage", operator: "EQ", value: "closedwon" },
+  ]);
 };
 
 // ── EMAIL SIGNALS (per deal) ──────────────────────────────────────────────────
@@ -234,7 +344,7 @@ export const fetchAllEmailSignals = async (
     d => d.stage === "1446534336" ||
          d.stage === "contractsent" ||
          d.stage === "qualifiedtobuy" ||
-         d.stage === "appointmentscheduled"   // Discovery
+         d.stage === "appointmentscheduled"
   );
 
   const results: Record<string, EmailSignal> = {};
