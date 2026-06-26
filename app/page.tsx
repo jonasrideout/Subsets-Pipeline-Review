@@ -1,4 +1,5 @@
 // app/page.tsx
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -118,11 +119,12 @@ export default function Page() {
   const [error, setError]                 = useState<string | null>(null);
   const [progressSteps, setProgressSteps] = useState<ProgressStep[]>([]);
 
-  const [active, setActive]             = useState<Deal[]>([]);
-  const [closedWon, setClosedWon]       = useState<ClosedWonDeal[]>([]);
-  const [closedWonYTD, setClosedWonYTD] = useState<ClosedWonDeal[]>([]);
-  const [emailSignals, setEmailSignals] = useState<EmailSignalMap>({});
-  const [asOf, setAsOf]                 = useState<string | null>(null);
+  const [active, setActive]                       = useState<Deal[]>([]);
+  const [closedWon, setClosedWon]                 = useState<ClosedWonDeal[]>([]);
+  const [closedWonYTD, setClosedWonYTD]           = useState<ClosedWonDeal[]>([]);
+  const [closedWonAllTime, setClosedWonAllTime]   = useState<ClosedWonDeal[]>([]);
+  const [emailSignals, setEmailSignals]           = useState<EmailSignalMap>({});
+  const [asOf, setAsOf]                           = useState<string | null>(null);
 
   const [closePlans, setClosePlans]     = useState<ClosePlanMap>({});
   const [committedIds, setCommittedIds] = useState<Record<string, boolean>>({});
@@ -149,7 +151,6 @@ export default function Page() {
     try {
       const res = await fetch("/api/snapshot");
       if (!res.ok) {
-        // No cache yet — fall back to live fetch
         fetchPipeline();
         return;
       }
@@ -157,6 +158,7 @@ export default function Page() {
       setActive(data.active ?? []);
       setClosedWon(data.closedWon ?? []);
       setClosedWonYTD(data.closedWonYTD ?? []);
+      setClosedWonAllTime(data.closedWonAllTime ?? []);
       setEmailSignals(data.emailSignals ?? {});
       setAsOf(data.asOf ?? null);
       setNow(new Date(data.asOf ?? Date.now()));
@@ -197,6 +199,7 @@ export default function Page() {
       setActive(data.active ?? []);
       setClosedWon(data.closedWon ?? []);
       setClosedWonYTD(data.closedWonYTD ?? []);
+      setClosedWonAllTime(data.closedWonAllTime ?? []);
       setEmailSignals(data.emailSignals ?? {});
       setAsOf(data.asOf ?? null);
       setNow(new Date(data.asOf ?? Date.now()));
@@ -266,6 +269,8 @@ export default function Page() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setRecalcModal({ rates: data.rates, avg_deal_value: data.avg_deal_value ?? null, sample: data.sample, validation: data.validation });
+      // Refresh hubspot rates state so new avg fields appear without a page reload
+      fetchHubspotRates();
     } catch (e) { console.error("Recalculate failed:", e); }
     finally { setRecalculating(false); }
   };
@@ -374,7 +379,11 @@ export default function Page() {
               <DiscoveryTab deals={discovery} allActive={active} assumptions={assumptions} onAssumptionsSave={handleAssumptionsSave} now={now} weekAgo={weekAgo} qStart={qStart} yearStart={yearStart} qIndex={qIndex} counts={counts} ytdMode={ytdMode} onYtdModeChange={setYtdMode} />
             )}
             {tab === "methodology" && (
-              <MethodologyTab assumptions={assumptions} qIndex={qIndex} hubspotRates={hubspotRates} onAssumptionsSave={handleAssumptionsSave} />
+              <MethodologyTab
+                assumptions={assumptions} qIndex={qIndex}
+                hubspotRates={hubspotRates} onAssumptionsSave={handleAssumptionsSave}
+                closedWonAllTime={closedWonAllTime}
+              />
             )}
           </>
         )}
