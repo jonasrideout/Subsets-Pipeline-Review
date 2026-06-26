@@ -141,7 +141,6 @@ export async function GET() {
     await sleep(1100);
 
     // Batch 2: all active deals per stage — stalled filtering done in JS
-    // (hs_v2_date_entered_* properties don't support multiple filters reliably)
     const [discActive, demoActive, propActive, legalActive] = await Promise.all([
       searchAll({
         filterGroups: [{ filters: [
@@ -210,15 +209,29 @@ export async function GET() {
     const prop_to_legal  = propTotal  > 0 ? round(propConverted.length  / propTotal)  : null;
     const legal_to_close = legalTotal > 0 ? round(legalConverted.length / legalTotal) : null;
 
-    // ── Avg NB deal value ─────────────────────────────────────────────────────
-    const nbAmounts = closedWonDeals
-      .filter(d => (d.properties ?? {}).deal_attribution !== "Expansion")
-      .map(d => parseFloat((d.properties ?? {}).amount))
+    // ── Avg deal values (rolling 12 months) ───────────────────────────────────
+    const toAmount = (d: any) => parseFloat((d.properties ?? {}).amount);
+
+    const allAmounts = closedWonDeals
+      .map(toAmount)
       .filter(n => !isNaN(n) && n > 0);
 
-    const avg_deal_value = nbAmounts.length > 0
-      ? Math.round(nbAmounts.reduce((s, v) => s + v, 0) / nbAmounts.length)
-      : null;
+    const nbAmounts = closedWonDeals
+      .filter(d => (d.properties ?? {}).deal_attribution !== "Expansion")
+      .map(toAmount)
+      .filter(n => !isNaN(n) && n > 0);
+
+    const expansionAmounts = closedWonDeals
+      .filter(d => (d.properties ?? {}).deal_attribution === "Expansion")
+      .map(toAmount)
+      .filter(n => !isNaN(n) && n > 0);
+
+    const avg = (arr: number[]): number | null =>
+      arr.length > 0 ? Math.round(arr.reduce((s, v) => s + v, 0) / arr.length) : null;
+
+    const avg_deal_value            = avg(nbAmounts);
+    const avg_deal_value_all        = avg(allAmounts);
+    const avg_deal_value_expansion  = avg(expansionAmounts);
 
     // ── Build per-deal cohort data ────────────────────────────────────────────
 
@@ -345,6 +358,8 @@ export async function GET() {
       await redis.set(REDIS_HUBSPOT_RATES_KEY, JSON.stringify({
         disc_to_demo, demo_to_prop, prop_to_legal, legal_to_close,
         avg_deal_value,
+        avg_deal_value_all,
+        avg_deal_value_expansion,
         as_of: now.toISOString(),
       }));
       await redis.disconnect();
@@ -355,6 +370,8 @@ export async function GET() {
     return NextResponse.json({
       rates: { disc_to_demo, demo_to_prop, prop_to_legal, legal_to_close },
       avg_deal_value,
+      avg_deal_value_all,
+      avg_deal_value_expansion,
       sample: {
         enteredDisc:      discTotal,
         enteredDemo:      demoTotal,
