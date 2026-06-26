@@ -6,12 +6,14 @@ import { createClient } from "redis";
 const REDIS_HUBSPOT_RATES_KEY = "pipeline:hubspot_rates";
 
 export interface HubSpotRates {
-  disc_to_demo:   number | null;
-  demo_to_prop:   number | null;
-  prop_to_legal:  number | null;
-  legal_to_close: number | null;
-  avg_deal_value: number | null;
-  as_of:          string;  // ISO timestamp of last recalculate run
+  disc_to_demo:             number | null;
+  demo_to_prop:             number | null;
+  prop_to_legal:            number | null;
+  legal_to_close:           number | null;
+  avg_deal_value:           number | null;
+  avg_deal_value_all:       number | null;
+  avg_deal_value_expansion: number | null;
+  as_of:                    string;
 }
 
 const getRedis = () => createClient({ url: process.env.REDIS_URL });
