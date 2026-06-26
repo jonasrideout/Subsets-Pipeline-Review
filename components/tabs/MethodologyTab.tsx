@@ -129,7 +129,7 @@ function ACVTable({ deals }: { deals: ClosedWonDeal[] }) {
             {/* Individual deal rows */}
             {acvDeals.map(d => (
               <tr key={d.id} style={{ background: "#fff" }}>
-                <TD style={{ paddingLeft: 28, color: "#94a3b8" }} />
+                <TD style={{ paddingLeft: 28, color: "#94a3b8" }}>&nbsp;</TD>
                 <TD>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ color: "#cbd5e1", fontSize: 10 }}>↳</span>
