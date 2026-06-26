@@ -7,20 +7,195 @@ import type { Assumptions, HubSpotRates, ClosedWonDeal } from "@/types/deals";
 import { deriveTargets, QUARTERLY_TARGETS, NB_REVENUE_SHARE } from "@/lib/assumptions";
 import { computeACV } from "@/lib/deals";
 import { TableCard } from "@/components/Table";
+import DealLink from "@/components/DealLink";
 import ValidationDashboard from "@/components/ValidationDashboard";
 
 interface MethodologyTabProps {
-  assumptions:        Assumptions;
-  qIndex:             number;
-  hubspotRates:       HubSpotRates | null;
-  onAssumptionsSave:  (a: Assumptions) => Promise<void>;
-  closedWonAllTime:   ClosedWonDeal[];
+  assumptions:       Assumptions;
+  qIndex:            number;
+  hubspotRates:      HubSpotRates | null;
+  onAssumptionsSave: (a: Assumptions) => Promise<void>;
+  closedWonAllTime:  ClosedWonDeal[];
 }
 
 const fmtK    = (n: number) => "$" + Math.round(n / 1000) + "K";
 const fmtFull = (n: number) => "$" + n.toLocaleString();
+const fmtDate = (s: string) => s ? s.slice(0, 10) : "—";
 
-export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAssumptionsSave, closedWonAllTime }: MethodologyTabProps) {
+// ── Shared table primitives ───────────────────────────────────────────────────
+
+const TH = ({ children }: { children: React.ReactNode }) => (
+  <th style={{
+    padding: "8px 14px", textAlign: "left", fontSize: 10, fontWeight: 700,
+    color: "#94a3b8", textTransform: "uppercase" as const, letterSpacing: "0.05em",
+    background: "#fafbfc", borderBottom: "1px solid #e2e8f0", whiteSpace: "nowrap" as const,
+  }}>{children}</th>
+);
+
+const TD = ({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) => (
+  <td style={{
+    padding: "9px 14px", fontSize: 12, color: "#374151",
+    borderBottom: "1px solid #f4f5f8", verticalAlign: "middle" as const,
+    ...style,
+  }}>{children}</td>
+);
+
+// ── Flat deal table (All / NB / Expansion) ────────────────────────────────────
+
+function FlatDealTable({ deals }: { deals: ClosedWonDeal[] }) {
+  if (!deals.length) {
+    return <div style={{ padding: "16px 18px", color: "#b0b5c3", fontSize: 13 }}>No deals found.</div>;
+  }
+  return (
+    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+      <thead>
+        <tr>
+          <TH>Deal</TH>
+          <TH>Company</TH>
+          <TH>Channel</TH>
+          <TH>Amount</TH>
+          <TH>Close Date</TH>
+        </tr>
+      </thead>
+      <tbody>
+        {deals.map(d => (
+          <tr key={d.id}>
+            <TD><DealLink id={d.id} name={d.name} /></TD>
+            <TD style={{ color: "#64748b" }}>{d.company ?? "—"}</TD>
+            <TD style={{ color: "#64748b" }}>{d.channel ?? "—"}</TD>
+            <TD style={{ fontWeight: 600, color: "#15803d" }}>{fmtFull(d.amount)}</TD>
+            <TD style={{ color: "#94a3b8" }}>{fmtDate(d.closedate)}</TD>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+// ── ACV grouped table ─────────────────────────────────────────────────────────
+
+function ACVTable({ deals }: { deals: ClosedWonDeal[] }) {
+  if (!deals.length) {
+    return <div style={{ padding: "16px 18px", color: "#b0b5c3", fontSize: 13 }}>No deals found.</div>;
+  }
+
+  // Group by company name, preserving insertion order
+  const grouped = new Map<string, ClosedWonDeal[]>();
+  for (const d of deals) {
+    const key = d.company ?? d.name ?? "Unknown";
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key)!.push(d);
+  }
+
+  // Sort accounts by total value descending
+  const accounts = [...grouped.entries()]
+    .map(([company, acvDeals]) => ({
+      company,
+      deals: acvDeals,
+      total: acvDeals.reduce((s, d) => s + d.amount, 0),
+    }))
+    .sort((a, b) => b.total - a.total);
+
+  return (
+    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+      <thead>
+        <tr>
+          <TH>Company</TH>
+          <TH>Deal</TH>
+          <TH>Channel</TH>
+          <TH>Amount</TH>
+          <TH>Close Date</TH>
+        </tr>
+      </thead>
+      <tbody>
+        {accounts.map(({ company, deals: acvDeals, total }) => (
+          <>
+            {/* Company header row */}
+            <tr key={`company-${company}`} style={{ background: "#f8fafc" }}>
+              <td colSpan={3} style={{
+                padding: "8px 14px", fontSize: 12, fontWeight: 700, color: "#0f172a",
+                borderBottom: "1px solid #e2e8f0",
+              }}>
+                {company}
+              </td>
+              <td style={{
+                padding: "8px 14px", fontSize: 12, fontWeight: 700, color: "#15803d",
+                borderBottom: "1px solid #e2e8f0",
+              }}>
+                {fmtFull(total)}
+              </td>
+              <td style={{ padding: "8px 14px", borderBottom: "1px solid #e2e8f0" }} />
+            </tr>
+            {/* Individual deal rows */}
+            {acvDeals.map(d => (
+              <tr key={d.id} style={{ background: "#fff" }}>
+                <TD style={{ paddingLeft: 28, color: "#94a3b8" }} />
+                <TD>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ color: "#cbd5e1", fontSize: 10 }}>↳</span>
+                    <DealLink id={d.id} name={d.name} />
+                  </div>
+                </TD>
+                <TD style={{ color: "#64748b" }}>{d.channel ?? "—"}</TD>
+                <TD style={{ color: "#374151" }}>{fmtFull(d.amount)}</TD>
+                <TD style={{ color: "#94a3b8" }}>{fmtDate(d.closedate)}</TD>
+              </tr>
+            ))}
+          </>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+// ── Clickable metric value ────────────────────────────────────────────────────
+
+function MetricValue({
+  label, value, subLabel, active, onClick,
+}: {
+  label:    string;
+  value:    string;
+  subLabel?: string;
+  active:   boolean;
+  onClick:  () => void;
+}) {
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        cursor: "pointer", userSelect: "none" as const,
+        padding: "10px 14px", borderRadius: 8,
+        border: `1.5px solid ${active ? "#a0fad7" : "#e2e4ed"}`,
+        background: active ? "#f0fdf9" : "#fafbfc",
+        transition: "all 0.15s",
+        minWidth: 140,
+      }}
+      onMouseEnter={e => { if (!active) (e.currentTarget as HTMLDivElement).style.borderColor = "#cbd5e1"; }}
+      onMouseLeave={e => { if (!active) (e.currentTarget as HTMLDivElement).style.borderColor = "#e2e4ed"; }}
+    >
+      <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 3, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 16, fontWeight: 700, color: active ? "#0a2e1f" : "#0f172a", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+        {value}
+      </div>
+      {subLabel && (
+        <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 2, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+          {subLabel}
+        </div>
+      )}
+      <div style={{ fontSize: 10, color: active ? "#16a34a" : "#b0b5c3", marginTop: 4, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+        {active ? "▲ hide" : "▼ show deals"}
+      </div>
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
+export default function MethodologyTab({
+  assumptions, qIndex, hubspotRates, onAssumptionsSave, closedWonAllTime,
+}: MethodologyTabProps) {
   const derived = deriveTargets(assumptions, qIndex);
 
   const RATE_KEYS: { key: keyof Assumptions; label: string }[] = [
@@ -77,8 +252,31 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
     setEditingAvg(false);
   };
 
-  // ACV — computed live from all-time closed won data
+  // ACV
   const { acv, accountCount } = computeACV(closedWonAllTime);
+
+  // Rolling 12M deal splits — these come from hubspotRates which uses recalculate's
+  // closedWonDeals query. For the drill-down tables we use closedWonAllTime filtered
+  // to rolling 12M by closedate.
+  const twelveMonthsAgo = new Date();
+  twelveMonthsAgo.setFullYear(twelveMonthsAgo.getFullYear() - 1);
+
+  const rolling12M     = closedWonAllTime.filter(d => new Date(d.closedate) >= twelveMonthsAgo);
+  const rolling12MNB   = rolling12M.filter(d => d.channel !== "Expansion");
+  const rolling12MExp  = rolling12M.filter(d => d.channel === "Expansion");
+
+  // Sort each by close date descending
+  const sortByClose = (arr: ClosedWonDeal[]) =>
+    [...arr].sort((a, b) => new Date(b.closedate).getTime() - new Date(a.closedate).getTime());
+
+  // Drill-down open state — only one open at a time
+  type DrillDown = "all" | "nb" | "expansion" | "acv" | null;
+  const [openDrill, setOpenDrill] = useState<DrillDown>(null);
+  const toggle = (key: DrillDown) => setOpenDrill(prev => prev === key ? null : key);
+
+  const rollingLabel = hubspotRates?.as_of
+    ? `12-month rolling · last updated ${new Date(hubspotRates.as_of).toLocaleDateString()}`
+    : "Run Recalculate to compute";
 
   const section = (title: string, children: React.ReactNode) => (
     <div style={{ marginBottom: 32 }}>
@@ -106,16 +304,6 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
     { bg: "#fff7ed", border: "#fed7aa", label: "Orange", desc: "50–74% of pace — behind pace" },
     { bg: "#fef2f2", border: "#fecaca", label: "Red",    desc: "< 50% of pace — significantly behind, needs attention" },
   ];
-
-  const avgBreakdown = [
-    { label: "All deals",  value: hubspotRates?.avg_deal_value_all },
-    { label: "NB only",    value: hubspotRates?.avg_deal_value },
-    { label: "Expansion",  value: hubspotRates?.avg_deal_value_expansion },
-  ];
-
-  const rollingLabel = hubspotRates?.as_of
-    ? `12-month rolling · last updated ${new Date(hubspotRates.as_of).toLocaleDateString()}`
-    : "Run Recalculate to compute";
 
   return (
     <div style={{ maxWidth: 860, margin: "0 auto" }}>
@@ -165,9 +353,7 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
             {manualRates.length > 0 && bullet(<>
               <span style={{ color: "#d97706", fontWeight: 600 }}>Manually set:</span>{" "}
               {manualRates.map(({ key, label }, i) => {
-                const hsVal = hubspotRates
-                  ? hubspotRates[key as keyof HubSpotRates]
-                  : null;
+                const hsVal = hubspotRates ? hubspotRates[key as keyof HubSpotRates] : null;
                 return (
                   <span key={key}>
                     {i > 0 ? ", " : ""}
@@ -192,11 +378,7 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
             </div>
             {showAssumptions && validationData && validationRates && validationSample && (
               <div style={{ marginTop: 16, border: "1px solid #e2e8f0", borderRadius: 12, overflow: "hidden" }}>
-                <ValidationDashboard
-                  rates={validationRates}
-                  sample={validationSample}
-                  validation={validationData}
-                />
+                <ValidationDashboard rates={validationRates} sample={validationSample} validation={validationData} />
               </div>
             )}
           </>)}
@@ -217,22 +399,24 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
             {bullet(<>Demo deals are flagged if there has been no contact in 14+ days.</>)}
             {bullet(<>Discovery deals are flagged if there has been no contact in 14+ days, or if the deal has been in Discovery for 60+ days with no movement.</>)}
           </>)}
-
         </div>
       </TableCard>
 
       {/* Avg Deal Value + ACV */}
       <TableCard>
         <div style={{ padding: "20px 24px" }}>
-          <div style={{ fontSize: 15, fontWeight: 800, color: "#0f172a", marginBottom: 20, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: "#0f172a", marginBottom: 4, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
             Avg Deal Value
           </div>
+          <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 20, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+            {rollingLabel}
+          </div>
 
-          {/* Avg NB Deal Value — editable assumption */}
-          {editingAvg ? (
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
-                <label style={{ fontSize: 13, color: "#374151", fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif" }}>Avg New Business Deal Value</label>
+          {/* Editable NB assumption */}
+          <div style={{ marginBottom: 20 }}>
+            {editingAvg ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                <label style={{ fontSize: 13, color: "#374151", fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif" }}>Avg New Business Deal Value (assumption)</label>
                 <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   <span style={{ fontSize: 12, color: "#64748b" }}>$</span>
                   <input type="number" value={tmpAvg} onChange={e => setTmpAvg(+e.target.value)}
@@ -247,47 +431,79 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
                   Cancel
                 </button>
               </div>
-              <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
-                {avgBreakdown.map(({ label, value }) => (
-                  <div key={label} style={{ fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                    {label}{" "}<span style={{ fontWeight: 600, color: "#64748b" }}>{value != null ? fmtFull(value) : "—"}</span>
-                  </div>
-                ))}
-                <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif" }}>{rollingLabel}</div>
-              </div>
-            </div>
-          ) : (
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 6 }}>
-                <span style={{ fontSize: 13, color: "#374151", fontFamily: "'DM Sans', system-ui, sans-serif" }}>Avg New Business Deal Value</span>
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                <span style={{ fontSize: 13, color: "#374151", fontFamily: "'DM Sans', system-ui, sans-serif" }}>Avg New Business Deal Value (assumption)</span>
                 <span style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", fontFamily: "'DM Sans', system-ui, sans-serif" }}>{fmtFull(assumptions.avg_deal_value)}</span>
                 <button onClick={() => { setEditingAvg(true); setTmpAvg(assumptions.avg_deal_value); }}
                   style={{ background: "#f8fafc", color: "#64748b", border: "1px solid #e2e4ed", borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontSize: 12, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
                   Edit
                 </button>
               </div>
-              <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
-                {avgBreakdown.map(({ label, value }) => (
-                  <div key={label} style={{ fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                    {label}{" "}<span style={{ fontWeight: 600, color: "#64748b" }}>{value != null ? fmtFull(value) : "—"}</span>
-                  </div>
-                ))}
-                <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif" }}>{rollingLabel}</div>
-              </div>
+            )}
+          </div>
+
+          {/* Clickable metric tiles */}
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: openDrill ? 0 : 0 }}>
+            <MetricValue
+              label="All deals"
+              value={hubspotRates?.avg_deal_value_all != null ? fmtFull(hubspotRates.avg_deal_value_all) : "—"}
+              subLabel={`${rolling12M.length} deal${rolling12M.length !== 1 ? "s" : ""}`}
+              active={openDrill === "all"}
+              onClick={() => toggle("all")}
+            />
+            <MetricValue
+              label="NB only"
+              value={hubspotRates?.avg_deal_value != null ? fmtFull(hubspotRates.avg_deal_value) : "—"}
+              subLabel={`${rolling12MNB.length} deal${rolling12MNB.length !== 1 ? "s" : ""}`}
+              active={openDrill === "nb"}
+              onClick={() => toggle("nb")}
+            />
+            <MetricValue
+              label="Expansion"
+              value={hubspotRates?.avg_deal_value_expansion != null ? fmtFull(hubspotRates.avg_deal_value_expansion) : "—"}
+              subLabel={`${rolling12MExp.length} deal${rolling12MExp.length !== 1 ? "s" : ""}`}
+              active={openDrill === "expansion"}
+              onClick={() => toggle("expansion")}
+            />
+          </div>
+
+          {/* Avg deal drill-down tables */}
+          {openDrill === "all" && (
+            <div style={{ marginTop: 16, border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
+              <FlatDealTable deals={sortByClose(rolling12M)} />
+            </div>
+          )}
+          {openDrill === "nb" && (
+            <div style={{ marginTop: 16, border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
+              <FlatDealTable deals={sortByClose(rolling12MNB)} />
+            </div>
+          )}
+          {openDrill === "expansion" && (
+            <div style={{ marginTop: 16, border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
+              <FlatDealTable deals={sortByClose(rolling12MExp)} />
             </div>
           )}
 
-          {/* Divider */}
-          <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: 16 }}>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 4 }}>
-              <span style={{ fontSize: 13, color: "#374151", fontFamily: "'DM Sans', system-ui, sans-serif" }}>Avg Account Contract Value (ACV)</span>
-              <span style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                {acv != null ? fmtFull(acv) : "—"}
-              </span>
+          {/* ACV section */}
+          <div style={{ borderTop: "1px solid #f1f5f9", marginTop: 20, paddingTop: 20 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginBottom: 4, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+              Avg Account Contract Value (ACV)
             </div>
-            <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-              All-time closed won · {accountCount} account{accountCount !== 1 ? "s" : ""} · initial + expansion deals summed per account
+            <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 16, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+              All-time closed won · initial + expansion deals summed per account
             </div>
+            <MetricValue
+              label={`${accountCount} account${accountCount !== 1 ? "s" : ""}`}
+              value={acv != null ? fmtFull(acv) : "—"}
+              active={openDrill === "acv"}
+              onClick={() => toggle("acv")}
+            />
+            {openDrill === "acv" && (
+              <div style={{ marginTop: 16, border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
+                <ACVTable deals={closedWonAllTime} />
+              </div>
+            )}
           </div>
         </div>
       </TableCard>
