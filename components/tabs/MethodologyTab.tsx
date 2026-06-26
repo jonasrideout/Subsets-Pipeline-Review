@@ -3,22 +3,24 @@
 "use client";
 
 import { useState } from "react";
-import type { Assumptions, HubSpotRates } from "@/types/deals";
+import type { Assumptions, HubSpotRates, ClosedWonDeal } from "@/types/deals";
 import { deriveTargets, QUARTERLY_TARGETS, NB_REVENUE_SHARE } from "@/lib/assumptions";
+import { computeACV } from "@/lib/deals";
 import { TableCard } from "@/components/Table";
 import ValidationDashboard from "@/components/ValidationDashboard";
 
 interface MethodologyTabProps {
-  assumptions:       Assumptions;
-  qIndex:            number;
-  hubspotRates:      HubSpotRates | null;
-  onAssumptionsSave: (a: Assumptions) => Promise<void>;
+  assumptions:        Assumptions;
+  qIndex:             number;
+  hubspotRates:       HubSpotRates | null;
+  onAssumptionsSave:  (a: Assumptions) => Promise<void>;
+  closedWonAllTime:   ClosedWonDeal[];
 }
 
 const fmtK    = (n: number) => "$" + Math.round(n / 1000) + "K";
 const fmtFull = (n: number) => "$" + n.toLocaleString();
 
-export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAssumptionsSave }: MethodologyTabProps) {
+export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAssumptionsSave, closedWonAllTime }: MethodologyTabProps) {
   const derived = deriveTargets(assumptions, qIndex);
 
   const RATE_KEYS: { key: keyof Assumptions; label: string }[] = [
@@ -40,10 +42,10 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
     return hsVal !== null && hsVal !== undefined && hsVal === assumptions[key];
   });
 
-  const [showAssumptions, setShowAssumptions]   = useState(false);
-  const [validationData, setValidationData]     = useState<any | null>(null);
-  const [validationRates, setValidationRates]   = useState<any | null>(null);
-  const [validationSample, setValidationSample] = useState<any | null>(null);
+  const [showAssumptions, setShowAssumptions]     = useState(false);
+  const [validationData, setValidationData]       = useState<any | null>(null);
+  const [validationRates, setValidationRates]     = useState<any | null>(null);
+  const [validationSample, setValidationSample]   = useState<any | null>(null);
   const [loadingValidation, setLoadingValidation] = useState(false);
 
   const handleViewAssumptions = async () => {
@@ -51,7 +53,7 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
     if (!validationData) {
       setLoadingValidation(true);
       try {
-        const res  = await fetch("/api/recalculate");
+        const res = await fetch("/api/recalculate");
         if (res.ok) {
           const data = await res.json();
           setValidationData(data.validation);
@@ -74,6 +76,9 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
     setSavingAvg(false);
     setEditingAvg(false);
   };
+
+  // ACV — computed live from all-time closed won data
+  const { acv, accountCount } = computeACV(closedWonAllTime);
 
   const section = (title: string, children: React.ReactNode) => (
     <div style={{ marginBottom: 32 }}>
@@ -107,6 +112,10 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
     { label: "NB only",    value: hubspotRates?.avg_deal_value },
     { label: "Expansion",  value: hubspotRates?.avg_deal_value_expansion },
   ];
+
+  const rollingLabel = hubspotRates?.as_of
+    ? `12-month rolling · last updated ${new Date(hubspotRates.as_of).toLocaleDateString()}`
+    : "Run Recalculate to compute";
 
   return (
     <div style={{ maxWidth: 860, margin: "0 auto" }}>
@@ -212,14 +221,16 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
         </div>
       </TableCard>
 
-      {/* Avg Deal Value */}
+      {/* Avg Deal Value + ACV */}
       <TableCard>
         <div style={{ padding: "20px 24px" }}>
           <div style={{ fontSize: 15, fontWeight: 800, color: "#0f172a", marginBottom: 20, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
             Avg Deal Value
           </div>
+
+          {/* Avg NB Deal Value — editable assumption */}
           {editingAvg ? (
-            <div>
+            <div style={{ marginBottom: 20 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
                 <label style={{ fontSize: 13, color: "#374151", fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif" }}>Avg New Business Deal Value</label>
                 <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
@@ -236,25 +247,17 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
                   Cancel
                 </button>
               </div>
-              {/* Rolling 12M breakdown */}
-              <div style={{ display: "flex", gap: 24, marginTop: 4, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
                 {avgBreakdown.map(({ label, value }) => (
                   <div key={label} style={{ fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                    {label}{" "}
-                    <span style={{ fontWeight: 600, color: "#64748b" }}>
-                      {value != null ? fmtFull(value) : "—"}
-                    </span>
+                    {label}{" "}<span style={{ fontWeight: 600, color: "#64748b" }}>{value != null ? fmtFull(value) : "—"}</span>
                   </div>
                 ))}
-                <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                  {hubspotRates?.as_of
-                    ? `12-month rolling · last updated ${new Date(hubspotRates.as_of).toLocaleDateString()}`
-                    : "Run Recalculate to compute"}
-                </div>
+                <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif" }}>{rollingLabel}</div>
               </div>
             </div>
           ) : (
-            <div>
+            <div style={{ marginBottom: 20 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 6 }}>
                 <span style={{ fontSize: 13, color: "#374151", fontFamily: "'DM Sans', system-ui, sans-serif" }}>Avg New Business Deal Value</span>
                 <span style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", fontFamily: "'DM Sans', system-ui, sans-serif" }}>{fmtFull(assumptions.avg_deal_value)}</span>
@@ -263,24 +266,29 @@ export default function MethodologyTab({ assumptions, qIndex, hubspotRates, onAs
                   Edit
                 </button>
               </div>
-              {/* Rolling 12M breakdown */}
-              <div style={{ display: "flex", gap: 24, marginTop: 4, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
                 {avgBreakdown.map(({ label, value }) => (
                   <div key={label} style={{ fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                    {label}{" "}
-                    <span style={{ fontWeight: 600, color: "#64748b" }}>
-                      {value != null ? fmtFull(value) : "—"}
-                    </span>
+                    {label}{" "}<span style={{ fontWeight: 600, color: "#64748b" }}>{value != null ? fmtFull(value) : "—"}</span>
                   </div>
                 ))}
-                <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                  {hubspotRates?.as_of
-                    ? `12-month rolling · last updated ${new Date(hubspotRates.as_of).toLocaleDateString()}`
-                    : "Run Recalculate to compute"}
-                </div>
+                <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif" }}>{rollingLabel}</div>
               </div>
             </div>
           )}
+
+          {/* Divider */}
+          <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: 16 }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 4 }}>
+              <span style={{ fontSize: 13, color: "#374151", fontFamily: "'DM Sans', system-ui, sans-serif" }}>Avg Account Contract Value (ACV)</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                {acv != null ? fmtFull(acv) : "—"}
+              </span>
+            </div>
+            <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+              All-time closed won · {accountCount} account{accountCount !== 1 ? "s" : ""} · initial + expansion deals summed per account
+            </div>
+          </div>
         </div>
       </TableCard>
 
