@@ -28,13 +28,6 @@ export const STAGE_LABELS: Record<string, string> = {
   "582003949":          "Bad Fit",
 };
 
-export const STAGE_PROB: Record<string, number> = {
-  "1446534336":         0.9,
-  contractsent:         0.6,
-  qualifiedtobuy:       0.2,
-  appointmentscheduled: 0.1,
-};
-
 export const STAGE_COLORS: Record<string, {
   bg: string; border: string; text: string; accent: string;
 }> = {
@@ -96,11 +89,6 @@ export const daysSince = (s: string | null | undefined, now: Date): number | nul
 
 export const filterByStage = (deals: Deal[], stage: DealStage) =>
   deals.filter(d => d.stage === stage);
-
-export const weightedPipeline = (deals: Deal[]): number =>
-  deals
-    .filter(d => d.amount != null)
-    .reduce((sum, d) => sum + (d.amount! * (STAGE_PROB[d.stage] ?? 0)), 0);
 
 // Earliest stage entry across all active stages for a deal —
 // used to determine if a deal entered the pipeline this quarter
