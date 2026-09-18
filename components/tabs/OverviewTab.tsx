@@ -54,7 +54,7 @@ export default function OverviewTab({
 }: OverviewTabProps) {
   const [minOpens, setMinOpens] = useState(3);
   const [showCommitted, setShowCommitted] = useState(false);
-  const [pourGasCollapsed, setPourGasCollapsed] = useState(false);
+  const [sectionsCollapsed, setSectionsCollapsed] = useState(false);
 
   const derived = deriveTargets(assumptions, qIndex);
   const { channelQTargets, combinedLegalTarget, combinedPropTarget, combinedDemoTarget } = derived;
@@ -297,14 +297,14 @@ export default function OverviewTab({
             <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
               <div
                 style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}
-                onClick={() => setPourGasCollapsed(v => !v)}
-                title={pourGasCollapsed ? "Show Pour Gas on These" : "Collapse Pour Gas on These to see Closed Won"}
+                onClick={() => setSectionsCollapsed(v => !v)}
+                title={sectionsCollapsed ? "Show Pour Gas on These and Needs Action" : "Collapse Pour Gas on These and Needs Action to see Closed Won"}
               >
                 <div style={{ width: 10, height: 10, borderRadius: 2, background: "#16a34a", flexShrink: 0 }} />
                 <span style={{ fontSize: 11, color: "#8b90a0", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
                   <span style={{ fontWeight: 700, color: "#16a34a" }}>{fmtProgress(progressWon)}</span>
                   {" "}Closed Won {progressLabel} · {progressWonDeals.length} deals
-                  <span style={{ marginLeft: 4, color: "#16a34a", fontSize: 10 }}>{pourGasCollapsed ? "▲" : "▼"}</span>
+                  <span style={{ marginLeft: 4, color: "#16a34a", fontSize: 10 }}>{sectionsCollapsed ? "▲" : "▼"}</span>
                 </span>
               </div>
               <div
@@ -368,7 +368,7 @@ export default function OverviewTab({
             </div>
           </div>
         </TableCardHeader>
-        {pourGasCollapsed ? (
+        {sectionsCollapsed ? (
           <div style={{ padding: "10px 18px", color: "#b0b5c3", fontSize: 12, fontStyle: "italic" }}>Collapsed — click Closed Won above to expand.</div>
         ) : solRows.length === 0 ? (
           <div style={{ padding: "16px 18px", color: "#b0b5c3", fontSize: 13 }}>No signals this week.</div>
@@ -390,7 +390,9 @@ export default function OverviewTab({
       {/* Needs Action */}
       <TableCard>
         <TableCardHeader><span>⚠️ Needs Action</span></TableCardHeader>
-        {naAlerts.length === 0 ? (
+        {sectionsCollapsed ? (
+          <div style={{ padding: "10px 18px", color: "#b0b5c3", fontSize: 12, fontStyle: "italic" }}>Collapsed — click Closed Won above to expand.</div>
+        ) : naAlerts.length === 0 ? (
           <div style={{ padding: "16px 18px", color: "#b0b5c3", fontSize: 13 }}>All clear.</div>
         ) : (
           <DealTable
