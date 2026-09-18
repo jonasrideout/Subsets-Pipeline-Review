@@ -54,6 +54,7 @@ export default function OverviewTab({
 }: OverviewTabProps) {
   const [minOpens, setMinOpens] = useState(3);
   const [showCommitted, setShowCommitted] = useState(false);
+  const [pourGasCollapsed, setPourGasCollapsed] = useState(false);
 
   const derived = deriveTargets(assumptions, qIndex);
   const { channelQTargets, combinedLegalTarget, combinedPropTarget, combinedDemoTarget } = derived;
@@ -76,8 +77,19 @@ export default function OverviewTab({
   const closedWonYTDTotal = closedWonYTD.reduce((s, d) => s + d.amount, 0);
   const QUARTERLY_TARGET  = QUARTERLY_TARGETS[qIndex] ?? QUARTERLY_TARGETS[0];
 
-  // Committed: sum of deal amounts for committed active deals (unweighted)
-  const committedDeals  = active.filter(d => committedIds[String(d.id)]);
+  // Committed: sum of deal amounts for committed active deals (unweighted),
+  // restricted to deals whose expected close date falls in the period being viewed
+  const periodStart = ytdMode ? yearStart : qStart;
+  const periodEnd    = ytdMode
+    ? new Date(yearStart.getFullYear() + 1, 0, 1)
+    : new Date(qStart.getFullYear(), qStart.getMonth() + 3, 1);
+
+  const committedDeals  = active.filter(d => {
+    if (!committedIds[String(d.id)]) return false;
+    if (!d.closedate) return false;
+    const cd = new Date(d.closedate);
+    return cd >= periodStart && cd < periodEnd;
+  });
   const committedTotal  = committedDeals.reduce((s, d) => s + (d.amount || 0), 0);
 
   const elapsedPct = ytdMode ? yElapsedPct : qElapsedPct;
@@ -283,11 +295,16 @@ export default function OverviewTab({
 
             {/* Legend */}
             <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div
+                style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}
+                onClick={() => setPourGasCollapsed(v => !v)}
+                title={pourGasCollapsed ? "Show Pour Gas on These" : "Collapse Pour Gas on These to see Closed Won"}
+              >
                 <div style={{ width: 10, height: 10, borderRadius: 2, background: "#16a34a", flexShrink: 0 }} />
                 <span style={{ fontSize: 11, color: "#8b90a0", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
                   <span style={{ fontWeight: 700, color: "#16a34a" }}>{fmtProgress(progressWon)}</span>
                   {" "}Closed Won {progressLabel} · {progressWonDeals.length} deals
+                  <span style={{ marginLeft: 4, color: "#16a34a", fontSize: 10 }}>{pourGasCollapsed ? "▲" : "▼"}</span>
                 </span>
               </div>
               <div
@@ -351,7 +368,9 @@ export default function OverviewTab({
             </div>
           </div>
         </TableCardHeader>
-        {solRows.length === 0 ? (
+        {pourGasCollapsed ? (
+          <div style={{ padding: "10px 18px", color: "#b0b5c3", fontSize: 12, fontStyle: "italic" }}>Collapsed — click Closed Won above to expand.</div>
+        ) : solRows.length === 0 ? (
           <div style={{ padding: "16px 18px", color: "#b0b5c3", fontSize: 13 }}>No signals this week.</div>
         ) : (
           <DealTable
