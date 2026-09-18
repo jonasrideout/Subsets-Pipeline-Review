@@ -4,7 +4,7 @@
 
 import { useMemo, useState } from "react";
 import type { Deal, ClosedWonDeal, EmailSignalMap, ClosePlanMap, Assumptions, HubSpotRates } from "@/types/deals";
-import { ownerName, fmtCur, weightedPipeline, UNRESOLVED_OWNER_IDS } from "@/lib/deals";
+import { ownerName, fmtCur, UNRESOLVED_OWNER_IDS } from "@/lib/deals";
 import { deriveTargets, QUARTERLY_TARGETS, NB_REVENUE_SHARE, ANNUAL_REVENUE_TARGET } from "@/lib/assumptions";
 import { getSignsOfLife, getNeedsActionAlerts } from "@/lib/flags";
 import { TH, TD, TableCard, TableCardHeader } from "@/components/Table";
@@ -72,7 +72,6 @@ export default function OverviewTab({
 
   const legalAmt          = legal.reduce((s, d) => s + (d.amount || 0), 0);
   const propAmt           = proposal.reduce((s, d) => s + (d.amount || 0), 0);
-  const wp                = weightedPipeline(active);
   const closedWonTotal    = closedWon.reduce((s, d) => s + d.amount, 0);
   const closedWonYTDTotal = closedWonYTD.reduce((s, d) => s + d.amount, 0);
   const QUARTERLY_TARGET  = QUARTERLY_TARGETS[qIndex] ?? QUARTERLY_TARGETS[0];
@@ -212,8 +211,6 @@ export default function OverviewTab({
       {(() => {
         const closedPct     = Math.min(100, progressWon / progressTarget * 100);
         const committedPct  = Math.min(100 - closedPct, committedTotal / progressTarget * 100);
-        const combinedPct   = Math.min(100, (progressWon + wp) / progressTarget * 100);
-        const wpPct         = Math.min(100 - closedPct, wp / progressTarget * 100);
         const dayPct        = Math.min(100, elapsedPct * 100);
 
         return (
@@ -243,7 +240,7 @@ export default function OverviewTab({
 
               {/* Row 2: Committed */}
               <div
-                style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, cursor: committedDeals.length > 0 ? "pointer" : "default" }}
+                style={{ display: "flex", alignItems: "center", gap: 10, cursor: committedDeals.length > 0 ? "pointer" : "default" }}
                 onClick={() => committedDeals.length > 0 && setShowCommitted(v => !v)}
                 title={committedDeals.length > 0 ? (showCommitted ? "Hide committed deals" : "Show committed deals") : undefined}
               >
@@ -256,30 +253,6 @@ export default function OverviewTab({
                   minWidth: 52, textAlign: "center",
                 }}>
                   {Math.round((progressWon + committedTotal) / progressTarget * 100)}%
-                </div>
-              </div>
-
-              {/* Row 3: Weighted Pipeline */}
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ flex: 1, position: "relative", height: 20, background: "#f1f5f9", borderRadius: 999, overflow: "hidden" }}>
-                  {wpPct > 0 && (
-                    <div style={{
-                      position: "absolute",
-                      left: `${closedPct}%`,
-                      top: "15%",
-                      height: "70%",
-                      width: `${wpPct}%`,
-                      background: "#bfdbfe",
-                      borderRadius: 999,
-                    }} />
-                  )}
-                </div>
-                <div style={{
-                  flexShrink: 0, fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 999,
-                  background: "#eff6ff", color: "#2563eb", fontFamily: "'DM Sans', system-ui, sans-serif",
-                  minWidth: 52, textAlign: "center",
-                }}>
-                  {Math.round(combinedPct)}%
                 </div>
               </div>
 
@@ -328,13 +301,6 @@ export default function OverviewTab({
                   {committedDeals.length > 0 && (
                     <span style={{ marginLeft: 4, color: "#b45309", fontSize: 10 }}>{showCommitted ? "▲" : "▼"}</span>
                   )}
-                </span>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <div style={{ width: 10, height: 10, borderRadius: 2, background: "#bfdbfe", flexShrink: 0 }} />
-                <span style={{ fontSize: 11, color: "#8b90a0", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                  <span style={{ fontWeight: 700, color: "#2563eb" }}>{fmtProgress(wp)}</span>
-                  {" "}Weighted Pipeline
                 </span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
